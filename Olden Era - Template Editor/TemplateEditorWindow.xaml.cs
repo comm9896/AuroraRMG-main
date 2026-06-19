@@ -409,6 +409,8 @@ namespace Olden_Era___Template_Editor
             var combo = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 0, 4) };
             foreach (var o in options) combo.Items.Add(o);
             combo.Text = value ?? "";
+            if (value is not null && combo.Items.Contains(value))
+                combo.SelectedItem = value;
             combo.LostFocus += (_, _) => onCommit(combo.Text.Trim());
             combo.SelectionChanged += (_, _) => { if (combo.SelectedItem is string s) onCommit(s); };
             InspectorFields.Children.Add(combo);
@@ -794,6 +796,7 @@ namespace Olden_Era___Template_Editor
 
         private void BtnLoad_Click(object sender, RoutedEventArgs e)
         {
+            Keyboard.ClearFocus();
             var dlg = new OpenFileDialog
             {
                 Title = L("S.EC.LoadTitle"),
@@ -825,6 +828,7 @@ namespace Olden_Era___Template_Editor
 
         private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
+            Keyboard.ClearFocus();
             var issues = Validate();
             if (issues.Count > 0)
             {
