@@ -458,13 +458,26 @@ namespace Olden_Era___Template_Editor
         private void AddComboField(string label, string[] options, string? value, Action<string> onCommit)
         {
             AddSectionLabel(label);
-            var combo = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 0, 4) };
+            var combo = new ComboBox
+            {
+                IsEditable = true,
+                Margin = new Thickness(0, 0, 0, 4),
+                MaxDropDownHeight = 300,
+            };
             foreach (var o in options) combo.Items.Add(o);
-            combo.Text = value ?? "";
             if (value is not null && combo.Items.Contains(value))
                 combo.SelectedItem = value;
+            else
+                combo.Text = value ?? "";
             combo.LostFocus += (_, _) => onCommit(combo.Text.Trim());
-            combo.SelectionChanged += (_, _) => { if (combo.SelectedItem is string s) onCommit(s); };
+            combo.SelectionChanged += (_, _) =>
+            {
+                if (combo.SelectedItem is string s)
+                {
+                    combo.Text = s;
+                    onCommit(s);
+                }
+            };
             InspectorFields.Children.Add(combo);
         }
 
@@ -490,7 +503,7 @@ namespace Olden_Era___Template_Editor
         {
             AddSectionLabel(label);
             var text = value is { Count: > 0 } ? string.Join(", ", value) : "";
-            var box = new TextBox { Text = text, Margin = new Thickness(0, 0, 0, 4), MinHeight = 40, TextWrapping = TextWrapping.Vertical, AcceptsReturn = true };
+            var box = new TextBox { Text = text, Margin = new Thickness(0, 0, 0, 4), MinHeight = 40, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true };
             box.LostFocus += (_, _) => onCommit(ParseStringList(box.Text));
             box.KeyDown += (_, e) => { if (e.Key == Key.Enter && !e.Handled) { onCommit(ParseStringList(box.Text)); } };
             InspectorFields.Children.Add(box);
@@ -508,7 +521,7 @@ namespace Olden_Era___Template_Editor
         {
             AddSectionLabel(label);
             var text = value is { Count: > 0 } ? string.Join(", ", value) : "";
-            var box = new TextBox { Text = text, Margin = new Thickness(0, 0, 0, 4), MinHeight = 40, TextWrapping = TextWrapping.Vertical, AcceptsReturn = true };
+            var box = new TextBox { Text = text, Margin = new Thickness(0, 0, 0, 4), MinHeight = 40, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true };
             box.LostFocus += (_, _) => onCommit(ParseIntList(box.Text));
             box.KeyDown += (_, e) => { if (e.Key == Key.Enter && !e.Handled) { onCommit(ParseIntList(box.Text)); } };
             InspectorFields.Children.Add(box);
@@ -545,7 +558,7 @@ namespace Olden_Era___Template_Editor
 
             AddSectionLabel(L("S.EC.BiomeArgs"));
             var argsText = ensured.Args is { Count: > 0 } ? string.Join(", ", ensured.Args) : "";
-            var argsBox = new TextBox { Text = argsText, Margin = new Thickness(0, 0, 0, 4), MinHeight = 30, TextWrapping = TextWrapping.Vertical, AcceptsReturn = true };
+            var argsBox = new TextBox { Text = argsText, Margin = new Thickness(0, 0, 0, 4), MinHeight = 30, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true };
             argsBox.LostFocus += (_, _) =>
             {
                 ensured.Args = ParseStringList(argsBox.Text);
@@ -565,7 +578,7 @@ namespace Olden_Era___Template_Editor
                     : "",
                 Margin = new Thickness(0, 0, 0, 4),
                 MinHeight = 40,
-                TextWrapping = TextWrapping.Vertical,
+                TextWrapping = TextWrapping.Wrap,
                 AcceptsReturn = true
             };
             box.LostFocus += (_, _) => onCommit(ParseRoadList(box.Text));
