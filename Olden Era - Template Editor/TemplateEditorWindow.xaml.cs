@@ -203,51 +203,14 @@ namespace Olden_Era___Template_Editor
             var (fill, border) = ClassifyZone(z);
             double r = NodeRadius(z);
 
-            var avgVal = ((z.GuardedContentValue ?? 0) + (z.GuardedContentValuePerArea ?? 0)
-                        + (z.UnguardedContentValue ?? 0) + (z.UnguardedContentValuePerArea ?? 0)
-                        + (z.ResourcesValue ?? 0) + (z.ResourcesValuePerArea ?? 0)) / 6.0;
+            var gVal  = z.GuardedContentValue ?? 0;
+            var gValA = z.GuardedContentValuePerArea ?? 0;
+            var uVal  = z.UnguardedContentValue ?? 0;
+            var uValA = z.UnguardedContentValuePerArea ?? 0;
+            var rVal  = z.ResourcesValue ?? 0;
+            var rValA = z.ResourcesValuePerArea ?? 0;
+            var avgVal = (gVal + gValA + uVal + uValA + rVal + rValA) / 6.0;
             int castles = z.MainObjects?.Count(o => o.Type == "City" || o.Type == "AbandonedOutpost") ?? 0;
-
-            var innerPanel = new StackPanel();
-
-            innerPanel.Children.Add(new TextBlock
-            {
-                Text = z.Name,
-                Foreground = Brushes.White,
-                FontSize = 10,
-                TextAlignment = TextAlignment.Center,
-                IsHitTestVisible = false,
-            });
-
-            if (avgVal > 0)
-            {
-                innerPanel.Children.Add(new TextBlock
-                {
-                    Text = $"⌀{avgVal:0}",
-                    Foreground = new SolidColorBrush(Color.FromRgb(255, 230, 80)),
-                    FontSize = 9,
-                    TextAlignment = TextAlignment.Center,
-                    IsHitTestVisible = false,
-                });
-            }
-
-            if (castles > 0)
-            {
-                innerPanel.Children.Add(new TextBlock
-                {
-                    Text = $"🏰{castles}",
-                    Foreground = Brushes.White,
-                    FontSize = 9,
-                    TextAlignment = TextAlignment.Center,
-                    IsHitTestVisible = false,
-                });
-            }
-
-            innerPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            Canvas.SetLeft(innerPanel, p.X - innerPanel.DesiredSize.Width / 2);
-            Canvas.SetTop(innerPanel, p.Y - innerPanel.DesiredSize.Height / 2);
-            GraphCanvas.Children.Add(innerPanel);
-            _nodeLabels[z.Name] = innerPanel;
 
             var ellipse = new Ellipse
             {
@@ -263,6 +226,59 @@ namespace Olden_Era___Template_Editor
             Canvas.SetTop(ellipse, p.Y - r);
             GraphCanvas.Children.Add(ellipse);
             _nodeShapes[z.Name] = ellipse;
+
+            var innerPanel = new StackPanel { IsHitTestVisible = false };
+
+            innerPanel.Children.Add(new TextBlock
+            {
+                Text = z.Name,
+                Foreground = Brushes.White,
+                FontSize = 10,
+                TextAlignment = TextAlignment.Center,
+            });
+
+            var yellow = new SolidColorBrush(Color.FromRgb(255, 230, 80));
+
+            if (avgVal > 0)
+            {
+                innerPanel.Children.Add(new TextBlock
+                {
+                    Text = $"⌀{avgVal:0}",
+                    Foreground = yellow,
+                    FontSize = 9,
+                    TextAlignment = TextAlignment.Center,
+                });
+            }
+
+            if (gVal > 0)
+                innerPanel.Children.Add(new TextBlock { Text = $"G:{gVal}", Foreground = yellow, FontSize = 8, TextAlignment = TextAlignment.Center });
+            if (gValA > 0)
+                innerPanel.Children.Add(new TextBlock { Text = $"G/a:{gValA}", Foreground = yellow, FontSize = 8, TextAlignment = TextAlignment.Center });
+            if (uVal > 0)
+                innerPanel.Children.Add(new TextBlock { Text = $"U:{uVal}", Foreground = yellow, FontSize = 8, TextAlignment = TextAlignment.Center });
+            if (uValA > 0)
+                innerPanel.Children.Add(new TextBlock { Text = $"U/a:{uValA}", Foreground = yellow, FontSize = 8, TextAlignment = TextAlignment.Center });
+            if (rVal > 0)
+                innerPanel.Children.Add(new TextBlock { Text = $"R:{rVal}", Foreground = yellow, FontSize = 8, TextAlignment = TextAlignment.Center });
+            if (rValA > 0)
+                innerPanel.Children.Add(new TextBlock { Text = $"R/a:{rValA}", Foreground = yellow, FontSize = 8, TextAlignment = TextAlignment.Center });
+
+            if (castles > 0)
+            {
+                innerPanel.Children.Add(new TextBlock
+                {
+                    Text = $"🏰{castles}",
+                    Foreground = Brushes.White,
+                    FontSize = 9,
+                    TextAlignment = TextAlignment.Center,
+                });
+            }
+
+            innerPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            Canvas.SetLeft(innerPanel, p.X - innerPanel.DesiredSize.Width / 2);
+            Canvas.SetTop(innerPanel, p.Y - innerPanel.DesiredSize.Height / 2);
+            GraphCanvas.Children.Add(innerPanel);
+            _nodeLabels[z.Name] = innerPanel;
         }
 
         /// <summary>Centres a node label inside the node circle.</summary>
@@ -359,63 +375,90 @@ namespace Olden_Era___Template_Editor
             {
                 TxtInspectorHint.Text = L("S.EC.Zone");
                 var mainPanel = InspectorFieldsMain;
-                AddTextField(L("S.EC.Name"), z.Name, v => { RenameZone(z, v); }, mainPanel);
+                var mainSection = AddExpanderSection(L("S.EC.Name"), mainPanel);
+                AddTextField(L("S.EC.Name"), z.Name, v => { RenameZone(z, v); }, mainSection);
                 AddTextField(L("S.EC.Size"), (z.Size ?? 1.0).ToString(CultureInfo.InvariantCulture),
-                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.Size = d; MarkDirty(); RefreshNode(z); } }, mainPanel);
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.Size = d; MarkDirty(); RefreshNode(z); } }, mainSection);
                 AddComboField(L("S.EC.Layout"), KnownValues.ZoneLayouts, z.Layout,
-                    v => { z.Layout = v; MarkDirty(); RefreshNode(z); }, mainPanel);
+                    v => { z.Layout = v; MarkDirty(); RefreshNode(z); }, mainSection);
 
                 var guardPanel = InspectorFieldsGuard;
+                var g1 = AddExpanderSection(L("S.EC.Diplomacy"), guardPanel);
                 AddTextField(L("S.EC.Diplomacy"), (z.DiplomacyModifier ?? 0).ToString(CultureInfo.InvariantCulture),
-                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.DiplomacyModifier = d; MarkDirty(); } }, guardPanel);
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.DiplomacyModifier = d; MarkDirty(); } }, g1);
+                var g2 = AddExpanderSection(L("S.EC.GuardMult"), guardPanel);
                 AddTextField(L("S.EC.GuardMult"), (z.GuardMultiplier ?? 1.0).ToString(CultureInfo.InvariantCulture),
-                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.GuardMultiplier = d; MarkDirty(); } }, guardPanel);
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.GuardMultiplier = d; MarkDirty(); } }, g2);
+                var g3 = AddExpanderSection(L("S.EC.GuardCutoff"), guardPanel);
                 AddTextField(L("S.EC.GuardCutoff"), (z.GuardCutoffValue ?? 0).ToString(),
-                    v => { if (int.TryParse(v, out var i)) { z.GuardCutoffValue = i; MarkDirty(); } }, guardPanel);
+                    v => { if (int.TryParse(v, out var i)) { z.GuardCutoffValue = i; MarkDirty(); } }, g3);
+                var g4 = AddExpanderSection(L("S.EC.GuardRandom"), guardPanel);
                 AddTextField(L("S.EC.GuardRandom"), (z.GuardRandomization ?? 0).ToString(CultureInfo.InvariantCulture),
-                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.GuardRandomization = d; MarkDirty(); } }, guardPanel);
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.GuardRandomization = d; MarkDirty(); } }, g4);
+                var g5 = AddExpanderSection(L("S.EC.GuardWeeklyInc"), guardPanel);
                 AddTextField(L("S.EC.GuardWeeklyInc"), (z.GuardWeeklyIncrement ?? 0).ToString(CultureInfo.InvariantCulture),
-                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.GuardWeeklyIncrement = d; MarkDirty(); } }, guardPanel);
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.GuardWeeklyIncrement = d; MarkDirty(); } }, g5);
+                var g6 = AddExpanderSection(L("S.EC.GuardReactDist"), guardPanel);
                 AddIntListField(L("S.EC.GuardReactDist"), z.GuardReactionDistribution,
-                    v => { z.GuardReactionDistribution = v; MarkDirty(); }, guardPanel);
+                    v => { z.GuardReactionDistribution = v; MarkDirty(); }, g6);
+                var g7 = AddExpanderSection(L("S.EC.EncounterHoles"), guardPanel);
                 AddTextField(L("S.EC.AffectedEnc"), (z.EncounterHolesSettings?.AffectedEncounters ?? 0).ToString(CultureInfo.InvariantCulture),
-                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.EncounterHolesSettings ??= new(); z.EncounterHolesSettings.AffectedEncounters = d; MarkDirty(); } }, guardPanel);
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.EncounterHolesSettings ??= new(); z.EncounterHolesSettings.AffectedEncounters = d; MarkDirty(); } }, g7);
                 AddTextField(L("S.EC.TwoHoleEnc"), (z.EncounterHolesSettings?.TwoHoleEncounters ?? 0).ToString(CultureInfo.InvariantCulture),
-                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.EncounterHolesSettings ??= new(); z.EncounterHolesSettings.TwoHoleEncounters = d; MarkDirty(); } }, guardPanel);
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.EncounterHolesSettings ??= new(); z.EncounterHolesSettings.TwoHoleEncounters = d; MarkDirty(); } }, g7);
 
                 var poolsPanel = InspectorFieldsPools;
-                AddStringListPicker(L("S.EC.GuardedPool"), KnownValues.GuardedContentPoolSids, z.GuardedContentPool, v => { z.GuardedContentPool = v; MarkDirty(); }, poolsPanel);
-                AddStringListPicker(L("S.EC.UnguardedPool"), KnownValues.UnguardedContentPoolSids, z.UnguardedContentPool, v => { z.UnguardedContentPool = v; MarkDirty(); }, poolsPanel);
-                AddStringListPicker(L("S.EC.ResourcesPool"), KnownValues.ResourcesContentPoolSids, z.ResourcesContentPool, v => { z.ResourcesContentPool = v; MarkDirty(); }, poolsPanel);
-                AddStringListPicker(L("S.EC.MandatoryContent"), KnownValues.MandatoryContentNames, z.MandatoryContent, v => { z.MandatoryContent = v; MarkDirty(); }, poolsPanel);
-                AddStringListPicker(L("S.EC.ContentCountLimits"), KnownValues.ContentCountLimitNames, z.ContentCountLimits, v => { z.ContentCountLimits = v; MarkDirty(); }, poolsPanel);
+                var p1 = AddExpanderSection(L("S.EC.GuardedPool"), poolsPanel);
+                AddStringListPicker(L("S.EC.GuardedPool"), KnownValues.GuardedContentPoolSids, z.GuardedContentPool, v => { z.GuardedContentPool = v; MarkDirty(); }, p1);
+                var p2 = AddExpanderSection(L("S.EC.UnguardedPool"), poolsPanel);
+                AddStringListPicker(L("S.EC.UnguardedPool"), KnownValues.UnguardedContentPoolSids, z.UnguardedContentPool, v => { z.UnguardedContentPool = v; MarkDirty(); }, p2);
+                var p3 = AddExpanderSection(L("S.EC.ResourcesPool"), poolsPanel);
+                AddStringListPicker(L("S.EC.ResourcesPool"), KnownValues.ResourcesContentPoolSids, z.ResourcesContentPool, v => { z.ResourcesContentPool = v; MarkDirty(); }, p3);
+                var p4 = AddExpanderSection(L("S.EC.MandatoryContent"), poolsPanel);
+                AddStringListPicker(L("S.EC.MandatoryContent"), KnownValues.MandatoryContentNames, z.MandatoryContent, v => { z.MandatoryContent = v; MarkDirty(); }, p4);
+                var p5 = AddExpanderSection(L("S.EC.ContentCountLimits"), poolsPanel);
+                AddStringListPicker(L("S.EC.ContentCountLimits"), KnownValues.ContentCountLimitNames, z.ContentCountLimits, v => { z.ContentCountLimits = v; MarkDirty(); }, p5);
 
                 var contentPanel = InspectorFieldsContent;
+                var c1 = AddExpanderSection(L("S.EC.GuardedVal"), contentPanel);
                 AddTextField(L("S.EC.GuardedVal"), (z.GuardedContentValue ?? 0).ToString(),
-                    v => { if (int.TryParse(v, out var i)) { z.GuardedContentValue = i; MarkDirty(); RefreshNode(z); } }, contentPanel);
+                    v => { if (int.TryParse(v, out var i)) { z.GuardedContentValue = i; MarkDirty(); RefreshNode(z); } }, c1);
+                var c2 = AddExpanderSection(L("S.EC.GuardedValPerArea"), contentPanel);
                 AddTextField(L("S.EC.GuardedValPerArea"), (z.GuardedContentValuePerArea ?? 0).ToString(),
-                    v => { if (int.TryParse(v, out var i)) { z.GuardedContentValuePerArea = i; MarkDirty(); RefreshNode(z); } }, contentPanel);
+                    v => { if (int.TryParse(v, out var i)) { z.GuardedContentValuePerArea = i; MarkDirty(); RefreshNode(z); } }, c2);
+                var c3 = AddExpanderSection(L("S.EC.UnguardedVal"), contentPanel);
                 AddTextField(L("S.EC.UnguardedVal"), (z.UnguardedContentValue ?? 0).ToString(),
-                    v => { if (int.TryParse(v, out var i)) { z.UnguardedContentValue = i; MarkDirty(); RefreshNode(z); } }, contentPanel);
+                    v => { if (int.TryParse(v, out var i)) { z.UnguardedContentValue = i; MarkDirty(); RefreshNode(z); } }, c3);
+                var c4 = AddExpanderSection(L("S.EC.UnguardedValPerArea"), contentPanel);
                 AddTextField(L("S.EC.UnguardedValPerArea"), (z.UnguardedContentValuePerArea ?? 0).ToString(),
-                    v => { if (int.TryParse(v, out var i)) { z.UnguardedContentValuePerArea = i; MarkDirty(); RefreshNode(z); } }, contentPanel);
+                    v => { if (int.TryParse(v, out var i)) { z.UnguardedContentValuePerArea = i; MarkDirty(); RefreshNode(z); } }, c4);
+                var c5 = AddExpanderSection(L("S.EC.ResourcesVal"), contentPanel);
                 AddTextField(L("S.EC.ResourcesVal"), (z.ResourcesValue ?? 0).ToString(),
-                    v => { if (int.TryParse(v, out var i)) { z.ResourcesValue = i; MarkDirty(); RefreshNode(z); } }, contentPanel);
+                    v => { if (int.TryParse(v, out var i)) { z.ResourcesValue = i; MarkDirty(); RefreshNode(z); } }, c5);
+                var c6 = AddExpanderSection(L("S.EC.ResourcesValPerArea"), contentPanel);
                 AddTextField(L("S.EC.ResourcesValPerArea"), (z.ResourcesValuePerArea ?? 0).ToString(),
-                    v => { if (int.TryParse(v, out var i)) { z.ResourcesValuePerArea = i; MarkDirty(); RefreshNode(z); } }, contentPanel);
+                    v => { if (int.TryParse(v, out var i)) { z.ResourcesValuePerArea = i; MarkDirty(); RefreshNode(z); } }, c6);
 
                 var biomePanel = InspectorFieldsBiome;
+                var b1 = AddExpanderSection(L("S.EC.CrossroadsPos"), biomePanel);
                 AddTextField(L("S.EC.CrossroadsPos"), (z.CrossroadsPosition ?? 0).ToString(),
-                    v => { if (int.TryParse(v, out var i)) { z.CrossroadsPosition = i; MarkDirty(); } }, biomePanel);
-                AddBiomeSelector(L("S.EC.ZoneBiome"), z.ZoneBiome, v => { z.ZoneBiome = v; MarkDirty(); }, biomePanel);
-                AddBiomeSelector(L("S.EC.ContentBiome"), z.ContentBiome, v => { z.ContentBiome = v; MarkDirty(); }, biomePanel);
-                AddBiomeSelector(L("S.EC.MetaBiome"), z.MetaObjectsBiome, v => { z.MetaObjectsBiome = v; MarkDirty(); }, biomePanel);
-                AddRoadList(L("S.EC.Roads"), z.Roads, v => { z.Roads = v; MarkDirty(); }, biomePanel);
+                    v => { if (int.TryParse(v, out var i)) { z.CrossroadsPosition = i; MarkDirty(); } }, b1);
+                var b2 = AddExpanderSection(L("S.EC.ZoneBiome"), biomePanel);
+                AddBiomeSelector(L("S.EC.ZoneBiome"), z.ZoneBiome, v => { z.ZoneBiome = v; MarkDirty(); }, b2);
+                var b3 = AddExpanderSection(L("S.EC.ContentBiome"), biomePanel);
+                AddBiomeSelector(L("S.EC.ContentBiome"), z.ContentBiome, v => { z.ContentBiome = v; MarkDirty(); }, b3);
+                var b4 = AddExpanderSection(L("S.EC.MetaBiome"), biomePanel);
+                AddBiomeSelector(L("S.EC.MetaBiome"), z.MetaObjectsBiome, v => { z.MetaObjectsBiome = v; MarkDirty(); }, b4);
+                var b5 = AddExpanderSection(L("S.EC.Roads"), biomePanel);
+                AddRoadList(L("S.EC.Roads"), z.Roads, v => { z.Roads = v; MarkDirty(); }, b5);
 
                 var primaryObj = z.MainObjects?.FirstOrDefault(o => o.Type is "City" or "AbandonedOutpost");
                 if (primaryObj != null)
+                {
+                    var b6 = AddExpanderSection(L("S.EC.MainObj"), biomePanel);
                     AddComboField(L("S.EC.MainObj"), MainObjectKinds, primaryObj.Type,
-                        v => { SetMainObjectKind(primaryObj, v); MarkDirty(); }, biomePanel);
+                        v => { SetMainObjectKind(primaryObj, v); MarkDirty(); }, b6);
+                }
 
                 int conns = Connections.Count(c => c.From == z.Name || c.To == z.Name);
                 AddReadOnly(L("S.EC.ConnCount"), conns.ToString(), biomePanel);
