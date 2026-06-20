@@ -52,7 +52,7 @@ namespace Olden_Era___Template_Editor
         private bool _dirty;
 
         private readonly Dictionary<string, Point>   _positions  = new(StringComparer.Ordinal);
-        private readonly Dictionary<string, Ellipse> _nodeShapes = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, System.Windows.Shapes.Shape> _nodeShapes = new(StringComparer.Ordinal);
         private readonly Dictionary<string, FrameworkElement> _nodeLabels = new(StringComparer.Ordinal);
         private readonly List<(Line Line, Connection Conn)> _edges = [];
         private double _radius = 24;
@@ -203,16 +203,12 @@ namespace Olden_Era___Template_Editor
             var (fill, border) = ClassifyZone(z);
             double r = NodeRadius(z);
 
-            var gVal  = z.GuardedContentValue ?? 0;
-            var gValA = z.GuardedContentValuePerArea ?? 0;
-            var uVal  = z.UnguardedContentValue ?? 0;
-            var uValA = z.UnguardedContentValuePerArea ?? 0;
-            var rVal  = z.ResourcesValue ?? 0;
-            var rValA = z.ResourcesValuePerArea ?? 0;
-            var avgVal = (gVal + gValA + uVal + uValA + rVal + rValA) / 6.0;
+            var avgVal = ((z.GuardedContentValue ?? 0) + (z.GuardedContentValuePerArea ?? 0)
+                        + (z.UnguardedContentValue ?? 0) + (z.UnguardedContentValuePerArea ?? 0)
+                        + (z.ResourcesValue ?? 0) + (z.ResourcesValuePerArea ?? 0)) / 6.0;
             int castles = z.MainObjects?.Count(o => o.Type == "City" || o.Type == "AbandonedOutpost") ?? 0;
 
-            var ellipse = new Ellipse
+            var rect = new System.Windows.Shapes.Rectangle
             {
                 Width = r * 2, Height = r * 2,
                 Fill = new SolidColorBrush(fill),
@@ -222,10 +218,10 @@ namespace Olden_Era___Template_Editor
                 Cursor = Cursors.SizeAll,
                 ToolTip = ZoneTooltip(z),
             };
-            Canvas.SetLeft(ellipse, p.X - r);
-            Canvas.SetTop(ellipse, p.Y - r);
-            GraphCanvas.Children.Add(ellipse);
-            _nodeShapes[z.Name] = ellipse;
+            Canvas.SetLeft(rect, p.X - r);
+            Canvas.SetTop(rect, p.Y - r);
+            GraphCanvas.Children.Add(rect);
+            _nodeShapes[z.Name] = rect;
 
             var innerPanel = new StackPanel { IsHitTestVisible = false };
 
@@ -250,33 +246,21 @@ namespace Olden_Era___Template_Editor
                 });
             }
 
-            if (gVal > 0)
-                innerPanel.Children.Add(new TextBlock { Text = $"G:{gVal}", Foreground = yellow, FontSize = 8, TextAlignment = TextAlignment.Center });
-            if (gValA > 0)
-                innerPanel.Children.Add(new TextBlock { Text = $"G/a:{gValA}", Foreground = yellow, FontSize = 8, TextAlignment = TextAlignment.Center });
-            if (uVal > 0)
-                innerPanel.Children.Add(new TextBlock { Text = $"U:{uVal}", Foreground = yellow, FontSize = 8, TextAlignment = TextAlignment.Center });
-            if (uValA > 0)
-                innerPanel.Children.Add(new TextBlock { Text = $"U/a:{uValA}", Foreground = yellow, FontSize = 8, TextAlignment = TextAlignment.Center });
-            if (rVal > 0)
-                innerPanel.Children.Add(new TextBlock { Text = $"R:{rVal}", Foreground = yellow, FontSize = 8, TextAlignment = TextAlignment.Center });
-            if (rValA > 0)
-                innerPanel.Children.Add(new TextBlock { Text = $"R/a:{rValA}", Foreground = yellow, FontSize = 8, TextAlignment = TextAlignment.Center });
-
-            if (castles > 0)
+            innerPanel.Children.Add(new TextBlock
             {
-                innerPanel.Children.Add(new TextBlock
-                {
-                    Text = $"🏰{castles}",
-                    Foreground = Brushes.White,
-                    FontSize = 9,
-                    TextAlignment = TextAlignment.Center,
-                });
-            }
+                Text = $"🏰{castles}",
+                Foreground = Brushes.White,
+                FontSize = 9,
+                TextAlignment = TextAlignment.Center,
+            });
 
-            innerPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            Canvas.SetLeft(innerPanel, p.X - innerPanel.DesiredSize.Width / 2);
-            Canvas.SetTop(innerPanel, p.Y - innerPanel.DesiredSize.Height / 2);
+            innerPanel.Measure(new Size(r * 2, r * 2));
+            var iw = innerPanel.DesiredSize.Width;
+            var ih = innerPanel.DesiredSize.Height;
+            if (iw > r * 2) iw = r * 2;
+            if (ih > r * 2) ih = r * 2;
+            Canvas.SetLeft(innerPanel, p.X - iw / 2);
+            Canvas.SetTop(innerPanel, p.Y - ih / 2);
             GraphCanvas.Children.Add(innerPanel);
             _nodeLabels[z.Name] = innerPanel;
         }

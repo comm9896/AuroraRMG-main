@@ -123,8 +123,7 @@
                                Margin="12,8,12,0"/>
                      <TabControl x:Name="InspectorTabs" DockPanel.Dock="Top"
                                  Background="Transparent" BorderThickness="0"
-                                 Padding="0" Margin="0"
-                                 TabStripPlacement="Top">
+                                 Padding="0" Margin="0">
                          <TabControl.Template>
                              <ControlTemplate TargetType="TabControl">
                                  <Grid>
@@ -132,12 +131,14 @@
                                          <RowDefinition Height="Auto"/>
                                          <RowDefinition Height="*"/>
                                      </Grid.RowDefinitions>
-                                     <TabPanel x:Name="HeaderPanel"
-                                               Grid.Row="0"
-                                               Panel.ZIndex="1"
-                                               Margin="0"
-                                               IsItemsHost="True"
-                                               Background="Transparent"/>
+                                     <UniformGrid x:Name="HeaderPanel"
+                                                  Grid.Row="0"
+                                                  Rows="1"
+                                                  Columns="5"
+                                                  Panel.ZIndex="1"
+                                                  Margin="0"
+                                                  IsItemsHost="True"
+                                                  Background="Transparent"/>
                                      <Border Grid.Row="1"
                                              Background="Transparent"
                                              BorderThickness="0">
