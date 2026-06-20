@@ -345,11 +345,11 @@ namespace Olden_Era___Template_Editor
                 AddTextField(L("S.EC.TwoHoleEnc"), (z.EncounterHolesSettings?.TwoHoleEncounters ?? 0).ToString(CultureInfo.InvariantCulture),
                     v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.EncounterHolesSettings ??= new(); z.EncounterHolesSettings.TwoHoleEncounters = d; MarkDirty(); } });
 
-                AddStringListField(L("S.EC.GuardedPool"), z.GuardedContentPool, v => { z.GuardedContentPool = v; MarkDirty(); });
-                AddStringListField(L("S.EC.UnguardedPool"), z.UnguardedContentPool, v => { z.UnguardedContentPool = v; MarkDirty(); });
-                AddStringListField(L("S.EC.ResourcesPool"), z.ResourcesContentPool, v => { z.ResourcesContentPool = v; MarkDirty(); });
-                AddStringListField(L("S.EC.MandatoryContent"), z.MandatoryContent, v => { z.MandatoryContent = v; MarkDirty(); });
-                AddStringListField(L("S.EC.ContentCountLimits"), z.ContentCountLimits, v => { z.ContentCountLimits = v; MarkDirty(); });
+                AddStringListPicker(L("S.EC.GuardedPool"), KnownValues.GuardedContentPoolSids, z.GuardedContentPool, v => { z.GuardedContentPool = v; MarkDirty(); });
+                AddStringListPicker(L("S.EC.UnguardedPool"), KnownValues.UnguardedContentPoolSids, z.UnguardedContentPool, v => { z.UnguardedContentPool = v; MarkDirty(); });
+                AddStringListPicker(L("S.EC.ResourcesPool"), KnownValues.ResourcesContentPoolSids, z.ResourcesContentPool, v => { z.ResourcesContentPool = v; MarkDirty(); });
+                AddStringListPicker(L("S.EC.MandatoryContent"), KnownValues.MandatoryContentNames, z.MandatoryContent, v => { z.MandatoryContent = v; MarkDirty(); });
+                AddStringListPicker(L("S.EC.ContentCountLimits"), KnownValues.ContentCountLimitNames, z.ContentCountLimits, v => { z.ContentCountLimits = v; MarkDirty(); });
 
                 AddTextField(L("S.EC.GuardedVal"), (z.GuardedContentValue ?? 0).ToString(),
                     v => { if (int.TryParse(v, out var i)) { z.GuardedContentValue = i; MarkDirty(); } });
@@ -507,6 +507,53 @@ namespace Olden_Era___Template_Editor
             box.LostFocus += (_, _) => onCommit(ParseStringList(box.Text));
             box.KeyDown += (_, e) => { if (e.Key == Key.Enter && !e.Handled) { onCommit(ParseStringList(box.Text)); } };
             InspectorFields.Children.Add(box);
+        }
+
+        private void AddStringListPicker(string label, string[] options, List<string>? current, Action<List<string>> onCommit)
+        {
+            AddSectionLabel(label);
+            var panel = new StackPanel { Margin = new Thickness(0, 0, 0, 4), Orientation = System.Windows.Controls.Orientation.Vertical };
+
+            var existingPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            if (current is { Count: > 0 })
+            {
+                foreach (var item in current)
+                {
+                    var chip = new System.Windows.Controls.Border
+                    {
+                        Background = (Brush)FindResource("BrushInput"),
+                        BorderBrush = (Brush)FindResource("BrushBorder"),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(6, 2, 6, 2),
+                        Margin = new Thickness(0, 0, 4, 4),
+                        Child = new TextBlock { Text = item, FontSize = 10, Foreground = (Brush)FindResource("BrushText") },
+                    };
+                    existingPanel.Children.Add(chip);
+                }
+            }
+            panel.Children.Add(existingPanel);
+
+            var addCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 4), MaxDropDownHeight = 200 };
+            addCombo.Items.Add("");
+            foreach (var o in options) addCombo.Items.Add(o);
+            addCombo.SelectionChanged += (_, _) =>
+            {
+                if (addCombo.SelectedItem is string s && s.Length > 0)
+                {
+                    var list = current ?? new List<string>();
+                    if (!list.Contains(s))
+                    {
+                        list.Add(s);
+                        onCommit(new List<string>(list));
+                        BuildInspector();
+                    }
+                    addCombo.SelectedItem = "";
+                }
+            };
+            panel.Children.Add(addCombo);
+
+            InspectorFields.Children.Add(panel);
         }
 
         private static List<string> ParseStringList(string input)
