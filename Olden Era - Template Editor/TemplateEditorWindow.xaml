@@ -117,16 +117,40 @@
             <!-- Inspector -->
             <Border Grid.Column="2" Background="{StaticResource BrushPanelAlt}"
                     BorderBrush="{StaticResource BrushBorder}" BorderThickness="1,0,0,0">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
-                    <StackPanel x:Name="InspectorPanel">
-                        <TextBlock Text="{DynamicResource S.Ed.010}" Foreground="{StaticResource BrushGold}"
-                                   FontWeight="SemiBold" Margin="0,0,0,8"/>
-                        <TextBlock x:Name="TxtInspectorHint"
-                                   Text="{DynamicResource S.Ed.011}"
-                                   Foreground="{StaticResource BrushTextDim}" TextWrapping="Wrap"/>
-                        <StackPanel x:Name="InspectorFields" Margin="0,6,0,0"/>
-                    </StackPanel>
-                </ScrollViewer>
+                <DockPanel>
+                    <TextBlock x:Name="TxtInspectorHint" DockPanel.Dock="Top"
+                               Foreground="{StaticResource BrushTextDim}" FontSize="11"
+                               Margin="12,8,12,0"/>
+                    <TabControl x:Name="InspectorTabs" DockPanel.Dock="Top"
+                                Background="Transparent" BorderThickness="0"
+                                Padding="0" Margin="0">
+                        <TabItem x:Name="TabMain" Header="{DynamicResource S.EC.TabMain}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
+                                <StackPanel x:Name="InspectorFieldsMain" Margin="0,6,0,0"/>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem x:Name="TabGuard" Header="{DynamicResource S.EC.TabGuard}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
+                                <StackPanel x:Name="InspectorFieldsGuard" Margin="0,6,0,0"/>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem x:Name="TabPools" Header="{DynamicResource S.EC.TabPools}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
+                                <StackPanel x:Name="InspectorFieldsPools" Margin="0,6,0,0"/>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem x:Name="TabContent" Header="{DynamicResource S.EC.TabContent}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
+                                <StackPanel x:Name="InspectorFieldsContent" Margin="0,6,0,0"/>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem x:Name="TabBiome" Header="{DynamicResource S.EC.TabBiome}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
+                                <StackPanel x:Name="InspectorFieldsBiome" Margin="0,6,0,0"/>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
+                </DockPanel>
             </Border>
         </Grid>
 

@@ -490,6 +490,12 @@ namespace Olden_Era___Template_Editor.Localization
             ["S.EC.WinTitle"]      = "Визуальный редактор зон — {0}",
             ["S.EC.UnsavedMsg"]    = "Есть несохранённые изменения. Закрыть без сохранения?",
             ["S.EC.UnsavedTitle"]  = "Несохранённые изменения",
+            // Zone inspector — tabs
+            ["S.EC.TabMain"]          = "Основные",
+            ["S.EC.TabGuard"]         = "Охрана",
+            ["S.EC.TabPools"]         = "Пулы",
+            ["S.EC.TabContent"]       = "Наполнение",
+            ["S.EC.TabBiome"]         = "Биом",
             // Zone inspector — additional fields
             ["S.EC.GuardCutoff"]      = "Порог охраны",
             ["S.EC.GuardRandom"]      = "Рандомизация охраны",
@@ -1017,6 +1023,12 @@ namespace Olden_Era___Template_Editor.Localization
             ["S.EC.WinTitle"]      = "Visual zone editor — {0}",
             ["S.EC.UnsavedMsg"]    = "There are unsaved changes. Close without saving?",
             ["S.EC.UnsavedTitle"]  = "Unsaved changes",
+            // Zone inspector — tabs
+            ["S.EC.TabMain"]          = "Main",
+            ["S.EC.TabGuard"]         = "Guard",
+            ["S.EC.TabPools"]         = "Pools",
+            ["S.EC.TabContent"]       = "Content",
+            ["S.EC.TabBiome"]         = "Biome",
             // Zone inspector — additional fields
             ["S.EC.GuardCutoff"]      = "Guard cutoff value",
             ["S.EC.GuardRandom"]      = "Guard randomization",
