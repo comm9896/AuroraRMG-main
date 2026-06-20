@@ -330,6 +330,48 @@ namespace Olden_Era___Template_Editor
                     v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.DiplomacyModifier = d; MarkDirty(); } });
                 AddTextField(L("S.EC.GuardMult"), (z.GuardMultiplier ?? 1.0).ToString(CultureInfo.InvariantCulture),
                     v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.GuardMultiplier = d; MarkDirty(); } });
+                AddTextField(L("S.EC.GuardCutoff"), (z.GuardCutoffValue ?? 0).ToString(),
+                    v => { if (int.TryParse(v, out var i)) { z.GuardCutoffValue = i; MarkDirty(); } });
+                AddTextField(L("S.EC.GuardRandom"), (z.GuardRandomization ?? 0).ToString(CultureInfo.InvariantCulture),
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.GuardRandomization = d; MarkDirty(); } });
+                AddTextField(L("S.EC.GuardWeeklyInc"), (z.GuardWeeklyIncrement ?? 0).ToString(CultureInfo.InvariantCulture),
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.GuardWeeklyIncrement = d; MarkDirty(); } });
+                AddIntListField(L("S.EC.GuardReactDist"), z.GuardReactionDistribution,
+                    v => { z.GuardReactionDistribution = v; MarkDirty(); });
+
+                AddSectionLabel(L("S.EC.EncounterHoles"));
+                AddTextField(L("S.EC.AffectedEnc"), (z.EncounterHolesSettings?.AffectedEncounters ?? 0).ToString(CultureInfo.InvariantCulture),
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.EncounterHolesSettings ??= new(); z.EncounterHolesSettings.AffectedEncounters = d; MarkDirty(); } });
+                AddTextField(L("S.EC.TwoHoleEnc"), (z.EncounterHolesSettings?.TwoHoleEncounters ?? 0).ToString(CultureInfo.InvariantCulture),
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.EncounterHolesSettings ??= new(); z.EncounterHolesSettings.TwoHoleEncounters = d; MarkDirty(); } });
+
+                AddStringListField(L("S.EC.GuardedPool"), z.GuardedContentPool, v => { z.GuardedContentPool = v; MarkDirty(); });
+                AddStringListField(L("S.EC.UnguardedPool"), z.UnguardedContentPool, v => { z.UnguardedContentPool = v; MarkDirty(); });
+                AddStringListField(L("S.EC.ResourcesPool"), z.ResourcesContentPool, v => { z.ResourcesContentPool = v; MarkDirty(); });
+                AddStringListField(L("S.EC.MandatoryContent"), z.MandatoryContent, v => { z.MandatoryContent = v; MarkDirty(); });
+                AddStringListField(L("S.EC.ContentCountLimits"), z.ContentCountLimits, v => { z.ContentCountLimits = v; MarkDirty(); });
+
+                AddTextField(L("S.EC.GuardedVal"), (z.GuardedContentValue ?? 0).ToString(),
+                    v => { if (int.TryParse(v, out var i)) { z.GuardedContentValue = i; MarkDirty(); } });
+                AddTextField(L("S.EC.GuardedValPerArea"), (z.GuardedContentValuePerArea ?? 0).ToString(),
+                    v => { if (int.TryParse(v, out var i)) { z.GuardedContentValuePerArea = i; MarkDirty(); } });
+                AddTextField(L("S.EC.UnguardedVal"), (z.UnguardedContentValue ?? 0).ToString(),
+                    v => { if (int.TryParse(v, out var i)) { z.UnguardedContentValue = i; MarkDirty(); } });
+                AddTextField(L("S.EC.UnguardedValPerArea"), (z.UnguardedContentValuePerArea ?? 0).ToString(),
+                    v => { if (int.TryParse(v, out var i)) { z.UnguardedContentValuePerArea = i; MarkDirty(); } });
+                AddTextField(L("S.EC.ResourcesVal"), (z.ResourcesValue ?? 0).ToString(),
+                    v => { if (int.TryParse(v, out var i)) { z.ResourcesValue = i; MarkDirty(); } });
+                AddTextField(L("S.EC.ResourcesValPerArea"), (z.ResourcesValuePerArea ?? 0).ToString(),
+                    v => { if (int.TryParse(v, out var i)) { z.ResourcesValuePerArea = i; MarkDirty(); } });
+
+                AddTextField(L("S.EC.CrossroadsPos"), (z.CrossroadsPosition ?? 0).ToString(),
+                    v => { if (int.TryParse(v, out var i)) { z.CrossroadsPosition = i; MarkDirty(); } });
+
+                AddBiomeSelector(L("S.EC.ZoneBiome"), z.ZoneBiome, v => { z.ZoneBiome = v; MarkDirty(); });
+                AddBiomeSelector(L("S.EC.ContentBiome"), z.ContentBiome, v => { z.ContentBiome = v; MarkDirty(); });
+                AddBiomeSelector(L("S.EC.MetaBiome"), z.MetaObjectsBiome, v => { z.MetaObjectsBiome = v; MarkDirty(); });
+
+                AddRoadList(L("S.EC.Roads"), z.Roads, v => { z.Roads = v; MarkDirty(); });
 
                 // Castle ↔ outpost: capturing an AbandonedOutpost grants the player their NATIVE town
                 // instead of a random castle. Only offered for castle/outpost zones (never player spawns).
@@ -344,6 +386,7 @@ namespace Olden_Era___Template_Editor
             else if (_selected is Connection c)
             {
                 TxtInspectorHint.Text = L("S.EC.Conn");
+                AddTextField(L("S.EC.ConnName"), c.Name ?? "", v => { c.Name = v; MarkDirty(); });
                 var zoneNames = Zones.Select(zz => zz.Name).ToArray();
                 AddComboField(L("S.EC.From"), zoneNames, c.From, v => { c.From = v; MarkDirty(); RebuildGraph(); });
                 AddComboField(L("S.EC.To"),  zoneNames, c.To,   v => { c.To = v;   MarkDirty(); RebuildGraph(); });
@@ -351,6 +394,15 @@ namespace Olden_Era___Template_Editor
                     v => { c.ConnectionType = v; MarkDirty(); RebuildGraph(); });
                 AddTextField(L("S.EC.GuardValue"), (c.GuardValue ?? 0).ToString(),
                     v => { if (int.TryParse(v, out var i)) { c.GuardValue = i; MarkDirty(); } });
+                AddTextField(L("S.EC.GuardWeeklyIncConn"), (c.GuardWeeklyIncrement ?? 0).ToString(CultureInfo.InvariantCulture),
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { c.GuardWeeklyIncrement = d; MarkDirty(); } });
+                AddTextField(L("S.EC.GuardZone"), c.GuardZone ?? "", v => { c.GuardZone = v; MarkDirty(); });
+                AddCheckField(L("S.EC.GuardEscape"), c.GuardEscape ?? false, v => { c.GuardEscape = v; MarkDirty(); });
+                AddCheckField(L("S.EC.SimTurnSquad"), c.SimTurnSquad ?? false, v => { c.SimTurnSquad = v; MarkDirty(); });
+                AddComboField(L("S.EC.GatePlacement"), KnownValues.GatePlacements, c.GatePlacement,
+                    v => { c.GatePlacement = v; MarkDirty(); });
+                AddTextField(L("S.EC.Length"), (c.Length ?? 0).ToString(CultureInfo.InvariantCulture),
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { c.Length = d; MarkDirty(); } });
                 AddCheckField(L("S.EC.Road"), c.Road ?? false, v => { c.Road = v; MarkDirty(); });
             }
             else
@@ -432,6 +484,136 @@ namespace Olden_Era___Template_Editor
                 Text = value, Foreground = (Brush)FindResource("BrushText"),
                 Margin = new Thickness(0, 0, 0, 4),
             });
+        }
+
+        private void AddStringListField(string label, List<string>? value, Action<List<string>> onCommit)
+        {
+            AddSectionLabel(label);
+            var text = value is { Count: > 0 } ? string.Join(", ", value) : "";
+            var box = new TextBox { Text = text, Margin = new Thickness(0, 0, 0, 4), MinHeight = 40, TextWrapping = TextWrapping.Vertical, AcceptsReturn = true };
+            box.LostFocus += (_, _) => onCommit(ParseStringList(box.Text));
+            box.KeyDown += (_, e) => { if (e.Key == Key.Enter && !e.Handled) { onCommit(ParseStringList(box.Text)); } };
+            InspectorFields.Children.Add(box);
+        }
+
+        private static List<string> ParseStringList(string input)
+        {
+            return input.Split(new[] { ',', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                          .Select(s => s.Trim())
+                          .Where(s => s.Length > 0)
+                          .ToList();
+        }
+
+        private void AddIntListField(string label, List<int>? value, Action<List<int>> onCommit)
+        {
+            AddSectionLabel(label);
+            var text = value is { Count: > 0 } ? string.Join(", ", value) : "";
+            var box = new TextBox { Text = text, Margin = new Thickness(0, 0, 0, 4), MinHeight = 40, TextWrapping = TextWrapping.Vertical, AcceptsReturn = true };
+            box.LostFocus += (_, _) => onCommit(ParseIntList(box.Text));
+            box.KeyDown += (_, e) => { if (e.Key == Key.Enter && !e.Handled) { onCommit(ParseIntList(box.Text)); } };
+            InspectorFields.Children.Add(box);
+        }
+
+        private static List<int> ParseIntList(string input)
+        {
+            return input.Split(new[] { ',', '\n', '\r', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                          .Select(s => s.Trim())
+                          .Where(s => s.Length > 0)
+                          .Select(s =>
+                          {
+                              int.TryParse(s, out var v);
+                              return v;
+                          })
+                          .ToList();
+        }
+
+        private void AddBiomeSelector(string label, BiomeSelector? current, Action<BiomeSelector?> onCommit)
+        {
+            AddSectionLabel(label);
+
+            var ensured = current ?? new BiomeSelector();
+
+            AddSectionLabel(L("S.EC.BiomeType"));
+            var typeCombo = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 0, 4) };
+            foreach (var o in KnownValues.SelectorTypes) typeCombo.Items.Add(o);
+            typeCombo.Text = ensured.Type ?? "";
+            if (ensured.Type is not null && typeCombo.Items.Contains(ensured.Type))
+                typeCombo.SelectedItem = ensured.Type;
+            typeCombo.LostFocus += (_, _) => { ensured.Type = typeCombo.Text.Trim(); onCommit(ensured); };
+            typeCombo.SelectionChanged += (_, _) => { if (typeCombo.SelectedItem is string s) { ensured.Type = s; onCommit(ensured); } };
+            InspectorFields.Children.Add(typeCombo);
+
+            AddSectionLabel(L("S.EC.BiomeArgs"));
+            var argsText = ensured.Args is { Count: > 0 } ? string.Join(", ", ensured.Args) : "";
+            var argsBox = new TextBox { Text = argsText, Margin = new Thickness(0, 0, 0, 4), MinHeight = 30, TextWrapping = TextWrapping.Vertical, AcceptsReturn = true };
+            argsBox.LostFocus += (_, _) =>
+            {
+                ensured.Args = ParseStringList(argsBox.Text);
+                onCommit(ensured);
+            };
+            InspectorFields.Children.Add(argsBox);
+        }
+
+        private void AddRoadList(string label, List<Road>? value, Action<List<Road>> onCommit)
+        {
+            AddSectionLabel(label);
+            var count = value?.Count ?? 0;
+            var box = new TextBox
+            {
+                Text = count > 0
+                    ? string.Join("\n", value!.Select((r, i) => $"[{i}] type={r.Type ?? "?"}, from={r.From?.Type ?? "?"}/{FormatArgs(r.From?.Args)}, to={r.To?.Type ?? "?"}/{FormatArgs(r.To?.Args)}"))
+                    : "",
+                Margin = new Thickness(0, 0, 0, 4),
+                MinHeight = 40,
+                TextWrapping = TextWrapping.Vertical,
+                AcceptsReturn = true
+            };
+            box.LostFocus += (_, _) => onCommit(ParseRoadList(box.Text));
+            InspectorFields.Children.Add(box);
+        }
+
+        private static string FormatArgs(List<string>? args) => args is { Count: > 0 } ? string.Join(",", args) : "-";
+
+        private static List<Road> ParseRoadList(string input)
+        {
+            var roads = new List<Road>();
+            var lines = input.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var line in lines)
+            {
+                var trimmed = line.Trim();
+                if (trimmed.Length == 0) continue;
+                var road = new Road();
+                var parts = trimmed.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var part in parts)
+                {
+                    var kv = part.Split('=', 2);
+                    if (kv.Length != 2) continue;
+                    var key = kv[0].Trim();
+                    var val = kv[1].Trim();
+                    switch (key)
+                    {
+                        case "type": road.Type = val; break;
+                        case "from":
+                            road.From = ParseRoadEndpoint(val);
+                            break;
+                        case "to":
+                            road.To = ParseRoadEndpoint(val);
+                            break;
+                    }
+                }
+                roads.Add(road);
+            }
+            return roads;
+        }
+
+        private static RoadEndpoint ParseRoadEndpoint(string input)
+        {
+            var ep = new RoadEndpoint();
+            var parts = input.Split(':', 2);
+            if (parts.Length >= 1) ep.Type = parts[0].Trim();
+            if (parts.Length >= 2)
+                ep.Args = parts[1].Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList();
+            return ep;
         }
 
         private void RenameZone(Zone z, string newName)
