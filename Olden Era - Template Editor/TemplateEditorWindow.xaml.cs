@@ -432,6 +432,42 @@ namespace Olden_Era___Template_Editor
         }
 
         /// <summary>
+        /// If the zone has an auto-generated name (Zone-N) or was previously auto-renamed to a player name,
+        /// rename it to match the currently selected spawn player.
+        /// </summary>
+        private void AutoRenameZoneForSpawn(Zone z, MainObject mo)
+        {
+            if (string.IsNullOrEmpty(mo.Spawn)) return;
+            string current = z.Name ?? "";
+            // Check if name is auto-generated (Zone-N) or matches any known player name
+            bool isAuto = System.Text.RegularExpressions.Regex.IsMatch(current, @"^Zone-\d+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (!isAuto)
+            {
+                // Check if it was previously auto-renamed to a player name
+                isAuto = KnownValues.SpawnPlayers.Any(p => string.Equals(p, current, StringComparison.OrdinalIgnoreCase));
+            }
+            if (isAuto && !string.Equals(current, mo.Spawn, StringComparison.OrdinalIgnoreCase))
+            {
+                string newName = UniqueZoneName(mo.Spawn);
+                RenameZone(z, newName);
+            }
+        }
+
+        /// <summary>
+        /// Generates a unique zone name based on a preferred base name.
+        /// </summary>
+        private string UniqueZoneName(string preferred)
+        {
+            if (!Zones.Any(z => string.Equals(z.Name, preferred, StringComparison.OrdinalIgnoreCase)))
+                return preferred;
+            for (int i = 2; ; i++)
+            {
+                string n = $"{preferred}-{i}";
+                if (!Zones.Any(z => string.Equals(z.Name, n, StringComparison.OrdinalIgnoreCase))) return n;
+            }
+        }
+
+        /// <summary>
         /// Handles MainObject type changes - sets default values for the selected type.
         /// </summary>
         private static void OnMainObjectTypeChanged(MainObject mo)
@@ -504,6 +540,7 @@ namespace Olden_Era___Template_Editor
                     {
                         mo.Type = typeCombo.Text.Trim();
                         OnMainObjectTypeChanged(mo);
+                        if (mo.Type == "Spawn") AutoRenameZoneForSpawn(z, mo);
                         MarkDirty();
                         RefreshNode(z);
                         BuildInspector();
@@ -514,6 +551,7 @@ namespace Olden_Era___Template_Editor
                         {
                             mo.Type = s;
                             OnMainObjectTypeChanged(mo);
+                            if (mo.Type == "Spawn") AutoRenameZoneForSpawn(z, mo);
                             MarkDirty();
                             RefreshNode(z);
                             BuildInspector();
@@ -528,8 +566,21 @@ namespace Olden_Era___Template_Editor
                         var playerCombo = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 200 };
                         foreach (var p in KnownValues.SpawnPlayers) playerCombo.Items.Add(p);
                         playerCombo.Text = mo.Spawn ?? "";
-                        playerCombo.LostFocus += (_, _) => { mo.Spawn = playerCombo.Text.Trim(); MarkDirty(); };
-                        playerCombo.SelectionChanged += (_, _) => { if (playerCombo.SelectedItem is string s) { mo.Spawn = s; MarkDirty(); } };
+                        playerCombo.LostFocus += (_, _) =>
+                        {
+                            mo.Spawn = playerCombo.Text.Trim();
+                            AutoRenameZoneForSpawn(z, mo);
+                            MarkDirty();
+                        };
+                        playerCombo.SelectionChanged += (_, _) =>
+                        {
+                            if (playerCombo.SelectedItem is string s)
+                            {
+                                mo.Spawn = s;
+                                AutoRenameZoneForSpawn(z, mo);
+                                MarkDirty();
+                            }
+                        };
                         moSection.Children.Add(playerCombo);
                     }
 
