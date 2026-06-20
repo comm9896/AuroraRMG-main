@@ -22,36 +22,74 @@ namespace Olden_Era___Template_Editor.Services
 
         private static readonly Color BackgroundColor = Color.FromRgb(28, 22, 16);
 
-        // ── Neutral tier colours ─────────────────────────────────────────────────
-        // Bronze
-        private static readonly Color BronzeFill    = Color.FromRgb(101,  67,  33);
-        private static readonly Color BronzeBorder  = Color.FromRgb(205, 127,  50);
-        // Silver
-        private static readonly Color SilverFill    = Color.FromRgb( 72,  76,  80);
-        private static readonly Color SilverBorder  = Color.FromRgb(192, 192, 192);
-        // Gold
-        private static readonly Color GoldFill      = Color.FromRgb(120,  90,  20);
-        private static readonly Color GoldBorder    = Color.FromRgb(255, 210,  50);
-
-        // ── Spawn / player zone colours ──────────────────────────────────────────
+        // ── Zone layout colours ──────────────────────────────────────────────────
         private static readonly Color SpawnFill    = Color.FromRgb( 42,  90,  50);
         private static readonly Color SpawnBorder  = Color.FromRgb(100, 200, 120);
+        private static readonly Color AiSpawnFill    = Color.FromRgb( 30,  70,  80);
+        private static readonly Color AiSpawnBorder  = Color.FromRgb( 80, 180, 200);
+        private static readonly Color SecondSpawnFill    = Color.FromRgb( 60,  90,  40);
+        private static readonly Color SecondSpawnBorder  = Color.FromRgb(140, 210, 100);
+        private static readonly Color SideSpawnZoneFill    = Color.FromRgb( 80,  60,  90);
+        private static readonly Color SideSpawnZoneBorder  = Color.FromRgb(170, 130, 210);
+        private static readonly Color SpawnsFill    = Color.FromRgb( 70,  70,  40);
+        private static readonly Color SpawnsBorder  = Color.FromRgb(190, 190, 100);
+        private static readonly Color SidesFill    = Color.FromRgb(101,  67,  33);
+        private static readonly Color SidesBorder  = Color.FromRgb(205, 127,  50);
+        private static readonly Color SideZoneFill    = Color.FromRgb(130,  80,  30);
+        private static readonly Color SideZoneBorder  = Color.FromRgb(220, 160,  60);
+        private static readonly Color TreasureFill    = Color.FromRgb( 72,  76,  80);
+        private static readonly Color TreasureBorder  = Color.FromRgb(192, 192, 192);
+        private static readonly Color TreasuresFill    = Color.FromRgb( 90,  90, 110);
+        private static readonly Color TreasuresBorder  = Color.FromRgb(180, 180, 210);
+        private static readonly Color SuperTreasureFill    = Color.FromRgb(140, 110,  20);
+        private static readonly Color SuperTreasureBorder  = Color.FromRgb(255, 220,  80);
+        private static readonly Color CenterFill    = Color.FromRgb(120,  90,  20);
+        private static readonly Color CenterBorder  = Color.FromRgb(255, 210,  50);
+        private static readonly Color CenterZoneFill    = Color.FromRgb(150, 120,  30);
+        private static readonly Color CenterZoneBorder  = Color.FromRgb(255, 230, 100);
+        private static readonly Color StartZoneFill    = Color.FromRgb( 40,  70, 100);
+        private static readonly Color StartZoneBorder  = Color.FromRgb(100, 160, 220);
+        private static readonly Color BackFill    = Color.FromRgb( 60,  50,  90);
+        private static readonly Color BackBorder  = Color.FromRgb(140, 120, 200);
+        private static readonly Color LeafFill    = Color.FromRgb( 50, 100,  50);
+        private static readonly Color LeafBorder  = Color.FromRgb(120, 200, 120);
+        private static readonly Color WinCondFill    = Color.FromRgb(160, 100,  20);
+        private static readonly Color WinCondBorder  = Color.FromRgb(220, 180,  60);
 
         // ── Hub colour ───────────────────────────────────────────────────────────
         private static readonly Color HubFill   = Color.FromRgb(55, 80, 95);
         private static readonly Color HubBorder = Color.FromRgb(130, 180, 200);
 
         // ── Connection colours ───────────────────────────────────────────────────
-        // Direct / Default / GladiatorArena → thick gold line
-        private static readonly Color DirectLineColor = Color.FromRgb(180, 145, 60);
-        // Portal → semi-transparent blue
-        private static readonly Color PortalLineColor = Color.FromArgb(180, 90, 170, 210);
+        private static readonly Color DirectLineColor    = Color.FromRgb(180, 145, 60);    // gold solid
+        private static readonly Color DefaultLineColor   = Color.FromRgb(160, 160, 160);   // grey solid
+        private static readonly Color PortalLineColor    = Color.FromArgb(180, 90, 170, 210); // blue dashed
+        private static readonly Color ProximityLineColor = Color.FromRgb(80, 200, 120);     // green dotted
+        private static readonly Color GladiatorLineColor = Color.FromRgb(220, 60, 60);       // red dash-dot
 
         // ── Radius ───────────────────────────────────────────────────────────────
         // Cap for spoke/neutral/spawn zones; actual radius is computed per-layout.
         private const double ZoneRadiusMax = 38;
         // Hub zones always render at least this large so the "Hub" label is never clipped.
         private const double HubRadiusMin  = 28;
+
+        private static Color GetConnectionColor(string connType) => connType?.ToLowerInvariant() switch
+        {
+            "portal"         => PortalLineColor,
+            "proximity"      => ProximityLineColor,
+            "gladiatorarena" => GladiatorLineColor,
+            "direct"         => DirectLineColor,
+            _                => DefaultLineColor,
+        };
+
+        private static double GetConnectionThickness(string connType) => connType?.ToLowerInvariant() switch
+        {
+            "portal"         => 2.0,
+            "proximity"      => 2.5,
+            "gladiatorarena" => 2.5,
+            "direct"         => 3.0,
+            _                => 2.5,
+        };
 
         // ── Human icon (person silhouette drawn with geometry) ───────────────────
         // Drawn relative to the zone centre; scaled to fit the circle.
@@ -1682,7 +1720,7 @@ namespace Olden_Era___Template_Editor.Services
 
             // ── Build path data for every connection ──────────────────────────────
             // Keep from/to names alongside each entry so RefineCtrl can exclude them.
-            var drawnRaw = new List<(Point P1, Point Ctrl, Point P2, bool IsPortal, bool HasCurve, string From, string To)>();
+            var drawnRaw = new List<(Point P1, Point Ctrl, Point P2, string ConnType, bool HasCurve, string From, string To)>();
 
             foreach (Connection conn in connections)
             {
@@ -1690,7 +1728,7 @@ namespace Olden_Era___Template_Editor.Services
                 if (!positions.TryGetValue(conn.From, out Point from)) continue;
                 if (!positions.TryGetValue(conn.To,   out Point to))   continue;
 
-                bool isPortal = string.Equals(conn.ConnectionType, "Portal", StringComparison.Ordinal);
+                string connType = conn.ConnectionType ?? "Default";
 
                 double dx = to.X - from.X, dy = to.Y - from.Y;
                 double dist = Math.Sqrt(dx * dx + dy * dy);
@@ -1733,7 +1771,7 @@ namespace Olden_Era___Template_Editor.Services
                     ctrl = new Point((p1.X + p2.X) / 2.0, (p1.Y + p2.Y) / 2.0);
                 }
 
-                drawnRaw.Add((p1, ctrl, p2, isPortal, hasCurve, conn.From, conn.To));
+                drawnRaw.Add((p1, ctrl, p2, connType, hasCurve, conn.From, conn.To));
             }
 
             // ── Shared-endpoint curve untangling ─────────────────────────────────
@@ -1752,8 +1790,8 @@ namespace Olden_Era___Template_Editor.Services
                         {
                             if (!drawnRaw[j].HasCurve) continue;
 
-                            var (p1i, ctrli, p2i, isPortalI, hasCurveI, fromI, toI) = drawnRaw[i];
-                            var (p1j, ctrlj, p2j, isPortalJ, hasCurveJ, fromJ, toJ) = drawnRaw[j];
+                            var (p1i, ctrli, p2i, connTypeI, hasCurveI, fromI, toI) = drawnRaw[i];
+                            var (p1j, ctrlj, p2j, connTypeJ, hasCurveJ, fromJ, toJ) = drawnRaw[j];
 
                             bool shareStart = (p1i.X == p1j.X && p1i.Y == p1j.Y) || (p1i.X == p2j.X && p1i.Y == p2j.Y);
                             bool shareEnd   = (p2i.X == p1j.X && p2i.Y == p1j.Y) || (p2i.X == p2j.X && p2i.Y == p2j.Y);
@@ -1784,12 +1822,12 @@ namespace Olden_Era___Template_Editor.Services
                             if (DeflectionSq(p1i, ctrli, p2i) >= DeflectionSq(p1j, ctrlj, p2j))
                             {
                                 var newCtrl = RefineCtrl(p1i, FlipCtrl(p1i, ctrli, p2i), p2i, fromI, toI);
-                                drawnRaw[i] = (p1i, newCtrl, p2i, isPortalI, hasCurveI, fromI, toI);
+                                drawnRaw[i] = (p1i, newCtrl, p2i, connTypeI, hasCurveI, fromI, toI);
                             }
                             else
                             {
                                 var newCtrl = RefineCtrl(p1j, FlipCtrl(p1j, ctrlj, p2j), p2j, fromJ, toJ);
-                                drawnRaw[j] = (p1j, newCtrl, p2j, isPortalJ, hasCurveJ, fromJ, toJ);
+                                drawnRaw[j] = (p1j, newCtrl, p2j, connTypeJ, hasCurveJ, fromJ, toJ);
                             }
                             anyFlipped = true;
                         }
@@ -1797,7 +1835,7 @@ namespace Olden_Era___Template_Editor.Services
                 }
             }
 
-            var drawn = drawnRaw.Select(d => (d.P1, d.Ctrl, d.P2, d.IsPortal, d.HasCurve)).ToList();
+            var drawn = drawnRaw.Select(d => (d.P1, d.Ctrl, d.P2, d.ConnType, d.HasCurve)).ToList();
 
             // ── Find pairwise crossings ───────────────────────────────────────────
             // Sample each path into a polyline so curves are tested accurately.
@@ -1866,21 +1904,21 @@ namespace Olden_Era___Template_Editor.Services
             for (int k = 0; k < drawn.Count; k++)
             {
                 if (overSet.Contains(k)) continue; // handled in second pass
-                var (p1, ctrl, p2, isPortal, hasCurve) = drawn[k];
+                var (p1, ctrl, p2, connType, hasCurve) = drawn[k];
                 if (gapsByPath.TryGetValue(k, out var gaps2))
-                    DrawConnectionPathWithGaps(dc, polylines[k], gaps2, isPortal);
+                    DrawConnectionPathWithGaps(dc, polylines[k], gaps2, connType);
                 else
-                    DrawConnectionPath(dc, p1, ctrl, p2, hasCurve, isPortal);
+                    DrawConnectionPath(dc, p1, ctrl, p2, hasCurve, connType);
             }
 
             for (int k = 0; k < drawn.Count; k++)
             {
                 if (!overSet.Contains(k)) continue;
-                var (p1, ctrl, p2, isPortal, hasCurve) = drawn[k];
+                var (p1, ctrl, p2, connType, hasCurve) = drawn[k];
                 if (gapsByPath.TryGetValue(k, out var gaps2))
-                    DrawConnectionPathWithGaps(dc, polylines[k], gaps2, isPortal);
+                    DrawConnectionPathWithGaps(dc, polylines[k], gaps2, connType);
                 else
-                    DrawConnectionPath(dc, p1, ctrl, p2, hasCurve, isPortal);
+                    DrawConnectionPath(dc, p1, ctrl, p2, hasCurve, connType);
             }
         }
 
@@ -1889,10 +1927,10 @@ namespace Olden_Era___Template_Editor.Services
         /// Outside gaps the line is drawn at full opacity; within the fade ramp the alpha
         /// is blended from full → 0 (fade out) then 0 → full (fade in).
         /// </summary>
-        private static void DrawConnectionPathWithGaps(DrawingContext dc, Point[] poly, List<(double Lo, double Hi)> gaps, bool isPortal)
+        private static void DrawConnectionPathWithGaps(DrawingContext dc, Point[] poly, List<(double Lo, double Hi)> gaps, string connType)
         {
-            Color baseColor = isPortal ? PortalLineColor : DirectLineColor;
-            double strokeW  = isPortal ? 2.0 : 3.0;
+            Color baseColor = GetConnectionColor(connType);
+            double strokeW  = GetConnectionThickness(connType);
 
             double totalLen = PolylineLength(poly);
             if (totalLen < 0.001) return;
@@ -2011,11 +2049,9 @@ namespace Olden_Era___Template_Editor.Services
             }
         }
 
-        private static void DrawConnectionPath(DrawingContext dc, Point p1, Point ctrl, Point p2, bool hasCurve, bool isPortal)
+        private static void DrawConnectionPath(DrawingContext dc, Point p1, Point ctrl, Point p2, bool hasCurve, string connType)
         {
-            Pen pen = isPortal
-                ? new Pen(new SolidColorBrush(PortalLineColor), 2)
-                : new Pen(new SolidColorBrush(DirectLineColor), 3);
+            Pen pen = new Pen(new SolidColorBrush(GetConnectionColor(connType)), GetConnectionThickness(connType));
 
             if (!hasCurve)
             {
@@ -2306,18 +2342,26 @@ namespace Olden_Era___Template_Editor.Services
 
         private static (Brush Fill, Pen Outline) NeutralTierStyle(Zone zone)
         {
-            // Derive tier from the guarded content pool names, which encode the tier number
-            // directly (e.g. "classic_template_pool_random_t4_item") and are never scaled.
-            //   t4 or t5 → Gold  (High)
-            //   t2       → Bronze (Low)
-            //   anything else / t3 → Silver (Medium)
-            var pool = zone.GuardedContentPool?.FirstOrDefault() ?? string.Empty;
-            if (pool.Contains("_t4_") || pool.Contains("_t5_"))
-                return (new SolidColorBrush(GoldFill),   new Pen(new SolidColorBrush(GoldBorder),   2.5));
-            if (pool.Contains("_t2_") || pool.Contains("_t1_"))
-                return (new SolidColorBrush(BronzeFill), new Pen(new SolidColorBrush(BronzeBorder), 2.5));
-            return     (new SolidColorBrush(SilverFill), new Pen(new SolidColorBrush(SilverBorder), 2.5));
+            var (fill, border) = ZoneLayoutStyle(zone.Layout);
+            return (new SolidColorBrush(fill), new Pen(new SolidColorBrush(border), 2.5));
         }
+
+        private static (Color Fill, Color Border) ZoneLayoutStyle(string? layout) => layout switch
+        {
+            "zone_layout_sides"              => (SidesFill, SidesBorder),
+            "zone_layout_side_zone"          => (SideZoneFill, SideZoneBorder),
+            "zone_layout_treasure"           => (TreasureFill, TreasureBorder),
+            "zone_layout_treasure_zone"      => (TreasureFill, TreasureBorder),
+            "zone_layout_treasures"          => (TreasuresFill, TreasuresBorder),
+            "zone_layout_supertreasure_zone" => (SuperTreasureFill, SuperTreasureBorder),
+            "zone_layout_center"             => (CenterFill, CenterBorder),
+            "zone_layout_center_zone"        => (CenterZoneFill, CenterZoneBorder),
+            "zone_layout_start_zone"         => (StartZoneFill, StartZoneBorder),
+            "zone_layout_back"               => (BackFill, BackBorder),
+            "zone_layout_leaf"               => (LeafFill, LeafBorder),
+            "zone_layout_wincondition_zone"  => (WinCondFill, WinCondBorder),
+            _                                => (SidesFill, SidesBorder),
+        };
 
         // ── Player number ────────────────────────────────────────────────────────
         // Shows the player number (1–8) read from the MainObject "spawn" field ("Player1" → "1").

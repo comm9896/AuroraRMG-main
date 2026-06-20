@@ -27,19 +27,46 @@ namespace Olden_Era___Template_Editor
     public partial class TemplateEditorWindow : Window
     {
         // Colours mirror TemplatePreviewPngWriter so the editor speaks the same visual language.
-        private static readonly Color SpawnFill   = Color.FromRgb( 42,  90,  50);
-        private static readonly Color SpawnBorder = Color.FromRgb(100, 200, 120);
-        private static readonly Color HubFill     = Color.FromRgb( 55,  80,  95);
-        private static readonly Color HubBorder   = Color.FromRgb(130, 180, 200);
-        private static readonly Color BronzeFill  = Color.FromRgb(101,  67,  33);
-        private static readonly Color BronzeBorder= Color.FromRgb(205, 127,  50);
-        private static readonly Color SilverFill  = Color.FromRgb( 72,  76,  80);
-        private static readonly Color SilverBorder= Color.FromRgb(192, 192, 192);
-        private static readonly Color GoldFill    = Color.FromRgb(120,  90,  20);
-        private static readonly Color GoldBorder  = Color.FromRgb(255, 210,  50);
-        private static readonly Color DirectLine  = Color.FromRgb(180, 145,  60);
-        private static readonly Color PortalLine   = Color.FromArgb(200, 90, 170, 210);
-        private static readonly Color RoadLine     = Color.FromRgb(150, 120,  90); // dirt road
+        private static readonly Color SpawnFill    = Color.FromRgb( 42,  90,  50);
+        private static readonly Color SpawnBorder  = Color.FromRgb(100, 200, 120);
+        private static readonly Color HubFill      = Color.FromRgb( 55,  80,  95);
+        private static readonly Color HubBorder    = Color.FromRgb(130, 180, 200);
+        private static readonly Color SidesFill    = Color.FromRgb(101,  67,  33);
+        private static readonly Color SidesBorder  = Color.FromRgb(205, 127,  50);
+        private static readonly Color SideZoneFill   = Color.FromRgb(130,  80,  30);
+        private static readonly Color SideZoneBorder = Color.FromRgb(220, 160,  60);
+        private static readonly Color TreasureFill    = Color.FromRgb( 72,  76,  80);
+        private static readonly Color TreasureBorder  = Color.FromRgb(192, 192, 192);
+        private static readonly Color TreasuresFill   = Color.FromRgb( 90,  90, 110);
+        private static readonly Color TreasuresBorder = Color.FromRgb(180, 180, 210);
+        private static readonly Color SuperTreasureFill   = Color.FromRgb(140, 110,  20);
+        private static readonly Color SuperTreasureBorder = Color.FromRgb(255, 220,  80);
+        private static readonly Color CenterFill    = Color.FromRgb(120,  90,  20);
+        private static readonly Color CenterBorder  = Color.FromRgb(255, 210,  50);
+        private static readonly Color CenterZoneFill   = Color.FromRgb(150, 120,  30);
+        private static readonly Color CenterZoneBorder = Color.FromRgb(255, 230, 100);
+        private static readonly Color StartZoneFill   = Color.FromRgb( 40,  70, 100);
+        private static readonly Color StartZoneBorder = Color.FromRgb(100, 160, 220);
+        private static readonly Color BackFill    = Color.FromRgb( 60,  50,  90);
+        private static readonly Color BackBorder  = Color.FromRgb(140, 120, 200);
+        private static readonly Color LeafFill    = Color.FromRgb( 50, 100,  50);
+        private static readonly Color LeafBorder  = Color.FromRgb(120, 200, 120);
+        private static readonly Color WinCondFill   = Color.FromRgb(160, 100,  20);
+        private static readonly Color WinCondBorder = Color.FromRgb(220, 180,  60);
+        private static readonly Color AiSpawnFill   = Color.FromRgb( 30,  70,  80);
+        private static readonly Color AiSpawnBorder = Color.FromRgb( 80, 180, 200);
+        private static readonly Color SecondSpawnFill   = Color.FromRgb( 60,  90,  40);
+        private static readonly Color SecondSpawnBorder = Color.FromRgb(140, 210, 100);
+        private static readonly Color SideSpawnZoneFill   = Color.FromRgb( 80,  60,  90);
+        private static readonly Color SideSpawnZoneBorder = Color.FromRgb(170, 130, 210);
+        private static readonly Color SpawnsFill   = Color.FromRgb( 70,  70,  40);
+        private static readonly Color SpawnsBorder = Color.FromRgb(190, 190, 100);
+        private static readonly Color DirectLine       = Color.FromRgb(180, 145,  60);  // gold solid
+        private static readonly Color DefaultLine      = Color.FromRgb(160, 160, 160);  // grey solid
+        private static readonly Color PortalLine       = Color.FromArgb(200, 90, 170, 210); // blue dashed
+        private static readonly Color ProximityLine    = Color.FromRgb(80, 200, 120);   // green dotted
+        private static readonly Color GladiatorLine    = Color.FromRgb(220,  60,  60);   // red dash-dot
+        private static readonly Color RoadLine         = Color.FromRgb(150, 120,  90);   // dirt road
         private static readonly Color SelectColor = Color.FromRgb(179, 169, 255); // accent violet
         private static readonly Color GridLine     = Color.FromRgb( 30,  36,  51);
 
@@ -66,6 +93,8 @@ namespace Olden_Era___Template_Editor
         private bool   _movedWhileDragging;
         private bool   _connectMode;
         private Zone?  _connectFrom;
+        private bool   _gridSnap = true; // Grid snap enabled by default
+        private const double GridSize = 50.0; // Grid cell size in pixels
         private object? _selected; // Zone or Connection
 
         public TemplateEditorWindow(RmgTemplate? template = null, MapTopology topology = MapTopology.Default)
@@ -188,14 +217,54 @@ namespace Olden_Era___Template_Editor
         /// <summary>Applies colour/dash/thickness to a connection line based on its type.</summary>
         private static void StyleEdge(Line line, Connection c)
         {
-            bool portal = string.Equals(c.ConnectionType, "portal", StringComparison.OrdinalIgnoreCase);
-            bool road   = c.Road == true;
-            Color color = portal ? PortalLine : road ? RoadLine : DirectLine;
+            bool road = c.Road == true;
+            if (road)
+            {
+                line.Stroke = new SolidColorBrush(RoadLine);
+                line.StrokeThickness = 3.0;
+                line.StrokeDashArray = new DoubleCollection { 6, 4 };
+                return;
+            }
+
+            string t = c.ConnectionType ?? "Default";
+            Color color;
+            double thickness;
+            DoubleCollection? dash;
+
+            if (string.Equals(t, "portal", StringComparison.OrdinalIgnoreCase))
+            {
+                color = PortalLine;
+                thickness = 2.0;
+                dash = new DoubleCollection { 8, 4 };
+            }
+            else if (string.Equals(t, "proximity", StringComparison.OrdinalIgnoreCase))
+            {
+                color = ProximityLine;
+                thickness = 2.5;
+                dash = new DoubleCollection { 2, 3 };
+            }
+            else if (string.Equals(t, "gladiatorarena", StringComparison.OrdinalIgnoreCase))
+            {
+                color = GladiatorLine;
+                thickness = 2.5;
+                dash = new DoubleCollection { 6, 2, 2, 2 };
+            }
+            else if (string.Equals(t, "direct", StringComparison.OrdinalIgnoreCase))
+            {
+                color = DirectLine;
+                thickness = 3.0;
+                dash = null;
+            }
+            else // Default
+            {
+                color = DefaultLine;
+                thickness = 2.5;
+                dash = null;
+            }
+
             line.Stroke = new SolidColorBrush(color);
-            line.StrokeThickness = portal ? 2.0 : 3.0;
-            line.StrokeDashArray = portal ? new DoubleCollection { 4, 3 }
-                                  : road   ? new DoubleCollection { 6, 4 }
-                                  : null;
+            line.StrokeThickness = thickness;
+            line.StrokeDashArray = dash;
         }
 
         private void DrawNode(Zone z, Point p)
@@ -286,10 +355,25 @@ namespace Olden_Era___Template_Editor
             if (n.Contains("Hub", StringComparison.OrdinalIgnoreCase))      return (HubFill, HubBorder);
             return z.Layout switch
             {
-                "zone_layout_sides"         => (BronzeFill, BronzeBorder),
-                "zone_layout_treasure_zone" => (SilverFill, SilverBorder),
-                "zone_layout_center"        => (GoldFill,   GoldBorder),
-                _                            => (BronzeFill, BronzeBorder),
+                "zone_layout_player_spawn"      => (SpawnFill, SpawnBorder),
+                "zone_layout_ai_spawn"          => (AiSpawnFill, AiSpawnBorder),
+                "zone_layout_spawn"             => (SpawnFill, SpawnBorder),
+                "zone_layout_spawns"            => (SpawnsFill, SpawnsBorder),
+                "zone_layout_second_spawn"      => (SecondSpawnFill, SecondSpawnBorder),
+                "zone_layout_side_spawn_zone"   => (SideSpawnZoneFill, SideSpawnZoneBorder),
+                "zone_layout_sides"             => (SidesFill, SidesBorder),
+                "zone_layout_side_zone"         => (SideZoneFill, SideZoneBorder),
+                "zone_layout_treasure"          => (TreasureFill, TreasureBorder),
+                "zone_layout_treasure_zone"     => (TreasureFill, TreasureBorder),
+                "zone_layout_treasures"         => (TreasuresFill, TreasuresBorder),
+                "zone_layout_supertreasure_zone"=> (SuperTreasureFill, SuperTreasureBorder),
+                "zone_layout_center"            => (CenterFill, CenterBorder),
+                "zone_layout_center_zone"       => (CenterZoneFill, CenterZoneBorder),
+                "zone_layout_start_zone"        => (StartZoneFill, StartZoneBorder),
+                "zone_layout_back"              => (BackFill, BackBorder),
+                "zone_layout_leaf"              => (LeafFill, LeafBorder),
+                "zone_layout_wincondition_zone" => (WinCondFill, WinCondBorder),
+                _                               => (SidesFill, SidesBorder),
             };
         }
 
@@ -347,6 +431,43 @@ namespace Olden_Era___Template_Editor
             return contentPanel;
         }
 
+        /// <summary>
+        /// Handles MainObject type changes - sets default values for the selected type.
+        /// </summary>
+        private static void OnMainObjectTypeChanged(MainObject mo)
+        {
+            switch (mo.Type)
+            {
+                case "City":
+                    mo.Faction ??= new TypedSelector { Type = "Random", Args = [] };
+                    mo.BuildingsConstructionSid ??= "default_buildings_construction";
+                    mo.Owner = null;
+                    mo.Spawn = null;
+                    break;
+                case "AbandonedOutpost":
+                    mo.Faction = null;
+                    mo.Owner = null;
+                    mo.Spawn = null;
+                    mo.BuildingsConstructionSid ??= "rich_buildings_construction";
+                    mo.GuardChance ??= 1.0;
+                    mo.GuardValue ??= 30000;
+                    mo.GuardWeeklyIncrement ??= 0.20;
+                    mo.Placement ??= "Uniform";
+                    break;
+                case "Spawn":
+                    mo.Spawn ??= "Player1";
+                    mo.Faction ??= new TypedSelector { Type = "Random", Args = [] };
+                    mo.BuildingsConstructionSid ??= "default_buildings_construction";
+                    mo.Owner = null;
+                    break;
+                case "GladiatorArena":
+                    mo.Faction = null;
+                    mo.Owner = null;
+                    mo.Spawn = null;
+                    break;
+            }
+        }
+
         private void BuildInspector()
         {
             InspectorFieldsMain.Children.Clear();
@@ -354,6 +475,7 @@ namespace Olden_Era___Template_Editor
             InspectorFieldsPools.Children.Clear();
             InspectorFieldsContent.Children.Clear();
             InspectorFieldsBiome.Children.Clear();
+            InspectorFieldsObjects.Children.Clear();
 
             if (_selected is Zone z)
             {
@@ -365,6 +487,129 @@ namespace Olden_Era___Template_Editor
                     v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { z.Size = d; MarkDirty(); RefreshNode(z); } }, mainSection);
                 AddComboField(L("S.EC.Layout"), KnownValues.ZoneLayouts, z.Layout,
                     v => { z.Layout = v; MarkDirty(); RefreshNode(z); }, mainSection);
+
+                // Main Object section - always visible
+                var moSection = AddExpanderSection(L("S.EC.MainObj"), mainPanel);
+
+                var mo = z.MainObjects?.FirstOrDefault(o => o.Type is "City" or "AbandonedOutpost" or "Spawn" or "GladiatorArena");
+
+                if (mo != null)
+                {
+                    // Object type selector
+                    AddSectionLabel(L("S.EC.MoType"), moSection);
+                    var typeCombo = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 200 };
+                    foreach (var t in KnownValues.MainObjectTypes) typeCombo.Items.Add(t);
+                    typeCombo.Text = mo.Type;
+                    typeCombo.LostFocus += (_, _) =>
+                    {
+                        mo.Type = typeCombo.Text.Trim();
+                        OnMainObjectTypeChanged(mo);
+                        MarkDirty();
+                        RefreshNode(z);
+                        BuildInspector();
+                    };
+                    typeCombo.SelectionChanged += (_, _) =>
+                    {
+                        if (typeCombo.SelectedItem is string s)
+                        {
+                            mo.Type = s;
+                            OnMainObjectTypeChanged(mo);
+                            MarkDirty();
+                            RefreshNode(z);
+                            BuildInspector();
+                        }
+                    };
+                    moSection.Children.Add(typeCombo);
+
+                    // Spawn field (only for Spawn type)
+                    if (mo.Type == "Spawn")
+                    {
+                        AddSectionLabel(L("S.EC.Spawn"), moSection);
+                        var playerCombo = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 200 };
+                        foreach (var p in KnownValues.SpawnPlayers) playerCombo.Items.Add(p);
+                        playerCombo.Text = mo.Spawn ?? "";
+                        playerCombo.LostFocus += (_, _) => { mo.Spawn = playerCombo.Text.Trim(); MarkDirty(); };
+                        playerCombo.SelectionChanged += (_, _) => { if (playerCombo.SelectedItem is string s) { mo.Spawn = s; MarkDirty(); } };
+                        moSection.Children.Add(playerCombo);
+                    }
+
+                    // Guard chance
+                    AddSectionLabel(L("S.EC.MoGuardChance"), moSection);
+                    var gcBox = new TextBox { Text = (mo.GuardChance ?? 0).ToString(CultureInfo.InvariantCulture), Margin = new Thickness(0, 0, 0, 8) };
+                    gcBox.LostFocus += (_, _) => { if (double.TryParse(gcBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) mo.GuardChance = d; MarkDirty(); };
+                    moSection.Children.Add(gcBox);
+
+                    // Guard value
+                    AddSectionLabel(L("S.EC.MoGuardValue"), moSection);
+                    var gvBox = new TextBox { Text = (mo.GuardValue ?? 0).ToString(), Margin = new Thickness(0, 0, 0, 8) };
+                    gvBox.LostFocus += (_, _) => { if (int.TryParse(gvBox.Text, out var v)) mo.GuardValue = v; MarkDirty(); };
+                    moSection.Children.Add(gvBox);
+
+                    // Guard weekly increment
+                    AddSectionLabel(L("S.EC.MoGuardWeeklyInc"), moSection);
+                    var gwBox = new TextBox { Text = (mo.GuardWeeklyIncrement ?? 0).ToString(CultureInfo.InvariantCulture), Margin = new Thickness(0, 0, 0, 8) };
+                    gwBox.LostFocus += (_, _) => { if (double.TryParse(gwBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) mo.GuardWeeklyIncrement = d; MarkDirty(); };
+                    moSection.Children.Add(gwBox);
+
+                    // Remove guard if owned
+                    AddCheckField(L("S.EC.MoRemoveGuard"), mo.RemoveGuardIfHasOwner == true, v => { mo.RemoveGuardIfHasOwner = v; MarkDirty(); }, moSection);
+
+                    // Buildings construction
+                    AddSectionLabel(L("S.EC.MoBuildings"), moSection);
+                    var buildCombo = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 200 };
+                    foreach (var b in KnownValues.BuildingsConstructionSids) buildCombo.Items.Add(b);
+                    buildCombo.Text = mo.BuildingsConstructionSid ?? "";
+                    buildCombo.LostFocus += (_, _) => { mo.BuildingsConstructionSid = buildCombo.Text.Trim(); MarkDirty(); };
+                    buildCombo.SelectionChanged += (_, _) => { if (buildCombo.SelectedItem is string s) { mo.BuildingsConstructionSid = s; MarkDirty(); } };
+                    moSection.Children.Add(buildCombo);
+
+                    // Faction (disabled for AbandonedOutpost and GladiatorArena)
+                    bool factionEnabled = mo.Type != "AbandonedOutpost" && mo.Type != "GladiatorArena";
+
+                    // Faction selector type (FromList, Match, MatchMainObject, MatchZone)
+                    AddSectionLabel(L("S.EC.MoFactionType"), moSection);
+                    var facTypeCombo = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 200, IsEnabled = factionEnabled };
+                    foreach (var ft in KnownValues.SelectorTypes) facTypeCombo.Items.Add(ft);
+                    facTypeCombo.Text = mo.Faction?.Type ?? "";
+                    facTypeCombo.LostFocus += (_, _) =>
+                    {
+                        if (mo.Faction == null) mo.Faction = new TypedSelector();
+                        mo.Faction.Type = facTypeCombo.Text.Trim();
+                        MarkDirty();
+                    };
+                    facTypeCombo.SelectionChanged += (_, _) => { if (facTypeCombo.SelectedItem is string s) { if (mo.Faction == null) mo.Faction = new TypedSelector(); mo.Faction.Type = s; MarkDirty(); } };
+                    moSection.Children.Add(facTypeCombo);
+
+                    // Faction args
+                    AddSectionLabel(L("S.EC.MoFactionArgs"), moSection);
+                    var facArgsBox = new TextBox { Text = mo.Faction?.Args != null ? string.Join(", ", mo.Faction.Args) : "", Margin = new Thickness(0, 0, 0, 8), IsEnabled = factionEnabled };
+                    facArgsBox.LostFocus += (_, _) =>
+                    {
+                        if (mo.Faction == null) mo.Faction = new TypedSelector();
+                        var argsText = facArgsBox.Text.Trim();
+                        mo.Faction.Args = string.IsNullOrEmpty(argsText) ? [] : argsText.Split(',').Select(a => a.Trim()).Where(a => !string.IsNullOrEmpty(a)).ToList();
+                        MarkDirty();
+                    };
+                    moSection.Children.Add(facArgsBox);
+
+                    // Owner
+                    AddSectionLabel(L("S.EC.MoOwner"), moSection);
+                    var ownerBox = new TextBox { Text = mo.Owner ?? "", Margin = new Thickness(0, 0, 0, 8) };
+                    ownerBox.LostFocus += (_, _) => { mo.Owner = ownerBox.Text.Trim(); MarkDirty(); };
+                    moSection.Children.Add(ownerBox);
+
+                    // Placement
+                    AddSectionLabel(L("S.EC.MoPlacement"), moSection);
+                    var placeCombo = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 200 };
+                    foreach (var p in KnownValues.MainObjectPlacements) placeCombo.Items.Add(p);
+                    placeCombo.Text = mo.Placement ?? "";
+                    placeCombo.LostFocus += (_, _) => { mo.Placement = placeCombo.Text.Trim(); MarkDirty(); };
+                    placeCombo.SelectionChanged += (_, _) => { if (placeCombo.SelectedItem is string s) { mo.Placement = s; MarkDirty(); } };
+                    moSection.Children.Add(placeCombo);
+
+                    // Hold city win condition
+                    AddCheckField(L("S.EC.MoHoldCity"), mo.HoldCityWinCon == true, v => { mo.HoldCityWinCon = v; MarkDirty(); }, moSection);
+                }
 
                 var guardPanel = InspectorFieldsGuard;
                 var g1 = AddExpanderSection(L("S.EC.Diplomacy"), guardPanel);
@@ -436,22 +681,54 @@ namespace Olden_Era___Template_Editor
                 var b5 = AddExpanderSection(L("S.EC.Roads"), biomePanel);
                 AddRoadList(L("S.EC.Roads"), z.Roads, v => { z.Roads = v; MarkDirty(); }, b5);
 
-                var primaryObj = z.MainObjects?.FirstOrDefault(o => o.Type is "City" or "AbandonedOutpost");
-                if (primaryObj != null)
-                {
-                    var b6 = AddExpanderSection(L("S.EC.MainObj"), biomePanel);
-                    AddComboField(L("S.EC.MainObj"), MainObjectKinds, primaryObj.Type,
-                        v => { SetMainObjectKind(primaryObj, v); MarkDirty(); }, b6);
-                }
-
                 int conns = Connections.Count(c => c.From == z.Name || c.To == z.Name);
                 AddReadOnly(L("S.EC.ConnCount"), conns.ToString(), biomePanel);
+
+                // Add MainObjects section at the bottom of Main tab
+                var mainObjectsSection = AddExpanderSection(L("S.EC.MoObjectsList"), mainPanel);
+                RebuildMainObjectsList(z, mainObjectsSection);
+
+                // Content objects tab (new functionality)
+                var contentObjectsPanel = InspectorFieldsObjects;
+                RebuildContentObjectsList(z, contentObjectsPanel);
             }
             else if (_selected is Connection c)
             {
                 TxtInspectorHint.Text = L("S.EC.Conn");
                 var mainPanel = InspectorFieldsMain;
+
+                // Connection name
                 AddTextField(L("S.EC.ConnName"), c.Name ?? "", v => { c.Name = v; MarkDirty(); }, mainPanel);
+
+                // From zone (read-only display)
+                AddReadOnly(L("S.EC.From"), c.From ?? "?", mainPanel);
+
+                // To zone (read-only display)
+                AddReadOnly(L("S.EC.To"), c.To ?? "?", mainPanel);
+
+                // Connection type
+                string[] connectionTypes = { "default", "direct", "gladiatorarena", "portal", "proximity" };
+                AddComboField(L("S.EC.Type"), connectionTypes, c.ConnectionType, v =>
+                {
+                    c.ConnectionType = v;
+                    MarkDirty();
+                }, mainPanel);
+
+                // Guard value
+                AddTextField(L("S.EC.GuardValue"), (c.GuardValue ?? 0).ToString(),
+                    v => { if (int.TryParse(v, out var i)) { c.GuardValue = i; MarkDirty(); } }, mainPanel);
+
+                // Road checkbox
+                AddCheckField(L("S.EC.Road"), c.Road == true, v =>
+                {
+                    c.Road = v;
+                    MarkDirty();
+                    if (v)
+                    {
+                        AutoGenerateRoadsForConnection(c);
+                    }
+                    RebuildGraph();
+                }, mainPanel);
             }
             else
             {
@@ -484,6 +761,280 @@ namespace Olden_Era___Template_Editor
             {
                 o.Faction ??= new TypedSelector { Type = "Random", Args = [] };
                 o.BuildingsConstructionSid ??= "default_buildings_construction";
+            }
+        }
+
+        private void RebuildMainObjectsList(Zone z, Panel panel)
+        {
+            panel.Children.Clear();
+
+            var addBtn = new System.Windows.Controls.Button
+            {
+                Content = L("S.EC.MoAddObject"),
+                Margin = new Thickness(0, 0, 0, 8),
+                Padding = new Thickness(12, 6, 12, 6),
+                HorizontalAlignment = HorizontalAlignment.Left,
+            };
+            addBtn.Click += (_, _) =>
+            {
+                z.MainObjects ??= [];
+                var mo = new MainObject { Type = "City", GuardChance = 1.0, GuardValue = 5000, GuardWeeklyIncrement = 0.10, BuildingsConstructionSid = "default_buildings_construction", Faction = new TypedSelector { Type = "Random", Args = [] }, Placement = "Uniform" };
+                z.MainObjects.Add(mo);
+                MarkDirty();
+                RefreshNode(z);
+                BuildInspector();
+            };
+            panel.Children.Add(addBtn);
+
+            if (z.MainObjects == null || z.MainObjects.Count == 0)
+            {
+                panel.Children.Add(new TextBlock { Text = L("S.EC.MoNoObjects"), Foreground = (Brush)FindResource("BrushTextDim"), FontSize = 11, Margin = new Thickness(0, 4, 0, 0) });
+                return;
+            }
+
+            for (int i = 0; i < z.MainObjects.Count; i++)
+            {
+                var mo = z.MainObjects[i];
+                var itemPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+
+                var headerRow = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
+                var typeCombo = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 8, 0), MinWidth = 120, MaxDropDownHeight = 200 };
+                foreach (var t in KnownValues.MainObjectTypes) typeCombo.Items.Add(t);
+                typeCombo.Text = mo.Type;
+                typeCombo.LostFocus += (_, _) => { mo.Type = typeCombo.Text.Trim(); MarkDirty(); RefreshNode(z); };
+                typeCombo.SelectionChanged += (_, _) => { if (typeCombo.SelectedItem is string s) { mo.Type = s; MarkDirty(); RefreshNode(z); } };
+                DockPanel.SetDock(typeCombo, Dock.Left);
+                headerRow.Children.Add(typeCombo);
+
+                var removeBtn = new System.Windows.Controls.Button { Content = "✕", FontSize = 9, Padding = new Thickness(4, 0, 4, 0), MinWidth = 18, MinHeight = 18, Margin = new Thickness(0), Background = System.Windows.Media.Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = (Brush)FindResource("BrushTextDim"), Cursor = Cursors.Hand };
+                var capturedIdx = i;
+                removeBtn.Click += (_, _) =>
+                {
+                    if (capturedIdx < z.MainObjects.Count)
+                    {
+                        z.MainObjects.RemoveAt(capturedIdx);
+                        MarkDirty();
+                        RefreshNode(z);
+                        BuildInspector();
+                    }
+                };
+                headerRow.Children.Add(removeBtn);
+                itemPanel.Children.Add(headerRow);
+
+                var fieldsGrid = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+                fieldsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                fieldsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                fieldsGrid.RowDefinitions.Add(new RowDefinition());
+                fieldsGrid.RowDefinitions.Add(new RowDefinition());
+                fieldsGrid.RowDefinitions.Add(new RowDefinition());
+                fieldsGrid.RowDefinitions.Add(new RowDefinition());
+
+                var gcBox = new TextBox { Text = (mo.GuardChance ?? 0).ToString(CultureInfo.InvariantCulture), Margin = new Thickness(0, 0, 4, 4) };
+                gcBox.LostFocus += (_, _) => { if (double.TryParse(gcBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) mo.GuardChance = d; MarkDirty(); };
+                var gvBox = new TextBox { Text = (mo.GuardValue ?? 0).ToString(), Margin = new Thickness(4, 0, 0, 4) };
+                gvBox.LostFocus += (_, _) => { if (int.TryParse(gvBox.Text, out var v)) mo.GuardValue = v; MarkDirty(); };
+                var gwBox = new TextBox { Text = (mo.GuardWeeklyIncrement ?? 0).ToString(CultureInfo.InvariantCulture), Margin = new Thickness(0, 0, 4, 4) };
+                gwBox.LostFocus += (_, _) => { if (double.TryParse(gwBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) mo.GuardWeeklyIncrement = d; MarkDirty(); };
+                var buildCombo = new ComboBox { IsEditable = true, Margin = new Thickness(4, 0, 0, 4), MaxDropDownHeight = 200 };
+                foreach (var b in KnownValues.BuildingsConstructionSids) buildCombo.Items.Add(b);
+                buildCombo.Text = mo.BuildingsConstructionSid ?? "";
+                buildCombo.LostFocus += (_, _) => { mo.BuildingsConstructionSid = buildCombo.Text.Trim(); MarkDirty(); };
+                var facCombo = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 4, 4), MaxDropDownHeight = 200 };
+                foreach (var f in KnownValues.HeroFactions) facCombo.Items.Add(f);
+                facCombo.Text = mo.Faction?.Type ?? "";
+                facCombo.LostFocus += (_, _) =>
+                {
+                    if (mo.Faction == null) mo.Faction = new TypedSelector();
+                    mo.Faction.Type = facCombo.Text.Trim();
+                    MarkDirty();
+                };
+                var placeCombo = new ComboBox { IsEditable = true, Margin = new Thickness(4, 0, 0, 4), MaxDropDownHeight = 200 };
+                foreach (var p in KnownValues.MainObjectPlacements) placeCombo.Items.Add(p);
+                placeCombo.Text = mo.Placement ?? "";
+                placeCombo.LostFocus += (_, _) => { mo.Placement = placeCombo.Text.Trim(); MarkDirty(); };
+
+                var gcLabel = new TextBlock { Text = L("S.EC.MoGuardChance"), Foreground = (Brush)FindResource("BrushTextDim"), FontSize = 10, Margin = new Thickness(0, 0, 4, 0) };
+                var gvLabel = new TextBlock { Text = L("S.EC.MoGuardValue"), Foreground = (Brush)FindResource("BrushTextDim"), FontSize = 10, Margin = new Thickness(4, 0, 0, 0) };
+                var gwLabel = new TextBlock { Text = L("S.EC.MoGuardWeeklyInc"), Foreground = (Brush)FindResource("BrushTextDim"), FontSize = 10, Margin = new Thickness(0, 0, 4, 0) };
+                var bLabel = new TextBlock { Text = L("S.EC.MoBuildings"), Foreground = (Brush)FindResource("BrushTextDim"), FontSize = 10, Margin = new Thickness(4, 0, 0, 0) };
+                var fLabel = new TextBlock { Text = L("S.EC.MoFaction"), Foreground = (Brush)FindResource("BrushTextDim"), FontSize = 10, Margin = new Thickness(0, 0, 4, 0) };
+                var pLabel = new TextBlock { Text = L("S.EC.MoPlacement"), Foreground = (Brush)FindResource("BrushTextDim"), FontSize = 10, Margin = new Thickness(4, 0, 0, 0) };
+
+                var row0 = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+                row0.Children.Add(gcLabel); row0.Children.Add(gvLabel);
+                Grid.SetRow(row0, 0); Grid.SetColumn(row0, 0); Grid.SetColumnSpan(row0, 2);
+                fieldsGrid.Children.Add(row0);
+
+                Grid.SetRow(gcBox, 1); Grid.SetColumn(gcBox, 0);
+                Grid.SetRow(gvBox, 1); Grid.SetColumn(gvBox, 1);
+                fieldsGrid.Children.Add(gcBox); fieldsGrid.Children.Add(gvBox);
+
+                var row2 = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+                row2.Children.Add(gwLabel); row2.Children.Add(bLabel);
+                Grid.SetRow(row2, 2); Grid.SetColumn(row2, 0); Grid.SetColumnSpan(row2, 2);
+                fieldsGrid.Children.Add(row2);
+
+                Grid.SetRow(gwBox, 3); Grid.SetColumn(gwBox, 0);
+                Grid.SetRow(buildCombo, 3); Grid.SetColumn(buildCombo, 1);
+                fieldsGrid.Children.Add(gwBox); fieldsGrid.Children.Add(buildCombo);
+
+                var row4 = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+                row4.Children.Add(fLabel); row4.Children.Add(pLabel);
+                Grid.SetRow(row4, 4); Grid.SetColumn(row4, 0); Grid.SetColumnSpan(row4, 2);
+                fieldsGrid.Children.Add(row4);
+
+                Grid.SetRow(facCombo, 5); Grid.SetColumn(facCombo, 0);
+                Grid.SetRow(placeCombo, 5); Grid.SetColumn(placeCombo, 1);
+                fieldsGrid.Children.Add(facCombo); fieldsGrid.Children.Add(placeCombo);
+
+                itemPanel.Children.Add(fieldsGrid);
+
+                var sep = new System.Windows.Shapes.Rectangle { Height = 1, Fill = (Brush)FindResource("BrushBorder"), Margin = new Thickness(0, 4, 0, 0) };
+                itemPanel.Children.Add(sep);
+
+                panel.Children.Add(itemPanel);
+            }
+        }
+
+        /// <summary>
+        /// Content objects (mandatory content items) that can be added to a zone.
+        /// These are the objects from the "Zone Content" tab in the main window.
+        /// </summary>
+        private void RebuildContentObjectsList(Zone z, Panel panel)
+        {
+            panel.Children.Clear();
+
+            // List to store content items for this zone
+            z.MandatoryContent ??= [];
+
+            // Add new content object section
+            var addSection = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+
+            // Object selector
+            AddSectionLabel(L("S.EC.SelectContentObject"), addSection);
+            var objectCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 300 };
+            objectCombo.Items.Add("");
+            foreach (var obj in KnownValues.ObjectSids) objectCombo.Items.Add(obj);
+            addSection.Children.Add(objectCombo);
+
+            // Count field
+            AddSectionLabel(L("S.EC.ContentObjectCount"), addSection);
+            var countBox = new TextBox { Text = "1", Margin = new Thickness(0, 0, 0, 8) };
+            addSection.Children.Add(countBox);
+
+            // IsGuarded checkbox
+            var guardedCheck = new CheckBox { Content = L("S.EC.ContentObjectGuarded"), IsChecked = false, Margin = new Thickness(0, 0, 0, 8) };
+            addSection.Children.Add(guardedCheck);
+
+            // Near MainObject checkbox
+            var mainObjCheck = new CheckBox { Content = L("S.EC.ContentObjectMainObj"), IsChecked = false, Margin = new Thickness(0, 0, 0, 8) };
+            addSection.Children.Add(mainObjCheck);
+
+            // Road distance fields
+            var roadDistPanel = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+            roadDistPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            roadDistPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var minPanel = new StackPanel { Margin = new Thickness(0, 0, 4, 0) };
+            AddSectionLabel(L("S.EC.RoadDistanceMin"), minPanel);
+            var minBox = new TextBox { Text = "0.15" };
+            minPanel.Children.Add(minBox);
+            Grid.SetColumn(minPanel, 0);
+            roadDistPanel.Children.Add(minPanel);
+
+            var maxPanel = new StackPanel { Margin = new Thickness(4, 0, 0, 0) };
+            AddSectionLabel(L("S.EC.RoadDistanceMax"), maxPanel);
+            var maxBox = new TextBox { Text = "0.30" };
+            maxPanel.Children.Add(maxBox);
+            Grid.SetColumn(maxPanel, 1);
+            roadDistPanel.Children.Add(maxPanel);
+
+            addSection.Children.Add(roadDistPanel);
+
+            // Add button
+            var addBtn = new System.Windows.Controls.Button
+            {
+                Content = L("S.EC.AddContentObject"),
+                Padding = new Thickness(12, 6, 12, 6),
+                HorizontalAlignment = HorizontalAlignment.Left,
+            };
+            addBtn.Click += (_, _) =>
+            {
+                if (objectCombo.SelectedItem is not string selectedObj || string.IsNullOrEmpty(selectedObj))
+                    return;
+
+                if (!int.TryParse(countBox.Text, out var count) || count < 1)
+                    count = 1;
+
+                // Build the content item name with rules
+                string itemName = selectedObj;
+
+                // Add to mandatory content list
+                if (!z.MandatoryContent.Contains(itemName))
+                {
+                    z.MandatoryContent.Add(itemName);
+                }
+
+                // Store content item settings in a special format (we'll use a dictionary-like approach)
+                // For now, we'll store the settings as JSON in a comment-like format
+                // This will be processed during export
+
+                MarkDirty();
+                BuildInspector();
+            };
+            addSection.Children.Add(addBtn);
+
+            panel.Children.Add(addSection);
+
+            // Separator
+            panel.Children.Add(new System.Windows.Shapes.Rectangle { Height = 1, Fill = (Brush)FindResource("BrushBorder"), Margin = new Thickness(0, 0, 0, 12) });
+
+            // Existing content objects list
+            AddSectionLabel(L("S.EC.MoObjectsList"), panel);
+
+            if (z.MandatoryContent.Count == 0)
+            {
+                panel.Children.Add(new TextBlock { Text = L("S.EC.NoContentObjects"), Foreground = (Brush)FindResource("BrushTextDim"), FontSize = 11, Margin = new Thickness(0, 4, 0, 0) });
+            }
+            else
+            {
+                for (int i = 0; i < z.MandatoryContent.Count; i++)
+                {
+                    var itemName = z.MandatoryContent[i];
+                    var itemPanel = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+
+                    var nameText = new TextBlock { Text = itemName, VerticalAlignment = VerticalAlignment.Center };
+                    DockPanel.SetDock(nameText, Dock.Left);
+                    itemPanel.Children.Add(nameText);
+
+                    var removeBtn = new System.Windows.Controls.Button
+                    {
+                        Content = "✕",
+                        FontSize = 9,
+                        Padding = new Thickness(4, 0, 4, 0),
+                        MinWidth = 18,
+                        MinHeight = 18,
+                        Margin = new Thickness(0),
+                        Background = System.Windows.Media.Brushes.Transparent,
+                        BorderThickness = new Thickness(0),
+                        Foreground = (Brush)FindResource("BrushTextDim"),
+                        Cursor = Cursors.Hand
+                    };
+                    var capturedIdx = i;
+                    removeBtn.Click += (_, _) =>
+                    {
+                        if (capturedIdx < z.MandatoryContent.Count)
+                        {
+                            z.MandatoryContent.RemoveAt(capturedIdx);
+                            MarkDirty();
+                            BuildInspector();
+                        }
+                    };
+                    DockPanel.SetDock(removeBtn, Dock.Right);
+                    itemPanel.Children.Add(removeBtn);
+
+                    panel.Children.Add(itemPanel);
+                }
             }
         }
 
@@ -625,7 +1176,7 @@ namespace Olden_Era___Template_Editor
                         onCommit(new List<string>(list));
                         BuildInspector();
                     }
-                    addCombo.SelectedItem = "";
+                    // Keep the selected item visible (don't reset)
                 }
             };
             innerPanel.Children.Add(addCombo);
@@ -753,6 +1304,88 @@ namespace Olden_Era___Template_Editor
             return ep;
         }
 
+        /// <summary>
+        /// Automatically generates roads for zones connected by a connection with Road=true.
+        /// Mirrors the logic from TemplateGenerator:
+        /// - Zones with castles: MainObject[0] -> Connection
+        /// - Zones without castles: Connection -> Connection (star topology)
+        /// </summary>
+        private void AutoGenerateRoadsForConnection(Connection conn)
+        {
+            if (conn.Road != true) return;
+
+            string connName = conn.Name ?? $"{conn.From}-{conn.To}";
+
+            // Find connected zones
+            var fromZone = Zones.FirstOrDefault(z => z.Name == conn.From);
+            var toZone = Zones.FirstOrDefault(z => z.Name == conn.To);
+
+            if (fromZone != null) AddRoadToZone(fromZone, connName);
+            if (toZone != null) AddRoadToZone(toZone, connName);
+        }
+
+        /// <summary>
+        /// Adds a road from the zone's main object (or connection anchor) to the given connection.
+        /// </summary>
+        private void AddRoadToZone(Zone zone, string connectionName)
+        {
+            zone.Roads ??= [];
+
+            int castleCount = zone.MainObjects?.Count(o => o.Type == "City" || o.Type == "AbandonedOutpost") ?? 0;
+
+            Road newRoad;
+            if (castleCount > 0)
+            {
+                // Zone with castle: MainObject[0] -> Connection
+                newRoad = new Road
+                {
+                    From = new RoadEndpoint { Type = "MainObject", Args = ["0"] },
+                    To = new RoadEndpoint { Type = "Connection", Args = [connectionName] }
+                };
+            }
+            else
+            {
+                // Zone without castle: use star topology from first existing connection
+                var existingConn = zone.Roads
+                    .Select(r => r.From?.Type == "Connection" ? r.From.Args?.FirstOrDefault() : null)
+                    .FirstOrDefault(n => n != null)
+                    ?? zone.Roads
+                        .Select(r => r.To?.Type == "Connection" ? r.To.Args?.FirstOrDefault() : null)
+                        .FirstOrDefault(n => n != null);
+
+                if (existingConn != null)
+                {
+                    newRoad = new Road
+                    {
+                        From = new RoadEndpoint { Type = "Connection", Args = [existingConn] },
+                        To = new RoadEndpoint { Type = "Connection", Args = [connectionName] }
+                    };
+                }
+                else
+                {
+                    // First connection: self-referencing loop
+                    newRoad = new Road
+                    {
+                        From = new RoadEndpoint { Type = "Connection", Args = [connectionName] },
+                        To = new RoadEndpoint { Type = "Connection", Args = [connectionName] }
+                    };
+                }
+            }
+
+            // Avoid duplicates
+            bool exists = zone.Roads.Any(r =>
+                r.From?.Type == newRoad.From?.Type &&
+                r.From?.Args?.FirstOrDefault() == newRoad.From?.Args?.FirstOrDefault() &&
+                r.To?.Type == newRoad.To?.Type &&
+                r.To?.Args?.FirstOrDefault() == newRoad.To?.Args?.FirstOrDefault()
+            );
+
+            if (!exists)
+            {
+                zone.Roads.Add(newRoad);
+            }
+        }
+
         private void RenameZone(Zone z, string newName)
         {
             newName = newName.Trim();
@@ -833,6 +1466,7 @@ namespace Olden_Era___Template_Editor
             if (_dragZone is not null && e.LeftButton == MouseButtonState.Pressed)
             {
                 var p = e.GetPosition(GraphCanvas) - _dragGrab;
+                p = SnapToGrid(p);
                 _positions[_dragZone.Name] = p;
                 _movedWhileDragging = true;
                 RepositionZone(_dragZone, p);
@@ -937,6 +1571,25 @@ namespace Olden_Era___Template_Editor
             BtnConnectMode.Background = _connectMode ? new SolidColorBrush(Color.FromRgb(60, 50, 90)) : null;
             UpdateStatus(_connectMode ? L("S.EC.ConnectModeOn") : L("S.EC.ConnectModeOff"));
             UpdateSelectionVisuals();
+        }
+
+        private void BtnGridSnap_Click(object sender, RoutedEventArgs e)
+        {
+            _gridSnap = !_gridSnap;
+            BtnGridSnap.Background = _gridSnap
+                ? new SolidColorBrush(Color.FromRgb(40, 60, 40))
+                : null;
+            UpdateStatus(_gridSnap ? L("S.EC.GridSnapOn") : L("S.EC.GridSnapOff"));
+        }
+
+        /// <summary>Snaps a point to the nearest grid intersection.</summary>
+        private Point SnapToGrid(Point p)
+        {
+            if (!_gridSnap) return p;
+            return new Point(
+                Math.Round(p.X / GridSize) * GridSize,
+                Math.Round(p.Y / GridSize) * GridSize
+            );
         }
 
         private void BtnAddZone_Click(object sender, RoutedEventArgs e) => AddZoneAt(ViewportCenterInCanvas());

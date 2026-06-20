@@ -47,6 +47,15 @@
             </DockPanel>
         </Border>
 
+        <!-- Grid snap toggle (floating, under editor icon) -->
+        <Button x:Name="BtnGridSnap" Grid.Row="0"
+                HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                Margin="12,-30,0,0" Panel.ZIndex="10"
+                Style="{StaticResource ToolbarButton}"
+                Content="{DynamicResource S.EC.GridSnap}"
+                Click="BtnGridSnap_Click"
+                ToolTip="Привязка зон к сетке при перемещении"/>
+
         <!-- Body: canvas + inspector -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
@@ -81,28 +90,72 @@
                             <TextBlock Text="{DynamicResource S.Ed.LegZones}" Foreground="{StaticResource BrushTextDim}" FontSize="11" Margin="0,0,0,4"/>
                             <StackPanel Orientation="Horizontal" Margin="0,1">
                                 <Ellipse Width="10" Height="10" Fill="#5EB36E" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="{DynamicResource S.Ed.LegPlayer}" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBlock Text="player_spawn" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
                                 <Ellipse Width="10" Height="10" Fill="#5080A0" Margin="12,0,5,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="{DynamicResource S.Ed.LegHub}" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBlock Text="Hub" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,1">
-                                <Ellipse Width="10" Height="10" Fill="#CD7F32" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="{DynamicResource S.Ed.LegNeutral}" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
-                                <Ellipse Width="10" Height="10" Fill="#C0C0C0" Margin="12,0,5,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="Silver" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                                <Ellipse Width="10" Height="10" Fill="#1E4650" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="ai_spawn" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                                <Ellipse Width="10" Height="10" Fill="#465A28" Margin="12,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="second_spawn" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,1">
-                                <Ellipse Width="10" Height="10" Fill="#FFD232" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="Gold" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
-                                <Ellipse Width="10" Height="10" Fill="#B4913C" Margin="12,0,5,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="WinCond" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                                <Ellipse Width="10" Height="10" Fill="#503C5A" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="side_spawn_zone" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                                <Ellipse Width="10" Height="10" Fill="#464628" Margin="12,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="spawns" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <Ellipse Width="10" Height="10" Fill="#654321" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="sides" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                                <Ellipse Width="10" Height="10" Fill="#82501E" Margin="12,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="side_zone" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <Ellipse Width="10" Height="10" Fill="#484C50" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="treasure" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                                <Ellipse Width="10" Height="10" Fill="#5A5A6E" Margin="12,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="treasures" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <Ellipse Width="10" Height="10" Fill="#8C7814" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="supertreasure_zone" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                                <Ellipse Width="10" Height="10" Fill="#785A14" Margin="12,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="center" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <Ellipse Width="10" Height="10" Fill="#96781E" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="center_zone" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                                <Ellipse Width="10" Height="10" Fill="#284664" Margin="12,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="start_zone" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <Ellipse Width="10" Height="10" Fill="#3C305A" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="back" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                                <Ellipse Width="10" Height="10" Fill="#326432" Margin="12,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="leaf" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <Ellipse Width="10" Height="10" Fill="#A06414" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="wincondition_zone" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
                             </StackPanel>
                             <TextBlock Text="{DynamicResource S.Ed.LegConns}" Foreground="{StaticResource BrushTextDim}" FontSize="11" Margin="0,6,0,4"/>
                             <StackPanel Orientation="Horizontal" Margin="0,1">
                                 <Rectangle Width="18" Height="3" Fill="#B4913C" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="{DynamicResource S.Ed.LegDirect}" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
-                                <Rectangle Width="18" Height="2" Fill="#5AAAD2" Margin="14,0,5,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="{DynamicResource S.Ed.LegPortal}" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBlock Text="Direct" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                                <Rectangle Width="18" Height="3" Fill="#A0A0A0" Margin="14,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Default" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <Rectangle Width="18" Height="2" Fill="#5AAAD2" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Portal" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                                <Rectangle Width="18" Height="2.5" Fill="#50C878" Margin="14,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Proximity" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <Rectangle Width="18" Height="2.5" Fill="#DC3C3C" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="GladiatorArena" Foreground="{StaticResource BrushText}" FontSize="11" VerticalAlignment="Center"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -131,14 +184,14 @@
                                          <RowDefinition Height="Auto"/>
                                          <RowDefinition Height="*"/>
                                      </Grid.RowDefinitions>
-                                     <UniformGrid x:Name="HeaderPanel"
-                                                  Grid.Row="0"
-                                                  Rows="1"
-                                                  Columns="5"
-                                                  Panel.ZIndex="1"
-                                                  Margin="0"
-                                                  IsItemsHost="True"
-                                                  Background="Transparent"/>
+                                      <UniformGrid x:Name="HeaderPanel"
+                                                   Grid.Row="0"
+                                                   Rows="2"
+                                                   Columns="3"
+                                                   Panel.ZIndex="1"
+                                                   Margin="0"
+                                                   IsItemsHost="True"
+                                                   Background="Transparent"/>
                                      <Border Grid.Row="1"
                                              Background="Transparent"
                                              BorderThickness="0">
@@ -168,12 +221,17 @@
                                 <StackPanel x:Name="InspectorFieldsContent" Margin="0,6,0,0"/>
                             </ScrollViewer>
                         </TabItem>
-                        <TabItem x:Name="TabBiome" Header="{DynamicResource S.EC.TabBiome}">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
-                                <StackPanel x:Name="InspectorFieldsBiome" Margin="0,6,0,0"/>
-                            </ScrollViewer>
-                        </TabItem>
-                    </TabControl>
+                         <TabItem x:Name="TabBiome" Header="{DynamicResource S.EC.TabBiome}">
+                             <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
+                                 <StackPanel x:Name="InspectorFieldsBiome" Margin="0,6,0,0"/>
+                             </ScrollViewer>
+                         </TabItem>
+                         <TabItem x:Name="TabObjects" Header="{DynamicResource S.EC.TabObjects}">
+                             <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
+                                 <StackPanel x:Name="InspectorFieldsObjects" Margin="0,6,0,0"/>
+                             </ScrollViewer>
+                         </TabItem>
+                     </TabControl>
                 </DockPanel>
             </Border>
         </Grid>
