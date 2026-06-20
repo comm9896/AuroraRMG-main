@@ -2160,55 +2160,26 @@ namespace Olden_Era___Template_Editor.Services
 
         private static void DrawZoneValues(DrawingContext dc, Zone zone, Point pt, double r, int castles)
         {
-            var gVal  = zone.GuardedContentValue ?? 0;
-            var gValA = zone.GuardedContentValuePerArea ?? 0;
-            var uVal  = zone.UnguardedContentValue ?? 0;
-            var uValA = zone.UnguardedContentValuePerArea ?? 0;
-            var rVal  = zone.ResourcesValue ?? 0;
-            var rValA = zone.ResourcesValuePerArea ?? 0;
-            var avgVal = (gVal + gValA + uVal + uValA + rVal + rValA) / 6.0;
+            var avgVal = ((zone.GuardedContentValue ?? 0) + (zone.GuardedContentValuePerArea ?? 0)
+                        + (zone.UnguardedContentValue ?? 0) + (zone.UnguardedContentValuePerArea ?? 0)
+                        + (zone.ResourcesValue ?? 0) + (zone.ResourcesValuePerArea ?? 0)) / 6.0;
 
             var yellowBrush = new SolidColorBrush(Color.FromRgb(255, 230, 80));
-            var whiteBrush = Brushes.White;
             double fs = Math.Max(7, r * 0.32);
             double lineH = fs * 1.15;
-            double totalH = 0;
-            int lineCount = 0;
-
-            if (avgVal > 0) { lineCount++; }
-            if (gVal > 0) { lineCount++; }
-            if (gValA > 0) { lineCount++; }
-            if (uVal > 0) { lineCount++; }
-            if (uValA > 0) { lineCount++; }
-            if (rVal > 0) { lineCount++; }
-            if (rValA > 0) { lineCount++; }
-            if (castles > 0) { lineCount++; }
-
-            totalH = lineCount * lineH;
-            double startY = pt.Y - totalH / 2 + lineH / 2;
-
-            void DrawLine(string text, Brush brush)
-            {
-                DrawText(dc, text, new Point(pt.X, startY), fs, brush, centered: true);
-                startY += lineH;
-            }
+            int lineCount = (avgVal > 0 ? 1 : 0) + (castles > 0 ? 1 : 0);
+            double totalH = lineCount * lineH;
+            double y = pt.Y - totalH / 2 + lineH / 2;
 
             if (avgVal > 0)
-                DrawLine($"⌀{avgVal:0}", yellowBrush);
-            if (gVal > 0)
-                DrawLine($"G:{gVal}", yellowBrush);
-            if (gValA > 0)
-                DrawLine($"G/a:{gValA}", yellowBrush);
-            if (uVal > 0)
-                DrawLine($"U:{uVal}", yellowBrush);
-            if (uValA > 0)
-                DrawLine($"U/a:{uValA}", yellowBrush);
-            if (rVal > 0)
-                DrawLine($"R:{rVal}", yellowBrush);
-            if (rValA > 0)
-                DrawLine($"R/a:{rValA}", yellowBrush);
+            {
+                DrawText(dc, $"⌀{avgVal:0}", new Point(pt.X, y), fs, yellowBrush, centered: true);
+                y += lineH;
+            }
             if (castles > 0)
-                DrawLine($"🏰{castles}", whiteBrush);
+            {
+                DrawText(dc, $"🏰{castles}", new Point(pt.X, y), fs, Brushes.White, centered: true);
+            }
         }
 
         // ── Hold-city detection ──────────────────────────────────────────────────

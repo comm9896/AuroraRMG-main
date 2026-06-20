@@ -203,6 +203,52 @@ namespace Olden_Era___Template_Editor
             var (fill, border) = ClassifyZone(z);
             double r = NodeRadius(z);
 
+            var avgVal = ((z.GuardedContentValue ?? 0) + (z.GuardedContentValuePerArea ?? 0)
+                        + (z.UnguardedContentValue ?? 0) + (z.UnguardedContentValuePerArea ?? 0)
+                        + (z.ResourcesValue ?? 0) + (z.ResourcesValuePerArea ?? 0)) / 6.0;
+            int castles = z.MainObjects?.Count(o => o.Type == "City" || o.Type == "AbandonedOutpost") ?? 0;
+
+            var innerPanel = new StackPanel();
+
+            innerPanel.Children.Add(new TextBlock
+            {
+                Text = z.Name,
+                Foreground = Brushes.White,
+                FontSize = 10,
+                TextAlignment = TextAlignment.Center,
+                IsHitTestVisible = false,
+            });
+
+            if (avgVal > 0)
+            {
+                innerPanel.Children.Add(new TextBlock
+                {
+                    Text = $"⌀{avgVal:0}",
+                    Foreground = new SolidColorBrush(Color.FromRgb(255, 230, 80)),
+                    FontSize = 9,
+                    TextAlignment = TextAlignment.Center,
+                    IsHitTestVisible = false,
+                });
+            }
+
+            if (castles > 0)
+            {
+                innerPanel.Children.Add(new TextBlock
+                {
+                    Text = $"🏰{castles}",
+                    Foreground = Brushes.White,
+                    FontSize = 9,
+                    TextAlignment = TextAlignment.Center,
+                    IsHitTestVisible = false,
+                });
+            }
+
+            innerPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            Canvas.SetLeft(innerPanel, p.X - innerPanel.DesiredSize.Width / 2);
+            Canvas.SetTop(innerPanel, p.Y - innerPanel.DesiredSize.Height / 2);
+            GraphCanvas.Children.Add(innerPanel);
+            _nodeLabels[z.Name] = innerPanel;
+
             var ellipse = new Ellipse
             {
                 Width = r * 2, Height = r * 2,
@@ -215,90 +261,8 @@ namespace Olden_Era___Template_Editor
             };
             Canvas.SetLeft(ellipse, p.X - r);
             Canvas.SetTop(ellipse, p.Y - r);
-            ellipse.MouseEnter += (_, _) => { if (!ReferenceEquals(_selected, z)) ellipse.StrokeThickness = 4; };
-            ellipse.MouseLeave += (_, _) => { if (!ReferenceEquals(_selected, z)) ellipse.StrokeThickness = 2.5; };
             GraphCanvas.Children.Add(ellipse);
             _nodeShapes[z.Name] = ellipse;
-
-            var gVal = z.GuardedContentValue ?? 0;
-            var gValA = z.GuardedContentValuePerArea ?? 0;
-            var uVal = z.UnguardedContentValue ?? 0;
-            var uValA = z.UnguardedContentValuePerArea ?? 0;
-            var rVal = z.ResourcesValue ?? 0;
-            var rValA = z.ResourcesValuePerArea ?? 0;
-            var avgVal = (gVal + gValA + uVal + uValA + rVal + rValA) / 6.0;
-            int castles = z.MainObjects?.Count(o => o.Type == "City" || o.Type == "AbandonedOutpost") ?? 0;
-
-            var innerPanel = new StackPanel
-            {
-                IsHitTestVisible = false,
-            };
-
-            var nameText = new TextBlock
-            {
-                Text = z.Name,
-                Foreground = Brushes.White,
-                FontSize = 10,
-                TextAlignment = TextAlignment.Center,
-            };
-            innerPanel.Children.Add(nameText);
-
-            var yellowBrush = new SolidColorBrush(Color.FromRgb(255, 230, 80));
-
-            if (avgVal > 0)
-            {
-                var avgText = new TextBlock
-                {
-                    Text = $"⌀{avgVal:0}",
-                    Foreground = yellowBrush,
-                    FontSize = 9,
-                    TextAlignment = TextAlignment.Center,
-                };
-                innerPanel.Children.Add(avgText);
-            }
-
-            if (gVal > 0)
-            {
-                innerPanel.Children.Add(new TextBlock { Text = $"G:{gVal}", Foreground = yellowBrush, FontSize = 8, TextAlignment = TextAlignment.Center });
-            }
-            if (gValA > 0)
-            {
-                innerPanel.Children.Add(new TextBlock { Text = $"G/a:{gValA}", Foreground = yellowBrush, FontSize = 8, TextAlignment = TextAlignment.Center });
-            }
-            if (uVal > 0)
-            {
-                innerPanel.Children.Add(new TextBlock { Text = $"U:{uVal}", Foreground = yellowBrush, FontSize = 8, TextAlignment = TextAlignment.Center });
-            }
-            if (uValA > 0)
-            {
-                innerPanel.Children.Add(new TextBlock { Text = $"U/a:{uValA}", Foreground = yellowBrush, FontSize = 8, TextAlignment = TextAlignment.Center });
-            }
-            if (rVal > 0)
-            {
-                innerPanel.Children.Add(new TextBlock { Text = $"R:{rVal}", Foreground = yellowBrush, FontSize = 8, TextAlignment = TextAlignment.Center });
-            }
-            if (rValA > 0)
-            {
-                innerPanel.Children.Add(new TextBlock { Text = $"R/a:{rValA}", Foreground = yellowBrush, FontSize = 8, TextAlignment = TextAlignment.Center });
-            }
-
-            if (castles > 0)
-            {
-                var castleText = new TextBlock
-                {
-                    Text = $"🏰{castles}",
-                    Foreground = Brushes.White,
-                    FontSize = 9,
-                    TextAlignment = TextAlignment.Center,
-                };
-                innerPanel.Children.Add(castleText);
-            }
-
-            innerPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            Canvas.SetLeft(innerPanel, p.X - innerPanel.DesiredSize.Width / 2);
-            Canvas.SetTop(innerPanel, p.Y - innerPanel.DesiredSize.Height / 2);
-            GraphCanvas.Children.Add(innerPanel);
-            _nodeLabels[z.Name] = innerPanel;
         }
 
         /// <summary>Centres a node label inside the node circle.</summary>
@@ -367,7 +331,7 @@ namespace Olden_Era___Template_Editor
                     shape.Stroke = new SolidColorBrush(SelectColor);
                     shape.StrokeThickness = 4.0;
                 }
-                else if (_nodeShapes.ContainsKey(name) && Zones.FirstOrDefault(zz => zz.Name == name) is { } zone)
+                else if (Zones.FirstOrDefault(zz => zz.Name == name) is { } zone)
                 {
                     var (_, brd) = ClassifyZone(zone);
                     shape.Stroke = new SolidColorBrush(brd);
@@ -378,15 +342,8 @@ namespace Olden_Era___Template_Editor
 
         private Panel AddExpanderSection(string header, Panel parent)
         {
-            var expander = new System.Windows.Controls.Expander
-            {
-                Header = header,
-                Style = (System.Windows.Style)FindResource("InspectorExpander"),
-                IsExpanded = true,
-            };
-            var contentPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 0) };
-            expander.Content = contentPanel;
-            parent.Children.Add(expander);
+            var contentPanel = new StackPanel { Margin = new Thickness(0, 2, 0, 2) };
+            parent.Children.Add(contentPanel);
             return contentPanel;
         }
 
@@ -874,7 +831,6 @@ namespace Olden_Era___Template_Editor
                 return;
             }
 
-            // Double-click on empty space → add a zone right there (experimental quick-add).
             if (e.ClickCount == 2 && !_connectMode)
             {
                 AddZoneAt(e.GetPosition(GraphCanvas));
@@ -882,7 +838,6 @@ namespace Olden_Era___Template_Editor
                 return;
             }
 
-            // Empty space → pan (and clear selection).
             Select(null);
             _isPanning = true;
             _panStartScreen = e.GetPosition(CanvasHost);
@@ -952,8 +907,11 @@ namespace Olden_Era___Template_Editor
         {
             while (src is not null)
             {
-                if (src is FrameworkElement { Tag: Zone z }) return z;
-                if (src is FrameworkElement { Tag: Connection c }) return c;
+                if (src is FrameworkElement fe)
+                {
+                    if (fe.Tag is Zone z) return z;
+                    if (fe.Tag is Connection c) return c;
+                }
                 src = VisualTreeHelper.GetParent(src);
             }
             return null;
