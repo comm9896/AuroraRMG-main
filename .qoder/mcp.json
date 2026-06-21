@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "command": "C:\\Users\\Commander\\pipx\\venvs\\code-review-graph\\Scripts\\python.exe",
+      "args": [
+        "-m",
+        "code_review_graph",
+        "serve"
+      ],
+      "cwd": "G:\\table\\AuroraRMG-main",
+      "type": "stdio"
+    }
+  }
+}

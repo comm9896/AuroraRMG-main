@@ -8,6 +8,27 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/MedievalTheme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <Style TargetType="ToolTip">
+                <Setter Property="ToolTipService.InitialShowDelay" Value="0"/>
+                <Setter Property="MaxWidth" Value="300"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToolTip">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    Padding="{TemplateBinding Padding}">
+                                <TextBlock Text="{TemplateBinding Content}"
+                                           TextWrapping="Wrap"
+                                           MaxWidth="300"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style TargetType="ComboBox">
+                <Setter Property="local:ComboBoxBehavior.SyncTextWithSelectedItem" Value="True"/>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

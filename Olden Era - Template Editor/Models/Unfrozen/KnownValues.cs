@@ -455,6 +455,41 @@ namespace OldenEraTemplateEditor.Models
             "MatchZone",
         ];
 
+        // ── FromList arguments ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Available biome names for FromList zoneBiome/contentBiome/metaObjectsBiome args.
+        /// </summary>
+        public static readonly string[] FromListBiomeArgs =
+        [
+            "Grass",
+            "Snow",
+            "Lava",
+            "Sand",
+            "Dirt",
+            "Deathland",
+            "Autumn",
+        ];
+
+        /// <summary>
+        /// Available faction names for FromList faction args.
+        /// </summary>
+        public static readonly string[] FromListFactionArgs =
+        [
+            "Human",
+            "Undead",
+            "Dungeon",
+            "Nature",
+            "Demon",
+            "Unfrozen",
+            "Random",
+        ];
+
+        /// <summary>
+        /// Prefix for "different from zone/object" FromList args.
+        /// </summary>
+        public const string DifferentFromPrefix = "differentFrom:";
+
         // ── Roads ────────────────────────────────────────────────────────────────
 
         /// <summary>Known values for Road.Type.</summary>

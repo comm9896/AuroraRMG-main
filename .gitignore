@@ -559,3 +559,5 @@ map_templates/Yin Yang.rmg.json
 map_templates/Zookeeper.png
 map_templates/Zookeeper.rmg.json
 123.rmg.json
+# Added by code-review-graph
+.code-review-graph/

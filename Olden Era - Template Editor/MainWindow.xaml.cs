@@ -2159,7 +2159,7 @@ namespace Olden_Era___Template_Editor
         {
             // Open the just-generated template if there is one; otherwise an empty editor
             // where the user can load a .rmg.json directly.
-            var editor = new TemplateEditorWindow(_generatedTemplate, _generatedTopology) { Owner = this };
+            var editor = new TemplateEditorWindow(_generatedTemplate, _generatedTopology);
             editor.Show();
         }
 

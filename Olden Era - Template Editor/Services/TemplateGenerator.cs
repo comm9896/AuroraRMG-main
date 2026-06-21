@@ -81,6 +81,8 @@ namespace Olden_Era___Template_Editor.Services
 
             string effectiveVictoryCondition = settings.GameEndConditions.VictoryCondition;
 
+            var variant = BuildVariant(settings, playerLetters, neutralZones, tuning, holdCityNeutralLetter, useCityHold && settings.Topology == MapTopology.HubAndSpoke);
+
             var template = new RmgTemplate
             {
                 Name = settings.TemplateName,
@@ -92,9 +94,9 @@ namespace Olden_Era___Template_Editor.Services
                 GameRules = BuildGameRules(settings, effectiveVictoryCondition),
                 ValueOverrides = BuildValueOverrides(settings.ValueOverridesText),
                 GlobalBans = BuildGlobalBans(settings.BannedItems, settings.BannedMagics, settings.BannedHeroes),
-                Variants = [BuildVariant(settings, playerLetters, neutralZones, tuning, holdCityNeutralLetter, useCityHold && settings.Topology == MapTopology.HubAndSpoke)],
-                ZoneLayouts = BuildZoneLayouts(settings),
-                MandatoryContent = BuildAllMandatoryContent(playerLetters, neutralZones, settings),
+                Variants = [variant],
+                ZoneLayouts = BuildZoneLayouts(settings, variant),
+                MandatoryContent = BuildAllMandatoryContent(playerLetters, neutralZones, variant, settings),
                 ContentCountLimits = ZoneContentManager.BuildAllContentCountLimits(settings),
                 ContentPools = [],
                 ContentLists = []
@@ -397,13 +399,12 @@ namespace Olden_Era___Template_Editor.Services
         private static double PercentToModifier(int percent) =>
             Math.Round(Math.Clamp(percent, 20, 200) / 100.0, 2, MidpointRounding.AwayFromZero);
 
-        private static List<Bonus>? BuildBonuses(List<OldenEraTemplateEditor.Models.BonusEntry> entries)
+        private static List<Bonus> BuildBonuses(List<OldenEraTemplateEditor.Models.BonusEntry> entries)
         {
-            if (entries.Count == 0) return null;
             var result = new List<Bonus>();
             foreach (var entry in entries)
                 result.AddRange(entry.ToBonuses());
-            return result.Count > 0 ? result : null;
+            return result;
         }
 
         /// <summary>
@@ -3284,7 +3285,10 @@ namespace Olden_Era___Template_Editor.Services
             if (includeFoothold)
                 roads.Add(PlainRoad(MainObjectEndpoint("0"), MandatoryContentEndpoint("name_remote_foothold_1")));
             foreach (var rc in ringConns)
+            {
+                if (string.IsNullOrWhiteSpace(rc)) continue;
                 roads.Add(PlainRoad(MainObjectEndpoint("0"), ConnectionEndpoint(rc)));
+            }
             return roads;
         }
 
@@ -3314,7 +3318,7 @@ namespace Olden_Era___Template_Editor.Services
         }
 
         private static Road PlainRoad(RoadEndpoint from, RoadEndpoint to) =>
-            new() { From = from, To = to };
+            new() { Type = "Stone", From = from, To = to };
 
         private static RoadEndpoint MainObjectEndpoint(string index) =>
             new() { Type = "MainObject", Args = [index] };
@@ -3327,17 +3331,52 @@ namespace Olden_Era___Template_Editor.Services
 
         // ── Zone layouts ─────────────────────────────────────────────────────────
 
-        private static List<ZoneLayout> BuildZoneLayouts(GeneratorSettings settings)
+        private static List<ZoneLayout> BuildZoneLayouts(GeneratorSettings settings, Variant variant)
         {
             double obstacleScale = Math.Clamp(settings.TerrainRoughnessPercent, 0, 300) / 100.0;
             double lakeScale = Math.Clamp(settings.LakeAmountPercent, 0, 300) / 100.0;
-            return
-            [
-                BuildZoneLayout(SpawnLayoutName, 0.24, 0.48, 0.30, 16, 0.16, 160, -0.30, 0.4, [20, 2, 1], obstacleScale, lakeScale),
-                BuildZoneLayout(SideLayoutName, 0.36, 0.50, 0.25, 16, 0.128, 128, -0.30, 0.3, [20, 2, 1], obstacleScale, lakeScale),
-                BuildZoneLayout(TreasureLayoutName, 0.50, 0.50, 0.45, 12, 0.12, 96, -0.30, 0.3, [12, 3, 1], obstacleScale, lakeScale),
-                BuildZoneLayout(CenterLayoutName, 0.56, 0.60, 0.30, 10, 0.128, 96, -0.25, 0.3, [12, 4, 1], obstacleScale, lakeScale)
-            ];
+
+            // Collect all unique layout names referenced by zones in the variant
+            var layoutNames = new HashSet<string>(StringComparer.Ordinal);
+            if (variant.Zones != null)
+            {
+                foreach (var z in variant.Zones)
+                {
+                    if (!string.IsNullOrEmpty(z.Layout))
+                        layoutNames.Add(z.Layout);
+                }
+            }
+
+            // Default layouts for known types
+            var defaults = new Dictionary<string, ZoneLayout>(StringComparer.Ordinal)
+            {
+                [SpawnLayoutName] = BuildZoneLayout(SpawnLayoutName, 0.24, 0.48, 0.30, 16, 0.16, 160, -0.30, 0.4, [20, 2, 1], obstacleScale, lakeScale),
+                [SideLayoutName] = BuildZoneLayout(SideLayoutName, 0.36, 0.50, 0.25, 16, 0.128, 128, -0.30, 0.3, [20, 2, 1], obstacleScale, lakeScale),
+                [TreasureLayoutName] = BuildZoneLayout(TreasureLayoutName, 0.50, 0.50, 0.45, 12, 0.12, 96, -0.30, 0.3, [12, 3, 1], obstacleScale, lakeScale),
+                [CenterLayoutName] = BuildZoneLayout(CenterLayoutName, 0.56, 0.60, 0.30, 10, 0.128, 96, -0.25, 0.3, [12, 4, 1], obstacleScale, lakeScale),
+            };
+
+            // Generic fallback for any unknown layout name
+            ZoneLayout FallbackLayout(string name) =>
+                BuildZoneLayout(name, 0.36, 0.50, 0.25, 16, 0.128, 128, -0.30, 0.3, [20, 2, 1], obstacleScale, lakeScale);
+
+            var result = new List<ZoneLayout>();
+            foreach (var name in layoutNames)
+            {
+                if (defaults.TryGetValue(name, out var layout))
+                    result.Add(layout);
+                else
+                    result.Add(FallbackLayout(name));
+            }
+
+            // Ensure at least the 4 base layouts are always present
+            foreach (var kvp in defaults)
+            {
+                if (!layoutNames.Contains(kvp.Key))
+                    result.Add(kvp.Value);
+            }
+
+            return result;
         }
 
         /// <summary>Clamps a scaled 0..1 terrain-fill fraction into a safe, still-passable range.</summary>
@@ -3388,26 +3427,45 @@ namespace Olden_Era___Template_Editor.Services
         // ── Mandatory content ────────────────────────────────────────────────────
 
         private static List<MandatoryContentGroup> BuildAllMandatoryContent(
-            List<string> playerLetters, List<NeutralZonePlan> neutralZones, GeneratorSettings settings)
+            List<string> playerLetters, List<NeutralZonePlan> neutralZones, Variant variant, GeneratorSettings settings)
         {
             var groups = new List<MandatoryContentGroup>();
+            var definedNames = new HashSet<string>(StringComparer.Ordinal);
 
+            // First pass: build groups for known player/neutral zones
             foreach (var letter in playerLetters)
-                groups.Add(BuildSpawnMandatoryContent(letter, settings));
+            {
+                var group = BuildSpawnMandatoryContent(letter, settings);
+                groups.Add(group);
+                definedNames.Add(group.Name);
+            }
 
             foreach (var neutralZone in neutralZones)
-                groups.Add(BuildNeutralMandatoryContent(neutralZone.Letter, neutralZone.CastleCount, neutralZone.Quality, settings));
-
-            if (settings.HubZoneMandatoryContent.Count > 0)
             {
-                var hubContent = settings.ZoneCfg.HubZoneCastles == 0
-                    ? ZoneContentManager.StripNearCastleRules([.. settings.HubZoneMandatoryContent])
-                    : [.. settings.HubZoneMandatoryContent];
-                groups.Add(new MandatoryContentGroup
+                var group = BuildNeutralMandatoryContent(neutralZone.Letter, neutralZone.CastleCount, neutralZone.Quality, settings);
+                groups.Add(group);
+                definedNames.Add(group.Name);
+            }
+
+            // Second pass: collect all mandatory content names referenced by zones
+            // and create groups for any that are missing
+            if (variant.Zones != null)
+            {
+                foreach (var zone in variant.Zones)
                 {
-                    Name = "mandatory_content_hub",
-                    Content = hubContent
-                });
+                    if (zone.MandatoryContent == null) continue;
+                    foreach (var mcName in zone.MandatoryContent)
+                    {
+                        if (string.IsNullOrEmpty(mcName) || definedNames.Contains(mcName)) continue;
+
+                        groups.Add(new MandatoryContentGroup
+                        {
+                            Name = mcName,
+                            Content = []
+                        });
+                        definedNames.Add(mcName);
+                    }
+                }
             }
 
             return groups;
