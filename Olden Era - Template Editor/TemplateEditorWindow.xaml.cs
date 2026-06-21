@@ -683,29 +683,12 @@ namespace Olden_Era___Template_Editor
                 var contentObjectsSection = new StackPanel { Visibility = Visibility.Collapsed };
                 mainPanel.Children.Add(contentObjectsSection);
 
-                // Add Content Objects button (visible only when section 5 exists)
-                var addContentObjectsBtn = new System.Windows.Controls.Button
-                {
-                    Content = L("S.EC.AddContentObjects"),
-                    Margin = new Thickness(0, 8, 0, 8),
-                    Padding = new Thickness(12, 6, 12, 6),
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    Visibility = Visibility.Collapsed // Will be updated based on section 5 visibility
-                };
-                addContentObjectsBtn.Click += (_, _) =>
-                {
-                    // Initialize content objects if needed
-                    BuildInspector();
-                };
-                mainPanel.Children.Add(addContentObjectsBtn);
-
                 // Build sections if data exists
                 bool hasAdditionalObjects = z.MainObjects != null && z.MainObjects.Count > 1;
                 if (hasAdditionalObjects)
                 {
                     additionalMoSection.Visibility = Visibility.Visible;
                     RebuildAdditionalMainObjectsList(z, additionalMoSection);
-                    addContentObjectsBtn.Visibility = Visibility.Visible;
                 }
 
                 // Content objects panel
@@ -842,45 +825,25 @@ namespace Olden_Era___Template_Editor
 
             // Faction args panel (visible only for FromList) - NOT in factionFields, managed separately
             var facArgsPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 4), Visibility = Visibility.Collapsed };
-
-            // Faction args display/edit box (declared first for use in availableFactionsCombo handler)
-            var factionArgsText = mo.Faction?.Args is { Count: > 0 } ? string.Join(", ", mo.Faction.Args) : "";
-            var factionArgsBox = new TextBox { Text = factionArgsText, Margin = new Thickness(0, 0, 0, 4), MinHeight = 30, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, IsEnabled = factionEnabled };
-            factionArgsBox.LostFocus += (_, _) =>
+            AddSectionLabel(L("S.EC.MoFactionArgs"), facArgsPanel);
+            var factionArgsCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 4), IsEnabled = factionEnabled };
+            foreach (var f in KnownValues.FromListFactionArgs) factionArgsCombo.Items.Add(f);
+            if (mo.Faction?.Args is { Count: > 0 })
+                factionArgsCombo.SelectedItem = mo.Faction.Args[0];
+            factionArgsCombo.SelectionChanged += (_, _) =>
             {
-                if (mo.Faction == null) mo.Faction = new TypedSelector();
-                mo.Faction.Args = ParseFactionArgs(factionArgsBox.Text);
-                MarkDirty();
-            };
-
-            // Available factions dropdown for adding
-            var availableFactionsPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 4) };
-            AddSectionLabel(L("S.EC.FromListAvailableArgs"), availableFactionsPanel);
-            var availableFactionsCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 4), IsEnabled = factionEnabled };
-            foreach (var f in KnownValues.FromListFactionArgs) availableFactionsCombo.Items.Add(f);
-            availableFactionsCombo.SelectionChanged += (_, _) =>
-            {
-                if (availableFactionsCombo.SelectedItem is string selected && selected.Length > 0)
+                if (factionArgsCombo.SelectedItem is string selected && selected.Length > 0)
                 {
                     if (mo.Faction == null) mo.Faction = new TypedSelector();
-                    if (mo.Faction.Args == null) mo.Faction.Args = [];
-                    if (!mo.Faction.Args.Contains(selected))
-                    {
-                        mo.Faction.Args.Add(selected);
-                        UpdateFactionArgsBox(factionArgsBox, mo.Faction.Args);
-                        MarkDirty();
-                    }
-                    availableFactionsCombo.SelectedItem = null;
+                    mo.Faction.Args = [selected];
+                    MarkDirty();
                 }
             };
-            availableFactionsPanel.Children.Add(availableFactionsCombo);
-            facArgsPanel.Children.Add(availableFactionsPanel);
+            facArgsPanel.Children.Add(factionArgsCombo);
 
-            AddSectionLabel(L("S.EC.MoFactionArgs"), facArgsPanel);
-            facArgsPanel.Children.Add(factionArgsBox);
-
-            // Owner
-            AddSectionLabel(L("S.EC.MoOwner"), panel);
+            // Owner (visible only for City)
+            var ownerPanel = new StackPanel { Visibility = mo.Type == "City" ? Visibility.Visible : Visibility.Collapsed };
+            AddSectionLabel(L("S.EC.MoOwner"), ownerPanel);
             var ownerCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 200 };
             ownerCombo.Items.Add("");
             foreach (var p in KnownValues.SpawnPlayers) ownerCombo.Items.Add(p);
@@ -897,10 +860,30 @@ namespace Olden_Era___Template_Editor
                 }
                 MarkDirty();
             };
-            panel.Children.Add(ownerCombo);
+            ownerPanel.Children.Add(ownerCombo);
+            panel.Children.Add(ownerPanel);
 
             // Remove guard if owned
-            AddCheckField(L("S.EC.MoRemoveGuard"), mo.RemoveGuardIfHasOwner == true, v => { mo.RemoveGuardIfHasOwner = v; MarkDirty(); }, panel, "Убирает охрану при указании владельца");
+            var removeGuardCheck = new CheckBox { Content = L("S.EC.MoRemoveGuard"), IsChecked = mo.RemoveGuardIfHasOwner == true, Margin = new Thickness(0, 0, 0, 8) };
+            removeGuardCheck.Checked += (_, _) =>
+            {
+                mo.RemoveGuardIfHasOwner = true;
+                mo.GuardChance = null;
+                mo.GuardValue = null;
+                mo.GuardWeeklyIncrement = null;
+                gcBox.Text = "0";
+                gvBox.Text = "0";
+                gwBox.Text = "0";
+                foreach (var field in guardFields) field.Visibility = Visibility.Collapsed;
+                MarkDirty();
+            };
+            removeGuardCheck.Unchecked += (_, _) =>
+            {
+                mo.RemoveGuardIfHasOwner = false;
+                foreach (var field in guardFields) field.Visibility = Visibility.Visible;
+                MarkDirty();
+            };
+            panel.Children.Add(removeGuardCheck);
 
             // Placement
             var placePanel = new StackPanel();
@@ -915,16 +898,23 @@ namespace Olden_Era___Template_Editor
             // Hold city win condition
             AddCheckField(L("S.EC.MoHoldCity"), mo.HoldCityWinCon == true, v => { mo.HoldCityWinCon = v; MarkDirty(); }, panel);
 
+            // Function to update guard fields visibility based on RemoveGuardIfHasOwner flag
+            void UpdateGuardFieldsVisibility()
+            {
+                bool showGuard = mo.Type != "GladiatorArena" && mo.Type != "AbandonedOutpost" && mo.RemoveGuardIfHasOwner != true;
+                foreach (var field in guardFields) field.Visibility = showGuard ? Visibility.Visible : Visibility.Collapsed;
+            }
+
             // Function to update visibility based on type
             void UpdateFieldVisibility(string type)
             {
                 bool isGladiator = type == "GladiatorArena";
                 bool isAbandonedOutpost = type == "AbandonedOutpost";
-                bool showGuard = !isGladiator && !isAbandonedOutpost;
-                bool showFaction = !isGladiator && !isAbandonedOutpost;
+                bool isSpawn = type == "Spawn";
+                bool showFaction = !isGladiator && !isAbandonedOutpost && !isSpawn;
                 bool showPlacement = !isGladiator;
 
-                foreach (var field in guardFields) field.Visibility = showGuard ? Visibility.Visible : Visibility.Collapsed;
+                UpdateGuardFieldsVisibility();
                 foreach (var field in factionFields) field.Visibility = showFaction ? Visibility.Visible : Visibility.Collapsed;
                 foreach (var field in placementFields) field.Visibility = showPlacement ? Visibility.Visible : Visibility.Collapsed;
 
@@ -936,8 +926,23 @@ namespace Olden_Era___Template_Editor
                 // Update faction enabled state
                 bool factionEnabledNew = !isAbandonedOutpost && !isGladiator;
                 facTypeCombo.IsEnabled = factionEnabledNew;
-                factionArgsBox.IsEnabled = factionEnabledNew;
-                availableFactionsCombo.IsEnabled = factionEnabledNew;
+                factionArgsCombo.IsEnabled = factionEnabledNew;
+
+                // Hide owner for non-City types
+                ownerPanel.Visibility = type == "City" ? Visibility.Visible : Visibility.Collapsed;
+                if (type != "City")
+                {
+                    mo.Owner = null;
+                    ownerCombo.SelectedItem = "";
+                }
+
+                // Clear faction when type is Spawn
+                if (isSpawn)
+                {
+                    mo.Faction = null;
+                    facTypeCombo.SelectedItem = "";
+                    factionArgsCombo.SelectedItem = null;
+                }
             }
 
             // Type combo handler
@@ -965,7 +970,7 @@ namespace Olden_Era___Template_Editor
                     if (s != "FromList")
                     {
                         mo.Faction.Args = [];
-                        factionArgsBox.Text = "";
+                        factionArgsCombo.SelectedItem = null;
                     }
                     MarkDirty();
                 }
@@ -1264,42 +1269,42 @@ namespace Olden_Era___Template_Editor
 
                 // Faction args panel (visible only for FromList) - NOT in factionFields, managed separately
                 var facArgsPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 4), Visibility = Visibility.Collapsed };
-
-                // Faction args display/edit box (declared first for use in availableFactionsCombo handler)
-                var factionArgsText = mo.Faction?.Args is { Count: > 0 } ? string.Join(", ", mo.Faction.Args) : "";
-                var factionArgsBox = new TextBox { Text = factionArgsText, Margin = new Thickness(0, 0, 0, 4), MinHeight = 30, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, IsEnabled = factionEnabled };
-                factionArgsBox.LostFocus += (_, _) =>
+                AddSectionLabel(L("S.EC.MoFactionArgs"), facArgsPanel);
+                var factionArgsCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 4), IsEnabled = factionEnabled };
+                foreach (var f in KnownValues.FromListFactionArgs) factionArgsCombo.Items.Add(f);
+                if (mo.Faction?.Args is { Count: > 0 })
+                    factionArgsCombo.SelectedItem = mo.Faction.Args[0];
+                factionArgsCombo.SelectionChanged += (_, _) =>
                 {
-                    if (mo.Faction == null) mo.Faction = new TypedSelector();
-                    mo.Faction.Args = ParseFactionArgs(factionArgsBox.Text);
-                    MarkDirty();
-                };
-
-                // Available factions dropdown for adding
-                var availableFactionsPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 4) };
-                AddSectionLabel(L("S.EC.FromListAvailableArgs"), availableFactionsPanel);
-                var availableFactionsCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 4), IsEnabled = factionEnabled };
-                foreach (var f in KnownValues.FromListFactionArgs) availableFactionsCombo.Items.Add(f);
-                availableFactionsCombo.SelectionChanged += (_, _) =>
-                {
-                    if (availableFactionsCombo.SelectedItem is string selected && selected.Length > 0)
+                    if (factionArgsCombo.SelectedItem is string selected && selected.Length > 0)
                     {
                         if (mo.Faction == null) mo.Faction = new TypedSelector();
-                        if (mo.Faction.Args == null) mo.Faction.Args = [];
-                        if (!mo.Faction.Args.Contains(selected))
-                        {
-                            mo.Faction.Args.Add(selected);
-                            UpdateFactionArgsBox(factionArgsBox, mo.Faction.Args);
-                            MarkDirty();
-                        }
-                        availableFactionsCombo.SelectedItem = null;
+                        mo.Faction.Args = [selected];
+                        MarkDirty();
                     }
                 };
-                availableFactionsPanel.Children.Add(availableFactionsCombo);
-                facArgsPanel.Children.Add(availableFactionsPanel);
+                facArgsPanel.Children.Add(factionArgsCombo);
 
-                AddSectionLabel(L("S.EC.MoFactionArgs"), facArgsPanel);
-                facArgsPanel.Children.Add(factionArgsBox);
+                // Owner (visible only for City, hidden for Spawn)
+                var ownerPanel = new StackPanel { Visibility = mo.Type == "City" ? Visibility.Visible : Visibility.Collapsed };
+                AddSectionLabel(L("S.EC.MoOwner"), ownerPanel);
+                var ownerCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 4), MaxDropDownHeight = 200 };
+                ownerCombo.Items.Add("");
+                foreach (var p in KnownValues.SpawnPlayers) ownerCombo.Items.Add(p);
+                ownerCombo.SelectedItem = mo.Owner ?? "";
+                ownerCombo.SelectionChanged += (_, _) =>
+                {
+                    var newOwner = ownerCombo.SelectedItem as string;
+                    mo.Owner = string.IsNullOrEmpty(newOwner) ? null : newOwner;
+                    if (newOwner != null && factionEnabled)
+                    {
+                        if (mo.Faction == null) mo.Faction = new TypedSelector();
+                        mo.Faction.Type = "Match";
+                        mo.Faction.Args = ["0"];
+                    }
+                    MarkDirty();
+                };
+                ownerPanel.Children.Add(ownerCombo);
 
                 // Placement
                 var placePanel = new StackPanel();
@@ -1319,10 +1324,12 @@ namespace Olden_Era___Template_Editor
                     bool showGuard = !isGladiator && !isAbandonedOutpost;
                     bool showFaction = !isGladiator && !isAbandonedOutpost;
                     bool showPlacement = !isGladiator;
+                    bool showOwner = type == "City";
 
                     foreach (var field in guardFields) field.Visibility = showGuard ? Visibility.Visible : Visibility.Collapsed;
                     foreach (var field in factionFields) field.Visibility = showFaction ? Visibility.Visible : Visibility.Collapsed;
                     foreach (var field in placementFields) field.Visibility = showPlacement ? Visibility.Visible : Visibility.Collapsed;
+                    ownerPanel.Visibility = showOwner ? Visibility.Visible : Visibility.Collapsed;
 
                     // Hide faction args when type changes (will be shown by facTypeCombo handler if needed)
                     facArgsPanel.Visibility = Visibility.Collapsed;
@@ -1330,8 +1337,7 @@ namespace Olden_Era___Template_Editor
                     // Update faction enabled state
                     bool factionEnabledNew = !isAbandonedOutpost && !isGladiator;
                     facTypeCombo.IsEnabled = factionEnabledNew;
-                    factionArgsBox.IsEnabled = factionEnabledNew;
-                    availableFactionsCombo.IsEnabled = factionEnabledNew;
+                    factionArgsCombo.IsEnabled = factionEnabledNew;
                 }
 
                 // Type combo handler
@@ -1340,6 +1346,11 @@ namespace Olden_Era___Template_Editor
                     if (typeCombo.SelectedItem is string s)
                     {
                         mo.Type = s;
+                        if (s != "City")
+                        {
+                            mo.Owner = null;
+                            ownerCombo.SelectedItem = "";
+                        }
                         OnMainObjectTypeChanged(mo);
                         UpdateFieldVisibility(s);
                         MarkDirty();
@@ -1358,7 +1369,7 @@ namespace Olden_Era___Template_Editor
                         if (s != "FromList")
                         {
                             mo.Faction.Args = [];
-                            factionArgsBox.Text = "";
+                            factionArgsCombo.SelectedItem = null;
                         }
                         MarkDirty();
                     }
@@ -1369,6 +1380,7 @@ namespace Olden_Era___Template_Editor
                 foreach (var field in guardFields) itemPanel.Children.Add(field);
                 foreach (var field in factionFields) itemPanel.Children.Add(field);
                 itemPanel.Children.Add(facArgsPanel);
+                itemPanel.Children.Add(ownerPanel);
                 foreach (var field in placementFields) itemPanel.Children.Add(field);
 
                 var sep = new System.Windows.Shapes.Rectangle { Height = 1, Fill = (Brush)FindResource("BrushBorder"), Margin = new Thickness(0, 4, 0, 0) };
@@ -1571,12 +1583,20 @@ namespace Olden_Era___Template_Editor
 
         private void AddCheckField(string label, bool value, Action<bool> onCommit, Panel panel, string? tooltip = null)
         {
-            var chk = new CheckBox { Content = label, IsChecked = value, Margin = new Thickness(0, 6, 0, 4) };
+            var dock = new DockPanel { Margin = new Thickness(0, 6, 0, 4), LastChildFill = true };
+            var chk = new CheckBox { IsChecked = value, VerticalAlignment = VerticalAlignment.Top };
+            var txt = new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(4, 0, 0, 0) };
+            DockPanel.SetDock(chk, Dock.Left);
+            dock.Children.Add(chk);
+            dock.Children.Add(txt);
             if (tooltip != null)
+            {
                 chk.ToolTip = tooltip;
+                txt.ToolTip = tooltip;
+            }
             chk.Checked   += (_, _) => onCommit(true);
             chk.Unchecked += (_, _) => onCommit(false);
-            panel.Children.Add(chk);
+            panel.Children.Add(dock);
         }
 
         private void AddReadOnly(string label, string value, Panel panel)
@@ -1999,6 +2019,7 @@ namespace Olden_Era___Template_Editor
             if (hit is Connection c)
             {
                 Select(c);
+                InspectorTabs.SelectedItem = TabMain;
                 e.Handled = true;
                 return;
             }
@@ -2108,7 +2129,9 @@ namespace Olden_Era___Template_Editor
                 UpdateSelectionVisuals();
                 return;
             }
-            var conn = new Connection { From = _connectFrom.Name, To = z.Name, ConnectionType = "Direct" };
+            string connType = "Direct";
+            string autoName = $"{connType}-{_connectFrom.Name}-{z.Name}";
+            var conn = new Connection { Name = autoName, From = _connectFrom.Name, To = z.Name, ConnectionType = connType };
             Connections.Add(conn);
             UpdateStatus(L("S.EC.ConnAdded", conn.From, conn.To));
             _connectFrom = null;
@@ -2117,6 +2140,7 @@ namespace Olden_Era___Template_Editor
             MarkDirty();
             RebuildGraph();
             Select(conn);
+            InspectorTabs.SelectedItem = TabMain;
         }
 
         // ── Toolbar handlers ──────────────────────────────────────────────────────────

@@ -204,11 +204,10 @@ public static class ZoneContentManager
             var limits = new List<ContentCountLimit>();
 
             limits.Add(new ContentCountLimit { Name = "content_limits_side", Limits = sidLimits });
-            limits.Add(new ContentCountLimit { Name = "content_limits_side_0_0", PlayerMin = 0, PlayerMax = 0, Limits = sidLimits });
 
             for (int a = 1; a <= 5; a++)
                 for (int b = a + 1; b <= 6; b++)
-                    limits.Add(new ContentCountLimit { Name = $"content_limits_side_{a}_{b}", PlayerMin = a, PlayerMax = b, Limits = sidLimits });
+                    limits.Add(new ContentCountLimit { Name = $"content_limits_side_{a}_{b}", Limits = sidLimits });
 
             return limits;
         }

@@ -2826,9 +2826,6 @@ namespace Olden_Era___Template_Editor.Services
                     Type = "Spawn",
                     Spawn = player,
                     RemoveGuardIfHasOwner = true,
-                    GuardChance = 1,
-                    GuardValue = ScaleNeutralGuardValue(5000, tuning),
-                    GuardWeeklyIncrement = 0.10,
                     BuildingsConstructionSid = "default_buildings_construction",
                     Placement = "Uniform",
                     PlacementArgs = ["true", "0.7", "0"]
@@ -2843,11 +2840,11 @@ namespace Olden_Era___Template_Editor.Services
                     Owner = playerStartsWithCastles ? player : null,
                     Faction = matchCastleFactions
                         ? new TypedSelector { Type = "Match", Args = ["0"] }
-                        : new TypedSelector { Type = "Random", Args = [] },
+                        : new TypedSelector { Type = "FromList", Args = [] },
                     GuardChance = playerStartsWithCastles ? 1 : 1,
                     GuardValue = ScaleNeutralGuardValue(2500, tuning),
                     RemoveGuardIfHasOwner = playerStartsWithCastles ? true : null,
-                    GuardWeeklyIncrement = 0.10,
+                    GuardWeeklyIncrement = playerStartsWithCastles ? 0.10 : 0.10,
                     BuildingsConstructionSid = "poor_buildings_construction",
                     Placement = "Uniform",
                     PlacementArgs = ["false", "-0.8", "3"]
