@@ -36,3 +36,17 @@
 ### Notes
 - Root cause: `factionListBox.SelectedItems.Add(item)` was called during initialization when ListBox wasn't fully ready, causing crash on first selection change
 - Now faction args ListBox is always initialized empty, and selection is restored only when switching to "FromList" type or during initial setup after all controls are created
+
+## 2026-06-21 — Faction Args UI Complete Rewrite
+
+### Changed
+- Replaced `ListBox` + `SelectionChanged` pattern with `ComboBox` (for adding) + `TextBox` (for display/edit) pattern — same approach as biome selector
+- Section 4 (`RebuildMainObjectEditor`): Removed `factionListBox`, added `availableFactionsCombo` and `factionArgsBox`
+- Section 5 (`RebuildAdditionalMainObjectsList`): Same changes for each city item
+- Removed `isFactionInitializing` flag — no longer needed with new pattern
+- Added `ParseFactionArgs()` and `UpdateFactionArgsBox()` helper methods
+
+### Notes
+- New pattern: User selects faction from dropdown → clicks to add → appears in text box → can edit manually or remove
+- No more `SelectedItems` manipulation that caused crashes
+- Each section (4 and 5) has independent controls, each city in section 5 has its own independent faction selector
