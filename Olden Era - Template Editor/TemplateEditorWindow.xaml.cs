@@ -764,90 +764,88 @@ namespace Olden_Era___Template_Editor
         {
             panel.Children.Clear();
 
+            // Track controls that need to be hidden for GladiatorArena
+            var guardFields = new List<FrameworkElement>();
+            var factionFields = new List<FrameworkElement>();
+            var placementFields = new List<FrameworkElement>();
+
             // Object type selector
             AddSectionLabel(L("S.EC.MoType"), panel);
             var typeCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 200 };
             foreach (var t in KnownValues.MainObjectTypes) typeCombo.Items.Add(t);
             typeCombo.SelectedItem = mo.Type;
-            typeCombo.SelectionChanged += (_, _) =>
+
+            // Spawn field panel (only for Spawn type)
+            var spawnPanel = new StackPanel { Visibility = mo.Type == "Spawn" ? Visibility.Visible : Visibility.Collapsed };
+            AddSectionLabel(L("S.EC.Spawn"), spawnPanel);
+            var playerCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 200 };
+            foreach (var p in KnownValues.SpawnPlayers) playerCombo.Items.Add(p);
+            playerCombo.SelectedItem = mo.Spawn ?? "";
+            playerCombo.SelectionChanged += (_, _) =>
             {
-                if (typeCombo.SelectedItem is string s)
+                if (playerCombo.SelectedItem is string s)
                 {
-                    mo.Type = s;
-                    OnMainObjectTypeChanged(mo);
-                    if (mo.Type == "Spawn") AutoRenameZoneForSpawn(z, mo);
+                    mo.Spawn = s;
+                    AutoRenameZoneForSpawn(z, mo);
                     MarkDirty();
-                    RefreshNode(z);
-                    BuildInspector();
                 }
             };
-            panel.Children.Add(typeCombo);
-
-            // Spawn field (only for Spawn type)
-            if (mo.Type == "Spawn")
-            {
-                AddSectionLabel(L("S.EC.Spawn"), panel);
-                var playerCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 200 };
-                foreach (var p in KnownValues.SpawnPlayers) playerCombo.Items.Add(p);
-                playerCombo.SelectedItem = mo.Spawn ?? "";
-                playerCombo.SelectionChanged += (_, _) =>
-                {
-                    if (playerCombo.SelectedItem is string s)
-                    {
-                        mo.Spawn = s;
-                        AutoRenameZoneForSpawn(z, mo);
-                        MarkDirty();
-                    }
-                };
-                panel.Children.Add(playerCombo);
-            }
+            spawnPanel.Children.Add(playerCombo);
 
             // Guard chance
-            AddSectionLabel(L("S.EC.MoGuardChance"), panel);
+            var gcPanel = new StackPanel();
+            AddSectionLabel(L("S.EC.MoGuardChance"), gcPanel);
             var gcBox = new TextBox { Text = (mo.GuardChance ?? 0).ToString(CultureInfo.InvariantCulture), Margin = new Thickness(0, 0, 0, 8) };
             gcBox.LostFocus += (_, _) => { if (double.TryParse(gcBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) mo.GuardChance = d; MarkDirty(); };
-            panel.Children.Add(gcBox);
+            gcPanel.Children.Add(gcBox);
+            guardFields.Add(gcPanel);
 
             // Guard value
-            AddSectionLabel(L("S.EC.MoGuardValue"), panel);
+            var gvPanel = new StackPanel();
+            AddSectionLabel(L("S.EC.MoGuardValue"), gvPanel);
             var gvBox = new TextBox { Text = (mo.GuardValue ?? 0).ToString(), Margin = new Thickness(0, 0, 0, 8) };
             gvBox.LostFocus += (_, _) => { if (int.TryParse(gvBox.Text, out var v)) mo.GuardValue = v; MarkDirty(); };
-            panel.Children.Add(gvBox);
+            gvPanel.Children.Add(gvBox);
+            guardFields.Add(gvPanel);
 
             // Guard weekly increment
-            AddSectionLabel(L("S.EC.MoGuardWeeklyInc"), panel);
+            var gwPanel = new StackPanel();
+            AddSectionLabel(L("S.EC.MoGuardWeeklyInc"), gwPanel);
             var gwBox = new TextBox { Text = (mo.GuardWeeklyIncrement ?? 0).ToString(CultureInfo.InvariantCulture), Margin = new Thickness(0, 0, 0, 8) };
             gwBox.LostFocus += (_, _) => { if (double.TryParse(gwBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) mo.GuardWeeklyIncrement = d; MarkDirty(); };
-            panel.Children.Add(gwBox);
+            gwPanel.Children.Add(gwBox);
+            guardFields.Add(gwPanel);
 
             // Buildings construction
-            AddSectionLabel(L("S.EC.MoBuildings"), panel);
+            var buildPanel = new StackPanel();
+            AddSectionLabel(L("S.EC.MoBuildings"), buildPanel);
             var buildCombo = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 200 };
             foreach (var b in KnownValues.BuildingsConstructionSids) buildCombo.Items.Add(b);
             buildCombo.Text = mo.BuildingsConstructionSid ?? "";
             buildCombo.LostFocus += (_, _) => { mo.BuildingsConstructionSid = buildCombo.Text.Trim(); MarkDirty(); };
             buildCombo.SelectionChanged += (_, _) => { if (buildCombo.SelectedItem is string s) { mo.BuildingsConstructionSid = s; MarkDirty(); } };
-            panel.Children.Add(buildCombo);
+            buildPanel.Children.Add(buildCombo);
+            guardFields.Add(buildPanel);
 
-            // Faction (disabled for AbandonedOutpost and GladiatorArena)
+            // Faction selector type (disabled for AbandonedOutpost and GladiatorArena)
             bool factionEnabled = mo.Type != "AbandonedOutpost" && mo.Type != "GladiatorArena";
-
-            // Faction selector type (FromList, Match, MatchMainObject, MatchZone)
-            AddSectionLabel(L("S.EC.MoFactionType"), panel);
+            bool isFactionInitializing = true;
+            var facTypePanel = new StackPanel();
+            AddSectionLabel(L("S.EC.MoFactionType"), facTypePanel);
             var facTypeCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 200, IsEnabled = factionEnabled };
             foreach (var ft in KnownValues.SelectorTypes) facTypeCombo.Items.Add(ft);
             facTypeCombo.SelectedItem = mo.Faction?.Type ?? "";
+            facTypePanel.Children.Add(facTypeCombo);
+            factionFields.Add(facTypePanel);
 
-            // Faction args panel (visible only for FromList)
-            var facArgsPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 4), Visibility = mo.Faction?.Type == "FromList" ? Visibility.Visible : Visibility.Collapsed };
+            // Faction args panel (visible only for FromList) - NOT in factionFields, managed separately
+            var facArgsPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 4), Visibility = Visibility.Collapsed };
             AddSectionLabel(L("S.EC.MoFactionArgs"), facArgsPanel);
             var factionListBox = new ListBox { MaxHeight = 150, IsEnabled = factionEnabled };
             foreach (var faction in KnownValues.FromListFactionArgs)
             {
                 var item = new ListBoxItem { Content = faction };
                 factionListBox.Items.Add(item);
-                if (mo.Faction?.Args?.Contains(faction) == true)
-                    factionListBox.SelectedItems.Add(item);
             }
             factionListBox.SelectionChanged += (_, _) =>
             {
@@ -856,24 +854,6 @@ namespace Olden_Era___Template_Editor
                 MarkDirty();
             };
             facArgsPanel.Children.Add(factionListBox);
-            panel.Children.Add(facArgsPanel);
-
-            facTypeCombo.SelectionChanged += (_, _) =>
-            {
-                if (facTypeCombo.SelectedItem is string s)
-                {
-                    if (mo.Faction == null) mo.Faction = new TypedSelector();
-                    mo.Faction.Type = s;
-                    facArgsPanel.Visibility = s == "FromList" ? Visibility.Visible : Visibility.Collapsed;
-                    if (s != "FromList")
-                    {
-                        factionListBox.SelectedItems.Clear();
-                        mo.Faction.Args = [];
-                    }
-                    MarkDirty();
-                }
-            };
-            panel.Children.Add(facTypeCombo);
 
             // Owner
             AddSectionLabel(L("S.EC.MoOwner"), panel);
@@ -899,15 +879,100 @@ namespace Olden_Era___Template_Editor
             AddCheckField(L("S.EC.MoRemoveGuard"), mo.RemoveGuardIfHasOwner == true, v => { mo.RemoveGuardIfHasOwner = v; MarkDirty(); }, panel, "Убирает охрану при указании владельца");
 
             // Placement
-            AddSectionLabel(L("S.EC.MoPlacement"), panel);
+            var placePanel = new StackPanel();
+            AddSectionLabel(L("S.EC.MoPlacement"), placePanel);
             var placeCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 200 };
             foreach (var p in KnownValues.MainObjectPlacements) placeCombo.Items.Add(p);
             placeCombo.SelectedItem = mo.Placement ?? "";
             placeCombo.SelectionChanged += (_, _) => { if (placeCombo.SelectedItem is string s) { mo.Placement = s; MarkDirty(); } };
-            panel.Children.Add(placeCombo);
+            placePanel.Children.Add(placeCombo);
+            placementFields.Add(placePanel);
 
             // Hold city win condition
             AddCheckField(L("S.EC.MoHoldCity"), mo.HoldCityWinCon == true, v => { mo.HoldCityWinCon = v; MarkDirty(); }, panel);
+
+            // Function to update visibility based on type
+            void UpdateFieldVisibility(string type)
+            {
+                bool isGladiator = type == "GladiatorArena";
+                bool isAbandonedOutpost = type == "AbandonedOutpost";
+                bool showGuard = !isGladiator && !isAbandonedOutpost;
+                bool showFaction = !isGladiator && !isAbandonedOutpost;
+                bool showPlacement = !isGladiator;
+
+                foreach (var field in guardFields) field.Visibility = showGuard ? Visibility.Visible : Visibility.Collapsed;
+                foreach (var field in factionFields) field.Visibility = showFaction ? Visibility.Visible : Visibility.Collapsed;
+                foreach (var field in placementFields) field.Visibility = showPlacement ? Visibility.Visible : Visibility.Collapsed;
+
+                spawnPanel.Visibility = type == "Spawn" ? Visibility.Visible : Visibility.Collapsed;
+
+                // Hide faction args when type changes (will be shown by facTypeCombo handler if needed)
+                facArgsPanel.Visibility = Visibility.Collapsed;
+
+                // Update faction enabled state
+                bool factionEnabledNew = !isAbandonedOutpost && !isGladiator;
+                facTypeCombo.IsEnabled = factionEnabledNew;
+                factionListBox.IsEnabled = factionEnabledNew;
+            }
+
+            // Type combo handler
+            typeCombo.SelectionChanged += (_, _) =>
+            {
+                if (typeCombo.SelectedItem is string s)
+                {
+                    mo.Type = s;
+                    OnMainObjectTypeChanged(mo);
+                    if (mo.Type == "Spawn") AutoRenameZoneForSpawn(z, mo);
+                    UpdateFieldVisibility(s);
+                    MarkDirty();
+                    RefreshNode(z);
+                }
+            };
+
+            // Faction type combo handler
+            facTypeCombo.SelectionChanged += (_, _) =>
+            {
+                if (isFactionInitializing) return;
+                if (facTypeCombo.SelectedItem is string s)
+                {
+                    if (mo.Faction == null) mo.Faction = new TypedSelector();
+                    mo.Faction.Type = s;
+                    facArgsPanel.Visibility = s == "FromList" ? Visibility.Visible : Visibility.Collapsed;
+                    if (s == "FromList")
+                    {
+                        factionListBox.SelectedItems.Clear();
+                        if (mo.Faction.Args != null)
+                        {
+                            foreach (var item in factionListBox.Items.Cast<ListBoxItem>())
+                            {
+                                var content = item.Content?.ToString();
+                                if (content != null && mo.Faction.Args.Contains(content))
+                                    factionListBox.SelectedItems.Add(item);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        factionListBox.SelectedItems.Clear();
+                        mo.Faction.Args = [];
+                    }
+                    MarkDirty();
+                }
+            };
+
+            // Add all controls to panel in order
+            panel.Children.Add(typeCombo);
+            panel.Children.Add(spawnPanel);
+            foreach (var field in guardFields) panel.Children.Add(field);
+            foreach (var field in factionFields) panel.Children.Add(field);
+            panel.Children.Add(facArgsPanel);
+            panel.Children.Add(placePanel);
+
+            // Set initial visibility
+            UpdateFieldVisibility(mo.Type);
+            if (mo.Faction?.Type == "FromList")
+                facArgsPanel.Visibility = Visibility.Visible;
+            isFactionInitializing = false;
         }
 
         private static readonly string[] MainObjectKinds = ["City", "AbandonedOutpost"];
@@ -1129,64 +1194,70 @@ namespace Olden_Era___Template_Editor
                 headerRow.Children.Add(removeBtn);
                 itemPanel.Children.Add(headerRow);
 
+                // Track controls for conditional visibility
+                var guardFields = new List<FrameworkElement>();
+                var factionFields = new List<FrameworkElement>();
+                var placementFields = new List<FrameworkElement>();
+
                 // Object type selector (without Spawn)
                 var typeCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 4), MaxDropDownHeight = 200 };
                 foreach (var t in AdditionalMainObjectTypes) typeCombo.Items.Add(t);
                 typeCombo.SelectedItem = mo.Type;
-                typeCombo.SelectionChanged += (_, _) =>
-                {
-                    if (typeCombo.SelectedItem is string s)
-                    {
-                        mo.Type = s;
-                        OnMainObjectTypeChanged(mo);
-                        MarkDirty();
-                        RefreshNode(z);
-                        BuildInspector();
-                    }
-                };
-                itemPanel.Children.Add(typeCombo);
 
-                // Guard fields with labels
-                AddSectionLabel(L("S.EC.MoGuardChance"), itemPanel);
+                // Guard chance
+                var gcPanel = new StackPanel();
+                AddSectionLabel(L("S.EC.MoGuardChance"), gcPanel);
                 var gcBox = new TextBox { Text = (mo.GuardChance ?? 0).ToString(CultureInfo.InvariantCulture), Margin = new Thickness(0, 0, 0, 4) };
                 gcBox.LostFocus += (_, _) => { if (double.TryParse(gcBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) mo.GuardChance = d; MarkDirty(); };
-                itemPanel.Children.Add(gcBox);
+                gcPanel.Children.Add(gcBox);
+                guardFields.Add(gcPanel);
 
-                AddSectionLabel(L("S.EC.MoGuardValue"), itemPanel);
+                // Guard value
+                var gvPanel = new StackPanel();
+                AddSectionLabel(L("S.EC.MoGuardValue"), gvPanel);
                 var gvBox = new TextBox { Text = (mo.GuardValue ?? 0).ToString(), Margin = new Thickness(0, 0, 0, 4) };
                 gvBox.LostFocus += (_, _) => { if (int.TryParse(gvBox.Text, out var v)) mo.GuardValue = v; MarkDirty(); };
-                itemPanel.Children.Add(gvBox);
+                gvPanel.Children.Add(gvBox);
+                guardFields.Add(gvPanel);
 
-                AddSectionLabel(L("S.EC.MoGuardWeeklyInc"), itemPanel);
+                // Guard weekly increment
+                var gwPanel = new StackPanel();
+                AddSectionLabel(L("S.EC.MoGuardWeeklyInc"), gwPanel);
                 var gwBox = new TextBox { Text = (mo.GuardWeeklyIncrement ?? 0).ToString(CultureInfo.InvariantCulture), Margin = new Thickness(0, 0, 0, 4) };
                 gwBox.LostFocus += (_, _) => { if (double.TryParse(gwBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) mo.GuardWeeklyIncrement = d; MarkDirty(); };
-                itemPanel.Children.Add(gwBox);
+                gwPanel.Children.Add(gwBox);
+                guardFields.Add(gwPanel);
 
-                AddSectionLabel(L("S.EC.MoBuildings"), itemPanel);
+                // Buildings construction
+                var buildPanel = new StackPanel();
+                AddSectionLabel(L("S.EC.MoBuildings"), buildPanel);
                 var buildCombo = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 0, 4), MaxDropDownHeight = 200 };
                 foreach (var b in KnownValues.BuildingsConstructionSids) buildCombo.Items.Add(b);
                 buildCombo.Text = mo.BuildingsConstructionSid ?? "";
                 buildCombo.LostFocus += (_, _) => { mo.BuildingsConstructionSid = buildCombo.Text.Trim(); MarkDirty(); };
                 buildCombo.SelectionChanged += (_, _) => { if (buildCombo.SelectedItem is string s) { mo.BuildingsConstructionSid = s; MarkDirty(); } };
-                itemPanel.Children.Add(buildCombo);
+                buildPanel.Children.Add(buildCombo);
+                guardFields.Add(buildPanel);
 
                 // Faction selector type
                 bool factionEnabled = mo.Type != "AbandonedOutpost" && mo.Type != "GladiatorArena";
-                AddSectionLabel(L("S.EC.MoFactionType"), itemPanel);
+                bool isFactionInitializing = true;
+                var facTypePanel = new StackPanel();
+                AddSectionLabel(L("S.EC.MoFactionType"), facTypePanel);
                 var facTypeCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 4), MaxDropDownHeight = 200, IsEnabled = factionEnabled };
                 foreach (var f in KnownValues.SelectorTypes) facTypeCombo.Items.Add(f);
                 facTypeCombo.SelectedItem = mo.Faction?.Type ?? "";
+                facTypePanel.Children.Add(facTypeCombo);
+                factionFields.Add(facTypePanel);
 
-                // Faction args panel (visible only for FromList)
-                var facArgsPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 4), Visibility = mo.Faction?.Type == "FromList" ? Visibility.Visible : Visibility.Collapsed };
+                // Faction args panel (visible only for FromList) - NOT in factionFields, managed separately
+                var facArgsPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 4), Visibility = Visibility.Collapsed };
                 AddSectionLabel(L("S.EC.MoFactionArgs"), facArgsPanel);
                 var factionListBox = new ListBox { MaxHeight = 120, IsEnabled = factionEnabled };
                 foreach (var faction in KnownValues.FromListFactionArgs)
                 {
                     var lbItem = new ListBoxItem { Content = faction };
                     factionListBox.Items.Add(lbItem);
-                    if (mo.Faction?.Args?.Contains(faction) == true)
-                        factionListBox.SelectedItems.Add(lbItem);
                 }
                 factionListBox.SelectionChanged += (_, _) =>
                 {
@@ -1195,16 +1266,75 @@ namespace Olden_Era___Template_Editor
                     MarkDirty();
                 };
                 facArgsPanel.Children.Add(factionListBox);
-                itemPanel.Children.Add(facArgsPanel);
 
+                // Placement
+                var placePanel = new StackPanel();
+                AddSectionLabel(L("S.EC.MoPlacement"), placePanel);
+                var placeCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 4), MaxDropDownHeight = 200 };
+                foreach (var p in KnownValues.MainObjectPlacements) placeCombo.Items.Add(p);
+                placeCombo.SelectedItem = mo.Placement ?? "";
+                placeCombo.SelectionChanged += (_, _) => { if (placeCombo.SelectedItem is string s) { mo.Placement = s; MarkDirty(); } };
+                placePanel.Children.Add(placeCombo);
+                placementFields.Add(placePanel);
+
+                // Function to update visibility based on type
+                void UpdateFieldVisibility(string type)
+                {
+                    bool isGladiator = type == "GladiatorArena";
+                    bool isAbandonedOutpost = type == "AbandonedOutpost";
+                    bool showGuard = !isGladiator && !isAbandonedOutpost;
+                    bool showFaction = !isGladiator && !isAbandonedOutpost;
+                    bool showPlacement = !isGladiator;
+
+                    foreach (var field in guardFields) field.Visibility = showGuard ? Visibility.Visible : Visibility.Collapsed;
+                    foreach (var field in factionFields) field.Visibility = showFaction ? Visibility.Visible : Visibility.Collapsed;
+                    foreach (var field in placementFields) field.Visibility = showPlacement ? Visibility.Visible : Visibility.Collapsed;
+
+                    // Hide faction args when type changes (will be shown by facTypeCombo handler if needed)
+                    facArgsPanel.Visibility = Visibility.Collapsed;
+
+                    // Update faction enabled state
+                    bool factionEnabledNew = !isAbandonedOutpost && !isGladiator;
+                    facTypeCombo.IsEnabled = factionEnabledNew;
+                    factionListBox.IsEnabled = factionEnabledNew;
+                }
+
+                // Type combo handler
+                typeCombo.SelectionChanged += (_, _) =>
+                {
+                    if (typeCombo.SelectedItem is string s)
+                    {
+                        mo.Type = s;
+                        OnMainObjectTypeChanged(mo);
+                        UpdateFieldVisibility(s);
+                        MarkDirty();
+                        RefreshNode(z);
+                    }
+                };
+
+                // Faction type combo handler
                 facTypeCombo.SelectionChanged += (_, _) =>
                 {
+                    if (isFactionInitializing) return;
                     if (facTypeCombo.SelectedItem is string s)
                     {
                         if (mo.Faction == null) mo.Faction = new TypedSelector();
                         mo.Faction.Type = s;
                         facArgsPanel.Visibility = s == "FromList" ? Visibility.Visible : Visibility.Collapsed;
-                        if (s != "FromList")
+                        if (s == "FromList")
+                        {
+                            factionListBox.SelectedItems.Clear();
+                            if (mo.Faction.Args != null)
+                            {
+                                foreach (var item in factionListBox.Items.Cast<ListBoxItem>())
+                                {
+                                    var content = item.Content?.ToString();
+                                    if (content != null && mo.Faction.Args.Contains(content))
+                                        factionListBox.SelectedItems.Add(item);
+                                }
+                            }
+                        }
+                        else
                         {
                             factionListBox.SelectedItems.Clear();
                             mo.Faction.Args = [];
@@ -1212,19 +1342,35 @@ namespace Olden_Era___Template_Editor
                         MarkDirty();
                     }
                 };
-                itemPanel.Children.Add(facTypeCombo);
 
-                AddSectionLabel(L("S.EC.MoPlacement"), itemPanel);
-                var placeCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 4), MaxDropDownHeight = 200 };
-                foreach (var p in KnownValues.MainObjectPlacements) placeCombo.Items.Add(p);
-                placeCombo.SelectedItem = mo.Placement ?? "";
-                placeCombo.SelectionChanged += (_, _) => { if (placeCombo.SelectedItem is string s) { mo.Placement = s; MarkDirty(); } };
-                itemPanel.Children.Add(placeCombo);
+                // Add all controls to item panel
+                itemPanel.Children.Add(typeCombo);
+                foreach (var field in guardFields) itemPanel.Children.Add(field);
+                foreach (var field in factionFields) itemPanel.Children.Add(field);
+                itemPanel.Children.Add(facArgsPanel);
+                foreach (var field in placementFields) itemPanel.Children.Add(field);
 
                 var sep = new System.Windows.Shapes.Rectangle { Height = 1, Fill = (Brush)FindResource("BrushBorder"), Margin = new Thickness(0, 4, 0, 0) };
                 itemPanel.Children.Add(sep);
 
                 panel.Children.Add(itemPanel);
+
+                // Set initial visibility
+                UpdateFieldVisibility(mo.Type ?? "City");
+                if (mo.Faction?.Type == "FromList")
+                {
+                    facArgsPanel.Visibility = Visibility.Visible;
+                    if (mo.Faction.Args != null)
+                    {
+                        foreach (var item in factionListBox.Items.Cast<ListBoxItem>())
+                        {
+                            var content = item.Content?.ToString();
+                            if (content != null && mo.Faction.Args.Contains(content))
+                                factionListBox.SelectedItems.Add(item);
+                        }
+                    }
+                }
+                isFactionInitializing = false;
             }
         }
 

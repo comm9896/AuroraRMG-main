@@ -18,3 +18,21 @@
 ### Notes
 - Serialization already works correctly via `JsonSerializer` with `List<string> Args` property
 - Symphony.rmg.json has non-standard format (commas inside single array element) — file is now ignored per AGENTS.md rule
+
+## 2026-06-21 — Faction FromList Args UI Verification
+
+### Verified
+- Section 4 (`RebuildMainObjectEditor`): `facArgsPanel` visibility correctly toggled when `facTypeCombo` selection changes to/from "FromList"
+- Section 5 (`RebuildAdditionalMainObjectsList`): Each city item has independent `facTypeCombo` and `facArgsPanel` — changing one doesn't affect others
+- Both sections properly clear `factionListBox` selection and `mo.Faction.Args` when switching away from "FromList"
+- Initial visibility set correctly based on `mo.Faction?.Type`
+
+### Fixed
+- `RebuildMainObjectEditor` (Section 4): Fixed crash when selecting faction args - removed premature `SelectedItems.Add` during ListBox initialization; moved logic to SelectionChanged handler and initial state setup
+- `RebuildAdditionalMainObjectsList` (Section 5): Same fix for each city item in the loop
+- Both sections: Changed initial `facArgsPanel.Visibility` to `Collapsed` instead of conditional, now properly set in code-behind after initialization
+- Added null checks for `item.Content?.ToString()` before `List.Contains()` to prevent null reference warnings
+
+### Notes
+- Root cause: `factionListBox.SelectedItems.Add(item)` was called during initialization when ListBox wasn't fully ready, causing crash on first selection change
+- Now faction args ListBox is always initialized empty, and selection is restored only when switching to "FromList" type or during initial setup after all controls are created
