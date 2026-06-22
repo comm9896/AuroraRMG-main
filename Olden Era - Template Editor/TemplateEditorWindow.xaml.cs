@@ -7,6 +7,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -599,6 +600,78 @@ namespace Olden_Era___Template_Editor
                     "Принимает аргументы от 0 до 1.\n\nКомментарий от Mont: Это пустые клетки в точке интереса (там, где стоит охраняемый или неохраняемый объект, здание/артефакт и т.д.). Используется эта функция на шаблонах типа анархии (без правил), где можно \"воровать\" всякие вкусности, не пробивая охрану.");
 
                 var poolsPanel = InspectorFieldsPools;
+
+                var allSelectedPools = new List<string>();
+                if (z.GuardedContentPool != null) allSelectedPools.AddRange(z.GuardedContentPool);
+                if (z.UnguardedContentPool != null) allSelectedPools.AddRange(z.UnguardedContentPool);
+                if (z.ResourcesContentPool != null) allSelectedPools.AddRange(z.ResourcesContentPool);
+
+                var viewPoolsBtn = new System.Windows.Controls.Button
+                {
+                    Content = "📋 Просмотр содержимого пулов",
+                    Margin = new Thickness(0, 0, 0, 8),
+                    Padding = new Thickness(12, 6, 12, 6),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    FontSize = 11
+                };
+                viewPoolsBtn.Click += (_, _) =>
+                {
+                    try
+                    {
+                        var allPoolNames = GamePoolDataLoader.GetAllPools().Select(p => p.Name).ToList();
+                        var viewer = new ContentPoolViewerWindow(allPoolSids: allPoolNames, allSelectedPids: allSelectedPools);
+                        viewer.Owner = this;
+                        viewer.Show();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.MessageBox.Show(this, $"Ошибка загрузки пулов:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                };
+                poolsPanel.Children.Add(viewPoolsBtn);
+
+                var createPoolBtn = new System.Windows.Controls.Button
+                {
+                    Content = "➕ Создать новый пул",
+                    Margin = new Thickness(0, 0, 0, 12),
+                    Padding = new Thickness(12, 6, 12, 6),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    FontSize = 11
+                };
+                createPoolBtn.Click += (_, _) =>
+                {
+                    var creator = new ContentPoolCreatorWindow();
+                    creator.Owner = this;
+                    creator.PoolCreated += (poolName, poolLists) =>
+                    {
+                        try
+                        {
+                            var newPool = new GamePool
+                            {
+                                Name = poolName,
+                                Groups = new List<PoolGroup>
+                                {
+                                    new PoolGroup
+                                    {
+                                        Weight = 1,
+                                        IncludeLists = poolLists
+                                    }
+                                }
+                            };
+
+                            GamePoolDataLoader.AddPool(newPool);
+
+                            System.Windows.MessageBox.Show(this, $"Пул '{poolName}' создан и добавлен в список!", "Пул создан", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Windows.MessageBox.Show(this, $"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                    };
+                    creator.Show();
+                };
+                poolsPanel.Children.Add(createPoolBtn);
+
                 var p1 = AddExpanderSection(L("S.EC.GuardedPool"), poolsPanel);
                 AddStringListPicker(L("S.EC.GuardedPool"), KnownValues.GuardedContentPoolSids, z.GuardedContentPool, v => { z.GuardedContentPool = v; MarkDirty(); }, p1);
                 var p2 = AddExpanderSection(L("S.EC.UnguardedPool"), poolsPanel);

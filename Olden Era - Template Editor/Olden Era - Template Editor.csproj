@@ -7,13 +7,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <Version>1.4.1</Version>
-    <AssemblyVersion>1.4.1.0</AssemblyVersion>
-    <FileVersion>1.4.1.0</FileVersion>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AssemblyName>OldenEraTemplateGenerator</AssemblyName>
-    <Product>AuroraRMG</Product>
-    <AssemblyTitle>AuroraRMG</AssemblyTitle>
-    <Company>AuroraRMG</Company>
     <!-- Publish as a single self-contained .exe with no extra files -->
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
@@ -31,8 +26,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Expose internal helpers (e.g. UpdateService.TryParseTag) to the test project. -->
-    <InternalsVisibleTo Include="Olden Era - Template Editor.Tests" />
+    <Content Include="GameData.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
+
+
 
 </Project>

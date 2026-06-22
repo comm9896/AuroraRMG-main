@@ -90,3 +90,47 @@
 - **Faction args**: Generator uses `FromList` with empty `Args = []` (correct), but visual editor may show raw faction names like "Nature", "Undead", "Demon" which are invalid. Reference templates only use `[]` or `differentFrom:` expressions.
 - **Connection names**: Auto-generated connections in UI get numeric names like "123", "1", "2". Reference templates use descriptive names like "Bridge-A-B", "Spawn-A-Treasure-1".
 - **MatchZone self-reference**: Zone-2 referencing itself (`"args": ["Zone-2"]`) is circular. Reference templates reference Spawn zones or parent zones.
+
+## 2026-06-21 — Content Pool Viewer
+
+### Added
+- `ContentPoolViewerWindow` — separate window showing pool contents in a table format
+- `ContentPoolInfo` and `ContentPoolData` classes in `Models/ContentPoolInfo.cs` with full pool metadata
+- "📋 Просмотр содержимого пулов" button in the Pools tab that opens the viewer
+
+### Pool Viewer Features
+- Dropdown to select any pool
+- Table showing: SID, Category (Guarded/Unguarded/Resources), Tier, Content Type, Description
+- Pre-selects pools that are currently assigned to the zone
+- Shows descriptive names for content types (items, pandora boxes, hires, unit banks, resource banks, stat buildings, magic buildings, resources)
+
+## 2026-06-21 — Pool Creator & Game Data Integration
+
+### Added
+- `ContentPoolCreatorWindow` — window for creating new content pools
+- `ContentListInfo` class with ~60 content lists from game data
+- "➕ Создать новый пул" button in Pools tab
+- Category filter for content lists (Предметы, Шкатулки, Наёмники, Банки существ, etc.)
+- Add/remove lists via + button or double-click
+- Export pool as JSON file matching game format
+
+### Pool Viewer Rewrite
+- Now loads real pool data from game files (`StreamingAssets/generator/content_pools/`)
+- Shows actual pool contents: list name, object SID, weight, biome
+- Displays pool statistics: groups count, objects count, total weight
+- Highlights missing lists in red
+- Fixed label text color to black
+- Fixed localization: "списки контента" (was "спикои"), "Ящики Пандоры" (was "Шкатулки"), "Внешние жилища" (was "Наёмники")
+
+### Game Data Analysis
+- Parsed content pool files from `StreamingAssets/generator/content_pools/`
+- Parsed content list files from `StreamingAssets/generator/content_lists/`
+- Identified ~60 unique content lists across 15+ categories
+- Pool structure: name → groups (weight + includeLists) → bans
+- Content lists contain SIDs with weights and optional biome restrictions
+
+### Game Data as Embedded Resources
+- Copied 78 JSON files from game directory to `Resources/GameData/`
+- Configured as Embedded Resources in `.csproj`
+- `GamePoolDataLoader` now reads from assembly manifest resources
+- No dependency on external game installation path
