@@ -646,9 +646,12 @@ namespace Olden_Era___Template_Editor
                     {
                         try
                         {
+                            // Add custom_ prefix for filtering
+                            var fullName = poolName.StartsWith("custom_") ? poolName : "custom_" + poolName;
+
                             var newPool = new GamePool
                             {
-                                Name = poolName,
+                                Name = fullName,
                                 Groups = new List<PoolGroup>
                                 {
                                     new PoolGroup
@@ -661,7 +664,7 @@ namespace Olden_Era___Template_Editor
 
                             GamePoolDataLoader.AddPool(newPool);
 
-                            System.Windows.MessageBox.Show(this, $"Пул '{poolName}' создан и добавлен в список!", "Пул создан", MessageBoxButton.OK, MessageBoxImage.Information);
+                            System.Windows.MessageBox.Show(this, $"Пул '{fullName}' создан и добавлен в список!", "Пул создан", MessageBoxButton.OK, MessageBoxImage.Information);
                         }
                         catch (Exception ex)
                         {

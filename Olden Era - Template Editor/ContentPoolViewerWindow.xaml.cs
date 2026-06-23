@@ -25,6 +25,7 @@ namespace Olden_Era___Template_Editor
                 "Resources",
                 "Random",
                 "Default",
+                "Template-specific",
                 "Созданные"
             };
             CategoryCombo.SelectedIndex = 0;
@@ -105,7 +106,8 @@ namespace Olden_Era___Template_Editor
                 "Resources" => name.Contains("resources"),
                 "Random" => name.Contains("random"),
                 "Default" => name.Contains("default"),
-                "Созданные" => name.StartsWith("custom_") || name.StartsWith("user_") || name.StartsWith("new_"),
+                "Template-specific" => name.Contains("template_pool_") && !name.Contains("random"),
+                "Созданные" => name.StartsWith("custom_"),
                 _ => true
             };
         }

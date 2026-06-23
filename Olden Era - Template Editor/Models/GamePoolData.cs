@@ -54,6 +54,8 @@ namespace OldenEraTemplateEditor.Models
         private static bool _loaded;
         private static string _status = "";
         private static string _dataPath = "";
+        private static string _customPoolsPath = "";
+        private static List<GamePool> _customPools = new();
 
         public static string Status => _status;
         public static string DataPath => _dataPath;
@@ -109,17 +111,23 @@ namespace OldenEraTemplateEditor.Models
                 {
                     _allPools = data.Pools ?? new List<GamePool>();
                     _allContentLists = data.Lists ?? new List<ContentListEntry>();
-                    _status = $"✓ Загружено: {_allPools.Count} пулов, {_allContentLists.Count} листов";
                 }
                 else
                 {
-                    _status = "⚠ Десериализация вернула null";
+                    _allPools = new List<GamePool>();
+                    _allContentLists = new List<ContentListEntry>();
                 }
             }
             catch (Exception ex)
             {
                 _status = $"⚠ Ошибка: {ex.Message}";
+                return;
             }
+
+            // Load custom pools
+            LoadCustomPools();
+
+            _status = $"✓ Загружено: {_allPools.Count} пулов ({_customPools.Count} своих), {_allContentLists.Count} листов";
         }
 
         public static void AddPool(GamePool pool)
@@ -127,6 +135,41 @@ namespace OldenEraTemplateEditor.Models
             Load();
             _allPools ??= new List<GamePool>();
             _allPools.Add(pool);
+            _customPools.Add(pool);
+            SaveCustomPools();
+        }
+
+        private static void LoadCustomPools()
+        {
+            _customPools = new List<GamePool>();
+            _customPoolsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CustomPools.json");
+
+            if (!File.Exists(_customPoolsPath))
+                return;
+
+            try
+            {
+                var json = File.ReadAllText(_customPoolsPath);
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var pools = JsonSerializer.Deserialize<List<GamePool>>(json, options);
+                if (pools != null)
+                {
+                    _customPools = pools;
+                    _allPools.AddRange(_customPools);
+                }
+            }
+            catch { }
+        }
+
+        private static void SaveCustomPools()
+        {
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                var json = JsonSerializer.Serialize(_customPools, options);
+                File.WriteAllText(_customPoolsPath, json);
+            }
+            catch { }
         }
 
         public static List<GamePool> GetAllPools()
