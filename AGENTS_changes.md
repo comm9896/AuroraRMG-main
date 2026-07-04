@@ -472,3 +472,36 @@
 ### Fixed
 - `BuildConnectionArgsCombo` in Section 5 now passes correct `i` (actual MO index) instead of hardcoded `0` — previously hardcoded `0` prevented additional MOs from targeting the primary MO (index 0); now only the MO's own index is excluded
 
+## 2026-07-03 — User: "реализуй" (5 fixes: MO[0] roads, stale cleanup, numeric collision, usedCounts, HasCastleConnection)
+
+### Fixed
+- **Fix 1: MO[0] in RebuildConnectionRoads** — цикл расширен с `i=1` до `i=0`, так что City с `Placement="Connection"` и MO-index target теперь получает дороги `MO[0]→MO[idx]`. Очистка stale roads и old-target cleanup работают и для MO[0].
+- **Fix 2: Stale road регенерация** — после `AutoGenerateRoadsForConnection` (Part D) добавлен cleanup (Part D2): удаляются `MO[0]→Connection[name]`, если ни один Connection MO в этой зоне не указывает на `name`. Предотвращает восстановление stale `MO[0]→oldConn` после смены таргета.
+- **Fix 3: Numeric connection name collision** — в `RebuildConnectionRoads` и `SyncConnectionPlacementArgs` перед `int.TryParse` добавляется проверка `isConnName`, чтобы имя соединения вида `"1"` не интерпретировалось как MO-index.
+- **Fix 4: usedCounts per-zone** — `GetAutoPlacementArgs` считает использование connection name только в рамках своей зоны, а не глобально по всем зонам.
+- **Fix 5: HasCastleConnection расширен** — убрано ограничение `mo.Type is "City" or "AbandonedOutpost"`. Теперь любой MO с `Placement == "Connection"` считается «занятой зоной» для P1 приоритета.
+
+### Changed
+- **Managed road strip в RebuildGraph** — цикл сбора `managedConns` расширен на `i=0` для консистентности с `RebuildConnectionRoads` и `SyncConnectionPlacementArgs`.
+
+## 2026-07-03 — User: "реализуй" (приоритет Road + MO[0]→target только для i=0)
+
+### Changed
+- **`GetAutoPlacementArgs` приоритеты**: новый порядок — P1: Road + зона без castle-Connection, P2: Road (любая), P3: Non-road + зона без castle-Connection, P4: остальные. Road-соединения всегда предпочтительнее non-road.
+- **`RebuildConnectionRoads` генерация MO[0]→target**: `MO[0]→Connection[name]` / `MO[0]→MO[idx]` теперь генерируется только при `i == 0` (когда обрабатывается сам MO[0]). Для `i > 0` генерируется только `MO[i]→target`. Part C отвечает за `MO[0]→Connection[name]` ко всем road-соединениям.
+
+## 2026-07-03 — User: "реализуй" (SyncConnectionPlacementArgs — дубликаты + excludeUsed)
+
+### Changed
+- **`SyncConnectionPlacementArgs` двухпроходный**: проход 1 — валидирует все MO и собирает `occupied` (уникальные таргеты). Проход 2 — для дубликатов/невалидных вызывает `GetAutoPlacementArgs`. Больше ни один Connection MO не получит duplicate target.
+- **`GetAutoPlacementArgs` новый параметр `excludeUsed`**: исключает из выбора уже занятые connection names. Если все Road-соединения заняты, возвращается следующее по приоритету свободное.
+- **Road variant upgrade**: если MO таргетирует non-road соединение, а между теми же зонами существует road-вариант, происходит автоматическое обновление на road-вариант (например, `Direct-Zone-1-Zone-5` → `Direct-Zone-1-Zone-5-3`).
+
+## 2026-07-03 — User: "реализуй" (HasCastleConnection corrected + road upgrade order-independent)
+
+### Changed
+- **`HasCastleConnection` переписана**: теперь проверяет наличие **входящих** Connection MO из **других** зон, а не свои собственные Connection MO. Zone-1 больше не считается «имеющей castle-Connection» из-за своих же Connection MO — `Direct-Center-Zone-1` попадает в P1 приоритет для Center зоны.
+- **Road upgrade**: поиск road-варианта теперь order-independent (проверяет оба направления пары зон). `Direct-Zone-1-Zone-2` (Zone-1→Zone-2) найдёт road-вариант `Direct-Zone-2-Zone-1-2` (Zone-2→Zone-1, Road=true).
+
+
+

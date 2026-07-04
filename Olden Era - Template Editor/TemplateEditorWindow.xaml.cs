@@ -204,7 +204,7 @@ namespace Olden_Era___Template_Editor
             {
                 if (zone.MainObjects == null || zone.Roads == null) continue;
                 var managedConns = new HashSet<string>();
-                for (int i = 1; i < zone.MainObjects.Count; i++)
+                for (int i = 0; i < zone.MainObjects.Count; i++)
                 {
                     var mo = zone.MainObjects[i];
                     if (mo.Placement == "Connection" && mo.PlacementArgs is { Count: > 0 })
@@ -237,10 +237,30 @@ namespace Olden_Era___Template_Editor
             var preRoads = Zones.ToDictionary(z => z.Name, z => z.Roads?.ToList());
             RebuildConnectionRoads();
             SyncConnectionRoadFlags(preRoads);
-            // Part D: ensure zone.roads entries exist for all connections with Road==true
-            foreach (var conn in Connections)
-                if (conn.Road == true)
-                    AutoGenerateRoadsForConnection(conn);
+            // Part D (disabled): automatic road generation on template load
+            // foreach (var conn in Connections)
+            //     if (conn.Road == true)
+            //         AutoGenerateRoadsForConnection(conn);
+            // Part D2 (disabled): stale cleanup after Part D
+            // foreach (var zone in Zones)
+            // {
+            //     if (zone.Roads == null || zone.MainObjects == null) continue;
+            //     var managedTargets = zone.MainObjects
+            //         .Where(m => m.Placement == "Connection" && m.PlacementArgs is { Count: > 0 })
+            //         .Select(m => m.PlacementArgs[0])
+            //         .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            //     if (managedTargets.Count == 0) continue;
+            //     zone.Roads.RemoveAll(r =>
+            //     {
+            //         bool fromM0 = r.From?.Type == "MainObject" && r.From.Args?.FirstOrDefault() == "0"
+            //                    && r.To?.Type == "Connection" && r.To.Args is { Count: > 0 };
+            //         bool toM0 = r.To?.Type == "MainObject" && r.To.Args?.FirstOrDefault() == "0"
+            //                  && r.From?.Type == "Connection" && r.From.Args is { Count: > 0 };
+            //         if (fromM0) return !managedTargets.Contains(r.To.Args[0]);
+            //         if (toM0) return !managedTargets.Contains(r.From.Args[0]);
+            //         return false;
+            //     });
+            // }
             GraphCanvas.Children.Clear();
             _nodeShapes.Clear();
             _nodeLabels.Clear();
@@ -2538,12 +2558,22 @@ namespace Olden_Era___Template_Editor
             {
                 if (zone.MainObjects == null || zone.Name == null) continue;
                 var validConns = Connections.Where(c => c.Name != null).ToHashSet();
+
+                // Two-pass approach:
+                // Pass 1: validate and collect already-occupied connection names
+                var occupied = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var reassignIndices = new List<int>();
+
                 for (int i = 0; i < zone.MainObjects.Count; i++)
                 {
                     var mo = zone.MainObjects[i];
-                    if (mo.Placement != "Connection") continue;
+                    if (mo.Placement != "Connection")
+                    {
+                        // Non-Connection MO at index 0 (Center) still "occupies" its road connections
+                        // via Part C — but that's handled elsewhere; nothing to do here.
+                        continue;
+                    }
 
-                    // Check if current PlacementArgs[0] is valid
                     if (mo.PlacementArgs is { Count: > 0 })
                     {
                         var curr = mo.PlacementArgs[0];
@@ -2551,15 +2581,53 @@ namespace Olden_Era___Template_Editor
                         bool involvesZone = isConn && validConns.Any(c => string.Equals(c.Name, curr, StringComparison.OrdinalIgnoreCase)
                             && (string.Equals(c.From, zone.Name, StringComparison.OrdinalIgnoreCase)
                              || string.Equals(c.To, zone.Name, StringComparison.OrdinalIgnoreCase)));
-                        bool isMoIndex = int.TryParse(curr, out int idx) && idx >= 0 && idx < zone.MainObjects.Count && idx != i;
-                        if (isConn && involvesZone) continue;
-                        if (isMoIndex) continue; // MO index is always valid
+                        bool isMoIndex = !isConn && int.TryParse(curr, out int idx) && idx >= 0 && idx < zone.MainObjects.Count && idx != i;
+
+                        if (isMoIndex) { /* MO index valid, doesn't occupy a connection name */ continue; }
+
+                        if (isConn && involvesZone)
+                        {
+                            // Upgrade non-road to road variant if available (between same zone pair)
+                            var conn = Connections.FirstOrDefault(c => string.Equals(c.Name, curr, StringComparison.OrdinalIgnoreCase));
+                            if (conn != null && conn.Road != true)
+                            {
+                                var roadConn = Connections.FirstOrDefault(c => c.Road == true
+                                    && ((string.Equals(c.From, conn.From, StringComparison.OrdinalIgnoreCase)
+                                      && string.Equals(c.To, conn.To, StringComparison.OrdinalIgnoreCase))
+                                     || (string.Equals(c.From, conn.To, StringComparison.OrdinalIgnoreCase)
+                                      && string.Equals(c.To, conn.From, StringComparison.OrdinalIgnoreCase))));
+                                if (roadConn?.Name != null)
+                                {
+                                    mo.PlacementArgs = new List<string> { roadConn.Name };
+                                    occupied.Add(roadConn.Name);
+                                    continue;
+                                }
+                            }
+
+                            // Connection is valid and involves zone
+                            if (!occupied.Contains(curr))
+                            {
+                                // Unique target — keep and mark as occupied
+                                occupied.Add(curr);
+                                continue;
+                            }
+                            // Duplicate target — reassign
+                        }
                     }
 
-                    // Auto-assign using priority system
-                    var best = GetAutoPlacementArgs(zone);
+                    reassignIndices.Add(i);
+                }
+
+                // Pass 2: reassign duplicates and invalid MOs
+                foreach (var i in reassignIndices)
+                {
+                    var mo = zone.MainObjects[i];
+                    var best = GetAutoPlacementArgs(zone, occupied);
                     if (best != null)
+                    {
                         mo.PlacementArgs = new List<string> { best };
+                        occupied.Add(best);
+                    }
                     else
                         mo.PlacementArgs = null;
                 }
@@ -2574,7 +2642,7 @@ namespace Olden_Era___Template_Editor
         ///   3) Even distribution (least-used connection first)
         /// Returns null if no suitable connection exists.
         /// </summary>
-        private string? GetAutoPlacementArgs(Zone zone)
+        private string? GetAutoPlacementArgs(Zone zone, HashSet<string>? excludeUsed = null)
         {
             if (zone.Name == null) return null;
             var zoneConns = Connections
@@ -2584,31 +2652,34 @@ namespace Olden_Era___Template_Editor
                 .ToList();
             if (zoneConns.Count == 0) return null;
 
-            // Count how many Connection-placed MOs already reference each connection name
+            // Exclude already-occupied connections from consideration
+            if (excludeUsed != null && excludeUsed.Count > 0)
+                zoneConns = zoneConns.Where(c => !excludeUsed.Contains(c.Name)).ToList();
+            if (zoneConns.Count == 0) return null;
+
+            // Count how many Connection-placed MOs in this zone already reference each connection name
             var usedCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            foreach (var z in Zones)
+            if (zone.MainObjects != null)
             {
-                if (z.MainObjects == null) continue;
-                foreach (var mo in z.MainObjects)
+                foreach (var mo in zone.MainObjects)
                 {
                     if (mo.Placement == "Connection" && mo.PlacementArgs is { Count: > 0 })
                         usedCounts[mo.PlacementArgs[0]] = usedCounts.GetValueOrDefault(mo.PlacementArgs[0]) + 1;
                 }
             }
 
-            // P1: other zone has no castle Connection-placed MO
+            static string OtherZone(Connection c, string zoneName) =>
+                string.Equals(c.From, zoneName, StringComparison.OrdinalIgnoreCase) ? c.To : c.From;
+
+            // P1: Road connections to zones without castle Connection-placed MO
             var p1 = zoneConns
-                .Where(c =>
-                {
-                    var other = string.Equals(c.From, zone.Name, StringComparison.OrdinalIgnoreCase) ? c.To : c.From;
-                    return !HasCastleConnection(other);
-                })
+                .Where(c => c.Road == true && !HasCastleConnection(OtherZone(c, zone.Name)))
                 .OrderBy(c => usedCounts.GetValueOrDefault(c.Name, 0))
                 .ThenBy(c => c.Name)
                 .ToList();
             if (p1.Count > 0) return p1[0].Name;
 
-            // P2: road connections
+            // P2: Road connections (any zone)
             var p2 = zoneConns
                 .Where(c => c.Road == true)
                 .OrderBy(c => usedCounts.GetValueOrDefault(c.Name, 0))
@@ -2616,21 +2687,31 @@ namespace Olden_Era___Template_Editor
                 .ToList();
             if (p2.Count > 0) return p2[0].Name;
 
-            // P3: any (even distribution)
+            // P3: Non-road connections to zones without castle Connection-placed MO
             var p3 = zoneConns
+                .Where(c => c.Road != true && !HasCastleConnection(OtherZone(c, zone.Name)))
                 .OrderBy(c => usedCounts.GetValueOrDefault(c.Name, 0))
                 .ThenBy(c => c.Name)
                 .ToList();
-            return p3.Count > 0 ? p3[0].Name : null;
+            if (p3.Count > 0) return p3[0].Name;
+
+            // P4: any remaining (even distribution)
+            var p4 = zoneConns
+                .OrderBy(c => usedCounts.GetValueOrDefault(c.Name, 0))
+                .ThenBy(c => c.Name)
+                .ToList();
+            return p4.Count > 0 ? p4[0].Name : null;
         }
 
         private bool HasCastleConnection(string zoneName)
         {
-            var zone = Zones.FirstOrDefault(z => string.Equals(z.Name, zoneName, StringComparison.OrdinalIgnoreCase));
-            if (zone?.MainObjects == null) return false;
-            return zone.MainObjects.Any(mo => mo.Type is "City" or "AbandonedOutpost"
-                                           && mo.Placement == "Connection"
-                                           && mo.PlacementArgs is { Count: > 0 });
+            // Check if any OTHER zone has a Connection MO targeting this zone
+            return Zones.Any(z => !string.Equals(z.Name, zoneName, StringComparison.OrdinalIgnoreCase)
+                && z.MainObjects?.Any(mo => mo.Placement == "Connection"
+                    && mo.PlacementArgs is { Count: > 0 }
+                    && Connections.Any(c => string.Equals(c.Name, mo.PlacementArgs[0], StringComparison.OrdinalIgnoreCase)
+                        && (string.Equals(c.From, zoneName, StringComparison.OrdinalIgnoreCase)
+                         || string.Equals(c.To, zoneName, StringComparison.OrdinalIgnoreCase)))) == true);
         }
 
         private void RebuildConnectionRoads()
@@ -2652,7 +2733,7 @@ namespace Olden_Era___Template_Editor
                     }
                 }
 
-                for (int i = 1; i < zone.MainObjects.Count; i++)
+                for (int i = 0; i < zone.MainObjects.Count; i++)
                 {
                     var mo = zone.MainObjects[i];
                     if (mo.Placement != "Connection" || mo.PlacementArgs is not { Count: > 0 }) continue;
@@ -2707,15 +2788,19 @@ namespace Olden_Era___Template_Editor
                         }
                     }
 
-                    // Part E: if PlacementArgs[0] is an integer (MO index), generate MO → MO roads
-                    if (int.TryParse(connOrIndex, out int targetIdx) && targetIdx >= 0 && targetIdx < zone.MainObjects.Count && targetIdx != i)
+                    // Check if target is a connection name (before int.TryParse to avoid numeric collision)
+                    bool isConnName = Connections.Any(c => string.Equals(c.Name, connOrIndex, StringComparison.OrdinalIgnoreCase));
+                    // Part E: if target is an MO index (not a connection name), generate MO → MO roads
+                    if (!isConnName && int.TryParse(connOrIndex, out int targetIdx) && targetIdx >= 0 && targetIdx < zone.MainObjects.Count && targetIdx != i)
                     {
-                        AddUniqueRoad(zone, "MainObject", ["0"], "MainObject", [connOrIndex]);
+                        if (i == 0)
+                            AddUniqueRoad(zone, "MainObject", ["0"], "MainObject", [connOrIndex]);
                         AddUniqueRoad(zone, "MainObject", [i.ToString()], "MainObject", [connOrIndex]);
                     }
                     else
                     {
-                        AddUniqueRoad(zone, "MainObject", ["0"], "Connection", [connOrIndex]);
+                        if (i == 0)
+                            AddUniqueRoad(zone, "MainObject", ["0"], "Connection", [connOrIndex]);
                         AddUniqueRoad(zone, "MainObject", [i.ToString()], "Connection", [connOrIndex]);
                     }
                 }
