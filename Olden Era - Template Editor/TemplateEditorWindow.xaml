@@ -45,7 +45,7 @@
                 <Button x:Name="BtnZoomOut" Content="−" Width="30" DockPanel.Dock="Right" Margin="0,0,8,0"
                         Style="{StaticResource ToolbarButton}" Click="BtnZoomOut_Click" ToolTip="{DynamicResource S.Ed.ZoomOut}"/>
 
-                <Button x:Name="BtnConnectionManager" Content="Менеджер связей" DockPanel.Dock="Left"
+                <Button x:Name="BtnConnectionManager" Content="{DynamicResource S.Ed.015}" DockPanel.Dock="Left"
                         Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnConnectionManager_Click"/>
                 <Button x:Name="BtnCopyZone" Content="{DynamicResource S.Ed.013}" DockPanel.Dock="Left"
                         Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnCopyZone_Click"/>
@@ -53,6 +53,11 @@
                         Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnPasteZone_Click"/>
                 <Button x:Name="BtnJsonPreview" Content="{DynamicResource S.Ed.JP}" DockPanel.Dock="Left"
                         Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnJsonPreview_Click"/>
+                <Button x:Name="BtnOrientation" Content="{DynamicResource S.Ed.016}" DockPanel.Dock="Left"
+                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnOrientation_Click"/>
+                <Button x:Name="BtnHelp" Content="?" Width="30" DockPanel.Dock="Left"
+                        Style="{StaticResource ToolbarButton}" Margin="0,0,4,0" Click="BtnHelp_Click"
+                        ToolTip="Справка по визуальному редактору зон"/>
             </DockPanel>
         </Border>
 

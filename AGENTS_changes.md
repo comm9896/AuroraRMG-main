@@ -503,5 +503,32 @@
 - **`HasCastleConnection` переписана**: теперь проверяет наличие **входящих** Connection MO из **других** зон, а не свои собственные Connection MO. Zone-1 больше не считается «имеющей castle-Connection» из-за своих же Connection MO — `Direct-Center-Zone-1` попадает в P1 приоритет для Center зоны.
 - **Road upgrade**: поиск road-варианта теперь order-independent (проверяет оба направления пары зон). `Direct-Zone-1-Zone-2` (Zone-1→Zone-2) найдёт road-вариант `Direct-Zone-2-Zone-1-2` (Zone-2→Zone-1, Road=true).
 
+## 2026-07-03 — User: "добавь их отдельным окном ... измени название ... убери проверку на обновление ... напиши readme"
 
+### Added
+- **OrientationWindow** (`OrientationWindow.xaml` / `.xaml.cs`): новое окно для редактирования orientation (mode, zeroAngleZone, baseAngleMin/Max, randomAngleAmplitude/Step) и border (cornerRadius, obstaclesWidth, obstaclesNoise, waterWidth, waterNoise, waterType). Вызывается по кнопке «Макет и границы» на панели инструментов визуального редактора зон.
+  - Значения по умолчанию: самая распространённая комбинация (mode=MinimalBoundingSquare, zeroAngleZone=Spawn-A, baseAngle{Min,Max}=45, randomAngleAmplitude=360, randomAngleStep=90, cornerRadius=0.0, obstaclesWidth=3, noise amp=1 freq=12, waterWidth=0, waterType=water grass).
+  - Mode: выбор между MinimalBoundingSquare, BoundingCircle и «не задано».
+  - WaterType: read-only (всегда "water grass").
+  - Кнопка «Убрать border»: устанавливает Border = null.
+- **EditorHelpWindow** (`EditorHelpWindow.xaml` / `.xaml.cs`): окно справки с описанием возможностей визуального редактора зон. Вызывается по кнопке «?» на панели инструментов редактора.
+
+### Changed
+- **AssemblyInfo.cs**: AssemblyTitle, Company, Product изменены с AuroraRMG на CommFork.
+- **MainWindow.xaml.cs**: title, app title изменены на CommFork.
+- **MainWindow.xaml**: Title, wordmark изменены на CommFork; Loaded-обработчик заменён на пустой; блок UpdateBanner удалён.
+- **MainWindow.Update.cs**: содержимое заменено на пустой обработчик.
+- **Strings.cs (локализация)**: все упоминания AuroraRMG заменены на CommFork (обновление, game assets disclaimer и т.д.).
+- **AppSettings.cs, IconResolver.cs, GameCatalogService.cs**: пути в %LOCALAPPDATA% изменены с AuroraRMG на CommFork.
+- **TemplateGenerator.cs**: строка в сгенерированном шаблоне изменена с "Olden Era Template Generator" на "CommFork Template Generator".
+- **UpdateService.cs**: Repo, PreferredAssetName, UserAgent, temp paths, комментарии изменены на CommFork.
+- **TemplateEditorWindow.xaml.cs**: добавлены обработчики BtnOrientation_Click и BtnHelp_Click. Добавлена локализация S.EC.OrientationApplied (RU/EN).
+
+### Removed
+- **Проверка обновлений**: `Window_Loaded` больше не вызывает `CheckForUpdatesAsync`. Баннер обновления удалён из MainWindow.xaml.
+
+### Fixed
+- **ZeroAngleZone**: убран IsEditable — строгий ComboBox только из списка зон.
+- **Локализация кнопок**: добавлены ключи (S.Ed.015, S.Ed.016, S.EC.BtnViewPools, S.EC.BtnCreatePool, S.EC.BtnAutoRoad) — заменены хардкоженные русские строки «Менеджер связей», «Макет и границы», «📋 Просмотр содержимого пулов», «➕ Создать новый пул», «Авто-дорога» на DynamicResource / L() вызовы. ConnectionManagerWindow.Title и OrientationWindow.Title тоже переведены на DynamicResource.
+- **Ключи локализации**: RU/EN синхронизированы (по 546 ключей). Код `Window_Loaded`, `CheckForUpdatesAsync`, `ShowUpdateBanner`, `BtnUpdateNow_Click`, `BtnUpdateNotes_Click`, `BtnUpdateDismiss_Click` заменён на пустой обработчик.
 

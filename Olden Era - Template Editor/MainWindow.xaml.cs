@@ -150,9 +150,9 @@ namespace Olden_Era___Template_Editor
             // Stamp version from assembly metadata into all visible locations.
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
             string versionLabel = version != null ? FormatVersion(version) : "v?";
-            _baseTitle = $"AuroraRMG {versionLabel}";           // taskbar / window title
+            _baseTitle = $"CommFork {versionLabel}";           // taskbar / window title
             TxtVersionBadge.Text = versionLabel;                 // badge next to the wordmark
-            TxtAppTitle.Text = $"AuroraRMG {versionLabel}";
+            TxtAppTitle.Text = $"CommFork {versionLabel}";
             TxtWipWarning.Text = L.Get("S.CB.Wip");
 
             CmbGameMode.ItemsSource = KnownValues.GameModes;

@@ -2,11 +2,11 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Windows;
 
-[assembly: AssemblyTitle("AuroraRMG")]
+[assembly: AssemblyTitle("CommFork")]
 [assembly: AssemblyDescription("Heroes of Might and Magic Olden Era Template Generator")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("AuroraRMG")]
-[assembly: AssemblyProduct("AuroraRMG")]
+[assembly: AssemblyCompany("CommFork")]
+[assembly: AssemblyProduct("CommFork")]
 [assembly: AssemblyCopyright("Copyright © 2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

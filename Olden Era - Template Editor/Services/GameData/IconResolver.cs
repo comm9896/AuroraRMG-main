@@ -9,7 +9,7 @@ namespace Olden_Era___Template_Editor.Services.GameData
 {
     /// <summary>
     /// Resolves a game icon (by its sprite SID) into a WPF <see cref="ImageSource"/> from the local
-    /// icon cache (<c>%LOCALAPPDATA%\AuroraRMG\catalog\icons\&lt;sid&gt;.png</c>). Returns null when no
+    /// icon cache (<c>%LOCALAPPDATA%\CommFork\catalog\icons\&lt;sid&gt;.png</c>). Returns null when no
     /// icon has been extracted yet, so callers fall back to the coloured category dot.
     /// Results are memoised (including misses) and frozen for cross-thread use.
     /// </summary>
@@ -20,7 +20,7 @@ namespace Olden_Era___Template_Editor.Services.GameData
 
         public static string IconDirectory =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                         "AuroraRMG", "catalog", "icons");
+                         "CommFork", "catalog", "icons");
 
         /// <summary>True if at least one icon PNG exists in the cache.</summary>
         public static bool HasAnyIcons

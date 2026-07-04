@@ -137,7 +137,7 @@ namespace Olden_Era___Template_Editor.Services
 
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
             string versionLabel = version != null ? $"v{version.Major}.{version.Minor}" : "v?";
-            return $"Generated with Olden Era Template Generator {versionLabel}: {string.Join(", ", parts)}.";
+            return $"Generated with CommFork Template Generator {versionLabel}: {string.Join(", ", parts)}.";
         }
 
         private static string CountPhrase(int count, string singular, string plural) =>

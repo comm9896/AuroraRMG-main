@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Olden_Era___Template_Editor.Models"
         mc:Ignorable="d"
-        Title="AuroraRMG"
+        Title="CommFork"
         Icon="pack://application:,,,/favicon.ico"
         Height="820" Width="1240"
         MinHeight="780" MinWidth="1160"
@@ -13,7 +13,7 @@
         ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
         StateChanged="Window_StateChanged"
-        Loaded="Window_Loaded"
+        Loaded="Window_Loaded_Obsolete"
         Background="#0E1117"
         FontFamily="Segoe UI, Arial, sans-serif">
 
@@ -63,12 +63,9 @@
                     <Image Source="pack://application:,,,/favicon.ico" Width="22" Height="22"
                            VerticalAlignment="Center" Margin="0,0,10,0"
                            RenderOptions.BitmapScalingMode="HighQuality"/>
-                    <!-- Wordmark: Aurora + RMG (cyan) -->
-                    <TextBlock VerticalAlignment="Center">
-                        <Run Text="Aurora" FontSize="15" FontWeight="Bold"
-                             Foreground="{StaticResource BrushText}"/><Run Text="RMG" FontSize="15" FontWeight="Bold"
-                             Foreground="{StaticResource BrushCyan}"/>
-                    </TextBlock>
+                    <!-- Wordmark: CommFork -->
+                    <TextBlock VerticalAlignment="Center" FontSize="15" FontWeight="Bold"
+                               Foreground="{StaticResource BrushCyan}">CommFork</TextBlock>
                     <!-- Version badge (target for auto-update display) -->
                     <Border CornerRadius="6" Padding="7,1" Margin="10,0,0,0"
                             VerticalAlignment="Center"
@@ -136,33 +133,7 @@
                 <!-- ════════ STATUS BANNERS (update + WIP) ═════════════════════ -->
                 <StackPanel Grid.Row="0">
 
-                    <!-- Auto-update banner (hidden until a newer release is found) -->
-                    <Border x:Name="UpdateBanner" Visibility="Collapsed"
-                            Background="#16213A"
-                            BorderBrush="{StaticResource BrushGold}"
-                            BorderThickness="1" CornerRadius="8"
-                            Padding="12,8" Margin="0,0,0,8">
-                        <DockPanel LastChildFill="True">
-                            <TextBlock Text="✨" FontSize="14" VerticalAlignment="Center"
-                                       Margin="0,0,10,0" DockPanel.Dock="Left"/>
-                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right"
-                                        VerticalAlignment="Center" Margin="10,0,0,0">
-                                <Button x:Name="BtnUpdateNow" Content="{DynamicResource S.M.010}"
-                                        Style="{StaticResource GenerateButton}"
-                                        Height="30" MinWidth="104" FontSize="13"
-                                        Click="BtnUpdateNow_Click"/>
-                                <Button x:Name="BtnUpdateNotes" Content="{DynamicResource S.M.011}"
-                                        Margin="8,0,0,0" Height="30" MinWidth="96"
-                                        Click="BtnUpdateNotes_Click"/>
-                                <Button x:Name="BtnUpdateDismiss" Content="{DynamicResource S.M.012}"
-                                        Margin="8,0,0,0" Height="30" MinWidth="72"
-                                        Click="BtnUpdateDismiss_Click"/>
-                            </StackPanel>
-                            <TextBlock x:Name="TxtUpdateBanner"
-                                       VerticalAlignment="Center" TextWrapping="Wrap"
-                                       Foreground="{StaticResource BrushText}" FontSize="12"/>
-                        </DockPanel>
-                    </Border>
+                    <!-- Auto-update banner removed -->
 
                     <!-- WIP warning -->
                     <Border Background="{StaticResource BrushWarnBg}"

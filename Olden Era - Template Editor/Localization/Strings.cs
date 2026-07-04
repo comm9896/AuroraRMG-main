@@ -263,6 +263,9 @@ namespace Olden_Era___Template_Editor.Localization
             ["S.Ed.CanvasHint"] = "Колесо — зум · ЛКМ по фону — двигать холст · тяните зону · Del — удалить · Esc — отмена",
             ["S.Ed.013"]          = "📋 Копировать зону",
             ["S.Ed.014"]          = "📋 Вставить зону",
+            ["S.Ed.015"]          = "Менеджер связей",
+            ["S.Ed.015.Title"]    = "Менеджер связей",
+            ["S.Ed.016"]          = "Макет и границы",
             ["S.Ed.JP"]           = "📄 JSON",
             ["S.Ed.JP.Title"]     = "JSON шаблона",
             ["S.Ed.JP.Hint"]      = "Редактируйте JSON напрямую. Невалидный JSON или ошибка десериализации — изменения сбрасываются.",
@@ -313,7 +316,7 @@ namespace Olden_Era___Template_Editor.Localization
             ["S.Bonus.021"] = "Количество",
 
             // ── Update progress (extracted) ──
-            ["S.Upd.001"] = "Обновление AuroraRMG",
+            ["S.Upd.001"] = "Обновление CommFork",
             ["S.Upd.002"] = "Загрузка обновления…",
             ["S.Upd.003"] = "Подключение…",
 
@@ -395,14 +398,14 @@ namespace Olden_Era___Template_Editor.Localization
             // ── Pickers / update / bonus dialogs (code-behind) ──
             ["S.P.AddSelected"]  = "Добавить выбранное",
             ["S.P.AddSelectedN"] = "Добавить выбранное ({0})",
-            ["S.Upd.DownTitle"]  = "Загрузка AuroraRMG {0}",
+            ["S.Upd.DownTitle"]  = "Загрузка CommFork {0}",
             ["S.Upd.Loading"]    = "Загрузка…",
             ["S.Upd.Pct"]        = "Загружено {0}%",
             ["S.Upd.OfMb"]       = "  ({0} из {1} МБ)",
             ["S.Upd.ConnGitHub"] = "Подключение к GitHub…",
             ["S.Upd.Preparing"]  = "Подготовка к установке…",
             ["S.Upd.Failed"]     = "Не удалось загрузить обновление:\n\n{0}\n\nМожно скачать новую версию вручную со страницы релизов на GitHub.",
-            ["S.Upd.Available"]  = "Доступна новая версия AuroraRMG {0}  ·  установлена {1}.",
+            ["S.Upd.Available"]  = "Доступна новая версия CommFork {0}  ·  установлена {1}.",
             ["S.Upd.RelPage"]    = "Страница релиза",
             ["S.Bonus.AmtGold"]     = "Кол-во золота",
             ["S.Bonus.AmtGems"]     = "Кол-во самоцветов",
@@ -444,7 +447,7 @@ namespace Olden_Era___Template_Editor.Localization
             ["S.D.SavedTitle"]      = "Сохранено",
 
             // ── Game-asset opt-in dialog ──
-            ["S.GA.DisclaimerMsg"] = "AuroraRMG прочитает локальные файлы установленной игры (Core.zip), чтобы показать полный список героев с настоящими именами.\n\n• Файлы только читаются — ничего не изменяется и никуда не загружается.\n• Нужна установленная игра (определяется через Steam).\n• Результат кешируется локально, поэтому делается один раз.\n\nПодключить ассеты игры?",
+            ["S.GA.DisclaimerMsg"] = "CommFork прочитает локальные файлы установленной игры (Core.zip), чтобы показать полный список героев с настоящими именами.\n\n• Файлы только читаются — ничего не изменяется и никуда не загружается.\n• Нужна установленная игра (определяется через Steam).\n• Результат кешируется локально, поэтому делается один раз.\n\nПодключить ассеты игры?",
             ["S.GA.DisclaimerTitle"] = "Подключение ассетов игры",
             ["S.GA.NotFoundMsg"] = "Установленная игра не найдена — продолжаю использовать встроенный список героев. Если игра установлена в нестандартном месте, сообщите — добавим выбор папки вручную.",
             ["S.GA.NotFoundTitle"] = "Игра не найдена",
@@ -533,6 +536,9 @@ namespace Olden_Era___Template_Editor.Localization
             ["S.EC.MoAddAdditionalObject"] = "Добавить дополнительный главный объект",
             ["S.EC.MoAdditionalArgs"] = "Аргументы дополнительно добавленных главных объектов",
             ["S.EC.AddContentObjects"] = "Добавить объекты контента",
+            ["S.EC.BtnViewPools"]     = "📋 Просмотр содержимого пулов",
+            ["S.EC.BtnCreatePool"]    = "➕ Создать новый пул",
+            ["S.EC.BtnAutoRoad"]      = "Авто-дорога",
             ["S.EC.MoRemoveObject"]   = "Удалить",
             ["S.EC.MoObjectsList"]    = "Объекты зоны",
             ["S.EC.MoNoObjects"]      = "Нет объектов",
@@ -584,6 +590,7 @@ namespace Olden_Era___Template_Editor.Localization
             ["S.EC.GuardWeeklyIncConn"] = "Еженед. прирост охраны",
             ["S.EC.GatePlacement"]    = "Размещение ворот",
             ["S.EC.Length"]           = "Длина",
+            ["S.EC.OrientationApplied"] = "Параметры макета и границ применены.",
             // Zone-graph validator
             ["S.V.NoName"]    = "• Зона без имени.",
             ["S.V.DupName"]   = "• Дублирующееся имя зоны: «{0}».",
@@ -845,6 +852,9 @@ namespace Olden_Era___Template_Editor.Localization
             ["S.Ed.CanvasHint"] = "Wheel — zoom · drag background — pan · drag a zone · Del — delete · Esc — cancel",
             ["S.Ed.013"]          = "📋 Copy zone",
             ["S.Ed.014"]          = "📋 Paste zone",
+            ["S.Ed.015"]          = "Connection manager",
+            ["S.Ed.015.Title"]    = "Connection manager",
+            ["S.Ed.016"]          = "Layout and borders",
             ["S.Ed.JP"]           = "📄 JSON",
             ["S.Ed.JP.Title"]     = "Template JSON",
             ["S.Ed.JP.Hint"]      = "Edit JSON directly. Invalid JSON or deserialization error — changes are discarded.",
@@ -895,7 +905,7 @@ namespace Olden_Era___Template_Editor.Localization
             ["S.Bonus.021"] = "Amount",
 
             // ── Update progress (extracted) ──
-            ["S.Upd.001"] = "AuroraRMG update",
+            ["S.Upd.001"] = "CommFork update",
             ["S.Upd.002"] = "Downloading update…",
             ["S.Upd.003"] = "Connecting…",
 
@@ -977,14 +987,14 @@ namespace Olden_Era___Template_Editor.Localization
             // ── Pickers / update / bonus dialogs (code-behind) ──
             ["S.P.AddSelected"]  = "Add selected",
             ["S.P.AddSelectedN"] = "Add selected ({0})",
-            ["S.Upd.DownTitle"]  = "Downloading AuroraRMG {0}",
+            ["S.Upd.DownTitle"]  = "Downloading CommFork {0}",
             ["S.Upd.Loading"]    = "Downloading…",
             ["S.Upd.Pct"]        = "Downloaded {0}%",
             ["S.Upd.OfMb"]       = "  ({0} of {1} MB)",
             ["S.Upd.ConnGitHub"] = "Connecting to GitHub…",
             ["S.Upd.Preparing"]  = "Preparing to install…",
             ["S.Upd.Failed"]     = "Failed to download the update:\n\n{0}\n\nYou can download the new version manually from the GitHub releases page.",
-            ["S.Upd.Available"]  = "A new version of AuroraRMG {0} is available  ·  installed {1}.",
+            ["S.Upd.Available"]  = "A new version of CommFork {0} is available  ·  installed {1}.",
             ["S.Upd.RelPage"]    = "Release page",
             ["S.Bonus.AmtGold"]     = "Gold amount",
             ["S.Bonus.AmtGems"]     = "Gem amount",
@@ -1026,7 +1036,7 @@ namespace Olden_Era___Template_Editor.Localization
             ["S.D.SavedTitle"]      = "Saved",
 
             // ── Game-asset opt-in dialog ──
-            ["S.GA.DisclaimerMsg"] = "AuroraRMG will read the installed game's local files (Core.zip) to show the full hero list with real names.\n\n• Files are read only — nothing is changed or uploaded.\n• The installed game is required (detected via Steam).\n• The result is cached locally, so this is done once.\n\nConnect game assets?",
+            ["S.GA.DisclaimerMsg"] = "CommFork will read the installed game's local files (Core.zip) to show the full hero list with real names.\n\n• Files are read only — nothing is changed or uploaded.\n• The installed game is required (detected via Steam).\n• The result is cached locally, so this is done once.\n\nConnect game assets?",
             ["S.GA.DisclaimerTitle"] = "Connect game assets",
             ["S.GA.NotFoundMsg"] = "The installed game wasn't found — keeping the built-in hero list. If the game is installed in a non-standard location, let us know and we'll add a manual folder picker.",
             ["S.GA.NotFoundTitle"] = "Game not found",
@@ -1115,6 +1125,9 @@ namespace Olden_Era___Template_Editor.Localization
             ["S.EC.MoAddAdditionalObject"] = "Add additional main object",
             ["S.EC.MoAdditionalArgs"] = "Additional main object arguments",
             ["S.EC.AddContentObjects"] = "Add content objects",
+            ["S.EC.BtnViewPools"]     = "📋 View pool contents",
+            ["S.EC.BtnCreatePool"]    = "➕ Create new pool",
+            ["S.EC.BtnAutoRoad"]      = "Auto-road",
             ["S.EC.MoRemoveObject"]   = "Remove",
             ["S.EC.MoObjectsList"]    = "Zone objects",
             ["S.EC.MoNoObjects"]      = "No objects",
@@ -1166,6 +1179,7 @@ namespace Olden_Era___Template_Editor.Localization
             ["S.EC.GuardWeeklyIncConn"] = "Guard weekly increment",
             ["S.EC.GatePlacement"]    = "Gate placement",
             ["S.EC.Length"]           = "Length",
+            ["S.EC.OrientationApplied"] = "Layout and border settings applied.",
             // Zone-graph validator
             ["S.V.NoName"]    = "• Zone without a name.",
             ["S.V.DupName"]   = "• Duplicate zone name: \"{0}\".",

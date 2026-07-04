@@ -4,12 +4,12 @@ setlocal enabledelayedexpansion
 
 set PROJ_DIR=%~dp0Olden Era - Template Editor
 set PROJ_FILE="%PROJ_DIR%\Olden Era - Template Editor.csproj"
-set CONFIG=%1
-if "%CONFIG%"=="" set CONFIG=Release
+set OUT_DIR=%~dp0release
+
+if not exist "%OUT_DIR%" mkdir "%OUT_DIR%"
 
 echo ==============================================
-echo  Сборка Olden Era Template Editor
-echo  Конфигурация: %CONFIG%
+echo  Сборка CommFork Template Editor
 echo  Платформа:    win-x64
 echo ==============================================
 echo.
@@ -27,7 +27,7 @@ echo.
 
 :: Сборка проекта
 echo [2/3] Сборка проекта...
-dotnet build "%PROJ_FILE%" -c %CONFIG% -r win-x64 --no-restore
+dotnet build "%PROJ_FILE%" -c Release -r win-x64 --no-restore
 if %ERRORLEVEL% neq 0 (
     echo.
     echo [ОШИБКА] build failed (код: %ERRORLEVEL%)
@@ -38,9 +38,9 @@ echo.
 
 :: Публикация (single-file self-contained)
 echo [3/3] Публикация single-file exe...
-dotnet publish "%PROJ_FILE%" -c %CONFIG% -r win-x64 --no-build ^
+dotnet publish "%PROJ_FILE%" -c Release -r win-x64 --no-build ^
     -p:PublishSingleFile=true -p:SelfContained=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true ^
-    -o "%~dp0build\%CONFIG%\"
+    -o "%OUT_DIR%\"
 
 if %ERRORLEVEL% neq 0 (
     echo.
@@ -53,14 +53,8 @@ echo.
 echo ==============================================
 echo  Сборка завершена успешно!
 echo.
-echo  Исполняемые файлы:
-echo    %~dp0build\%CONFIG%\OldenEraTemplateGenerator.exe
-echo.
-echo  Чтобы собрать в Debug (с отладкой):
-echo    build Debug
-echo.
-echo  Чтобы собрать в Release (по умолчанию):
-echo    build
+echo  Исполняемый файл:
+echo    %OUT_DIR%\OldenEraTemplateGenerator.exe
 echo ==============================================
 
 endlocal

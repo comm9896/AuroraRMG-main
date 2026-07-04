@@ -7,7 +7,7 @@ namespace Olden_Era___Template_Editor.Services.GameData
 {
     /// <summary>
     /// Global, machine-local application preferences (not part of a template's .oetgs).
-    /// Persisted to <c>%LOCALAPPDATA%\AuroraRMG\settings.json</c>. Everything degrades gracefully.
+    /// Persisted to <c>%LOCALAPPDATA%\CommFork\settings.json</c>. Everything degrades gracefully.
     /// </summary>
     public sealed class AppSettings
     {
@@ -39,7 +39,7 @@ namespace Olden_Era___Template_Editor.Services.GameData
         public static AppSettings Current => _current ??= Load();
 
         private static string Dir =>
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AuroraRMG");
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CommFork");
         private static string FilePath => Path.Combine(Dir, "settings.json");
 
         public static AppSettings Load()

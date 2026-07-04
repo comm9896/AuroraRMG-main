@@ -19,7 +19,7 @@ namespace Olden_Era___Template_Editor.Services.Update
         string ReleaseUrl);
 
     /// <summary>
-    /// AuroraRMG self-update.
+    /// CommFork self-update.
     ///
     /// Looks at the public GitHub repository's *latest* release, compares the
     /// release tag with the running assembly version, and — on request —
@@ -34,10 +34,10 @@ namespace Olden_Era___Template_Editor.Services.Update
     {
         // ── Public repository coordinates ───────────────────────────────────
         public const string Owner = "sany86russ";
-        public const string Repo  = "AuroraRMG";
+        public const string Repo  = "CommForkLauncher/CommFork";
 
         /// <summary>Preferred asset file name published on each release.</summary>
-        public const string PreferredAssetName = "AuroraRMG.exe";
+        public const string PreferredAssetName = "CommFork.exe";
 
         private static readonly Uri LatestReleaseApi =
             new($"https://api.github.com/repos/{Owner}/{Repo}/releases/latest");
@@ -102,9 +102,9 @@ namespace Olden_Era___Template_Editor.Services.Update
             IProgress<double>? progress = null,
             CancellationToken ct = default)
         {
-            string dir = Path.Combine(Path.GetTempPath(), "AuroraRMG-update");
+            string dir = Path.Combine(Path.GetTempPath(), "CommFork-update");
             Directory.CreateDirectory(dir);
-            string dest = Path.Combine(dir, $"AuroraRMG-{info.Version}.exe");
+            string dest = Path.Combine(dir, $"CommFork-{info.Version}.exe");
 
             using var http = CreateClient(TimeSpan.FromMinutes(10));
             using var resp = await http.GetAsync(info.DownloadUrl,
@@ -144,7 +144,7 @@ namespace Olden_Era___Template_Editor.Services.Update
             if (string.IsNullOrEmpty(target))
                 throw new InvalidOperationException("Не удалось определить путь к текущему исполняемому файлу.");
 
-            string helper = Path.Combine(Path.GetTempPath(), "AuroraRMG-update", "apply-update.ps1");
+            string helper = Path.Combine(Path.GetTempPath(), "CommFork-update", "apply-update.ps1");
             File.WriteAllText(helper, HelperScript);
 
             int pid = Environment.ProcessId;
@@ -203,7 +203,7 @@ if ($copied) {
         {
             var http = new HttpClient { Timeout = timeout };
             // GitHub's API requires a User-Agent and a versioned Accept header.
-            http.DefaultRequestHeaders.UserAgent.ParseAdd($"AuroraRMG/{CurrentVersion}");
+            http.DefaultRequestHeaders.UserAgent.ParseAdd($"CommFork/{CurrentVersion}");
             http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
             return http;
         }

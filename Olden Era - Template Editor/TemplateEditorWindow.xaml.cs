@@ -769,7 +769,7 @@ namespace Olden_Era___Template_Editor
 
                 var viewPoolsBtn = new System.Windows.Controls.Button
                 {
-                    Content = "📋 Просмотр содержимого пулов",
+                    Content = L("S.EC.BtnViewPools"),
                     Margin = new Thickness(0, 0, 0, 8),
                     Padding = new Thickness(12, 6, 12, 6),
                     HorizontalAlignment = HorizontalAlignment.Left,
@@ -793,7 +793,7 @@ namespace Olden_Era___Template_Editor
 
                 var createPoolBtn = new System.Windows.Controls.Button
                 {
-                    Content = "➕ Создать новый пул",
+                    Content = L("S.EC.BtnCreatePool"),
                     Margin = new Thickness(0, 0, 0, 12),
                     Padding = new Thickness(12, 6, 12, 6),
                     HorizontalAlignment = HorizontalAlignment.Left,
@@ -934,7 +934,7 @@ namespace Olden_Era___Template_Editor
                 newMoPlacePanel.Children.Add(newMoPlaceArgsPanel);
                 var newMoAutoRoadCheck = new CheckBox
                 {
-                    Content = "Авто-дорога",
+                    Content = L("S.EC.BtnAutoRoad"),
                     IsChecked = true,
                     Margin = new Thickness(0, 0, 0, 8)
                 };
@@ -3495,6 +3495,25 @@ namespace Olden_Era___Template_Editor
             Keyboard.ClearFocus();
             var window = new JsonPreviewWindow(this);
             window.Show();
+        }
+
+        private void BtnOrientation_Click(object sender, RoutedEventArgs e)
+        {
+            Keyboard.ClearFocus();
+            var dlg = new OrientationWindow(Variant) { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                RebuildGraph();
+                UpdateTitle();
+                UpdateStatus(L("S.EC.OrientationApplied"));
+            }
+        }
+
+        private void BtnHelp_Click(object sender, RoutedEventArgs e)
+        {
+            Keyboard.ClearFocus();
+            var dlg = new EditorHelpWindow();
+            dlg.Show();
         }
 
         private void BtnValidate_Click(object sender, RoutedEventArgs e)

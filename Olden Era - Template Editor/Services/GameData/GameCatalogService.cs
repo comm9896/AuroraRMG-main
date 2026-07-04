@@ -32,7 +32,7 @@ namespace Olden_Era___Template_Editor.Services.GameData
 
         private static string CacheDir =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                         "AuroraRMG", "catalog");
+                         "CommFork", "catalog");
 
         /// <summary>
         /// Returns the catalog for <paramref name="language"/>. Uses an in-memory copy, then a fresh
