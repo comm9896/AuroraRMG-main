@@ -530,5 +530,14 @@
 ### Fixed
 - **ZeroAngleZone**: убран IsEditable — строгий ComboBox только из списка зон.
 - **Локализация кнопок**: добавлены ключи (S.Ed.015, S.Ed.016, S.EC.BtnViewPools, S.EC.BtnCreatePool, S.EC.BtnAutoRoad) — заменены хардкоженные русские строки «Менеджер связей», «Макет и границы», «📋 Просмотр содержимого пулов», «➕ Создать новый пул», «Авто-дорога» на DynamicResource / L() вызовы. ConnectionManagerWindow.Title и OrientationWindow.Title тоже переведены на DynamicResource.
-- **Ключи локализации**: RU/EN синхронизированы (по 546 ключей). Код `Window_Loaded`, `CheckForUpdatesAsync`, `ShowUpdateBanner`, `BtnUpdateNow_Click`, `BtnUpdateNotes_Click`, `BtnUpdateDismiss_Click` заменён на пустой обработчик.
+- **Ключи локализации**: RU/EN синхронизированы (по 546 ключей).
+
+## 2026-07-03 — User: "напиши файл ридми изменений ... измени версию приложения на 2.0 ... напиши ридми разницы между проектами"
+
+### Added
+- **`README_changes_2.5-2.8.md`** — описание изменений между коммитами 2.5→2.6→2.7→2.8: Connection Manager, JSON Preview, Placement Args, Copy/Paste зон, дороги, OrientationWindow, EditorHelpWindow, ребрендинг CommFork, удаление авто-обновления.
+- **`README_fork.md`** — сравнение CommFork 2.0 с оригинальным AuroraRMG 1.6.0 (таблица различий, список улучшений и отсутствующих функций).
+
+### Changed
+- **AssemblyInfo.cs**: Version изменена с `1.4.1.0` на `2.0.0.0`. Код `Window_Loaded`, `CheckForUpdatesAsync`, `ShowUpdateBanner`, `BtnUpdateNow_Click`, `BtnUpdateNotes_Click`, `BtnUpdateDismiss_Click` заменён на пустой обработчик.
 
