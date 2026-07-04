@@ -1318,10 +1318,12 @@ namespace Olden_Era___Template_Editor.Services
             const double minGap = 6;
             double ringRadius0  = Width / 2.0 - margin;
 
-            // Recognise both "Hub" (normal) and "Hub-*" (tournament single-cluster preview)
+            // Recognise "Hub", "Hub-*", and zones with center layout
             // as the hub so it is always placed in the centre.
             Zone? hub   = zones.FirstOrDefault(z => string.Equals(z.Name, "Hub", StringComparison.Ordinal)
-                                                  || z.Name.StartsWith("Hub-", StringComparison.Ordinal));
+                                                  || z.Name.StartsWith("Hub-", StringComparison.Ordinal)
+                                                  || string.Equals(z.Layout, CenterLayoutName, StringComparison.Ordinal)
+                                                  || string.Equals(z.Layout, "zone_layout_center_zone", StringComparison.Ordinal));
             var outer   = hub is null ? zones : zones.Where(z => z != hub).ToList();
             int outerN  = Math.Max(1, outer.Count);
 

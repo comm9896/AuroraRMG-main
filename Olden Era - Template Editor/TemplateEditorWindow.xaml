@@ -44,6 +44,15 @@
                         Style="{StaticResource ToolbarButton}" Click="BtnZoomIn_Click" ToolTip="{DynamicResource S.Ed.ZoomIn}"/>
                 <Button x:Name="BtnZoomOut" Content="−" Width="30" DockPanel.Dock="Right" Margin="0,0,8,0"
                         Style="{StaticResource ToolbarButton}" Click="BtnZoomOut_Click" ToolTip="{DynamicResource S.Ed.ZoomOut}"/>
+
+                <Button x:Name="BtnConnectionManager" Content="Менеджер связей" DockPanel.Dock="Left"
+                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnConnectionManager_Click"/>
+                <Button x:Name="BtnCopyZone" Content="{DynamicResource S.Ed.013}" DockPanel.Dock="Left"
+                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnCopyZone_Click"/>
+                <Button x:Name="BtnPasteZone" Content="{DynamicResource S.Ed.014}" DockPanel.Dock="Left"
+                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnPasteZone_Click"/>
+                <Button x:Name="BtnJsonPreview" Content="{DynamicResource S.Ed.JP}" DockPanel.Dock="Left"
+                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnJsonPreview_Click"/>
             </DockPanel>
         </Border>
 

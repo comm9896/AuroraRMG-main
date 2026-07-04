@@ -134,3 +134,341 @@
 - Configured as Embedded Resources in `.csproj`
 - `GamePoolDataLoader` now reads from assembly manifest resources
 - No dependency on external game installation path
+
+## 2026-07-01 19:50 — User: "найди где теперь находится кнопка 'менеджер связей' и все её взаимосвязи ... нужно изменить ..."
+
+### Fixed
+- XAML syntax error: stray `'` on line 49 of `TemplateEditorWindow.xaml`
+- `BtnConnectionManager_Click` now non-modal via `Show()` instead of `ShowDialog()`
+- Reopens existing window if already open (focus, no duplicate)
+- `ConnectionManagerWindow` XAML completely rewritten: proper WPF styles, GridView columns, binding
+
+### Added
+- `ConnectionManagerWindow`: non-modal connection manager, double-click opens settings editor, numbering column, remove button per row
+- `ConnectionSettingsWindow`: standalone connection property editor (name, type, guard value, road) opened on double-click
+- `ConnectionInfo.Number` property for sequential numbering
+- Connection lines in `RebuildGraph()` now use per-group fan-out (perpendicular offset with `fanSpread=18px`) to eliminate visual overlap
+- Groups sorted by connection name for deterministic left-to-right fanning
+
+### Changed
+- `RebuildGraph()` made `internal` for access from manager window
+- `BuildInspector()` made `internal` for access from manager window
+- `MarkDirty()` made `internal` for access from manager window
+- `BtnConnectionManager_Click` stores window reference, reuses on re-click
+- First connection in a group placed at leftmost position (negative perpendicular offset), subsequent ones progressively right
+
+## 2026-07-01 20:10 — User: "сделай бат скрипт для сборки билда"
+
+### Added
+- `build.bat` — cmd-совместимый скрипт сборки с restore → build → publish single-file
+- `build.ps1` — PowerShell-версия того же скрипта
+- Оба скрипта: принимают параметр Debug/Release, публикуют single-file self-contained .exe в `build/<Configuration>/`
+
+## 2026-07-01 22:10 — User: "продолжай" — crash diagnostics
+
+### Added
+- try-catch with MessageBox in `BtnConnectionManager_Click` — перехватывает и показывает любую ошибку при открытии менеджера связей
+- try-catch в конструкторе `ConnectionManagerWindow` — перехватывает ошибки `InitializeComponent()`
+- try-catch в конструкторе `ConnectionSettingsWindow` — перехватывает ошибки `InitializeComponent()`
+
+### Changed
+- Clean rebuild (obj/bin полностью очищены) — 0 errors, 14 pre-existing warnings
+- App запускается без ошибок
+
+### Fixed
+- **Crash on "Менеджер связей"**: `GridViewColumn Width="*"` на 107 строке `ConnectionManagerWindow.xaml`. `*` (star sizing) не поддерживается `GridViewColumn` — только `Auto` или пиксели. Заменено на `Width="200"`.
+
+## 2026-07-01 22:30 — User: "линии графа после перемещения любой из соединённых зон сбрасывают позицию"
+
+### Fixed
+- **Lines reset to center on zone drag**: `RepositionZone` устанавливала концы линий в центр зоны (`line.X1 = p.X`), но `RebuildGraph` рисует линии от **границы** зоны (`p.X + ux * r1`). После перетаскивания → при следующем перестроении линии "прыгали" на границу = воспринималось как сброс позиции.
+
+  **Решение**: добавлен `_edgeFanOffsets` — словарь, хранящий перпендикулярное смещение для каждого соединения. `RepositionZone` теперь пересчитывает точки на границе зоны по той же формуле, что и `RebuildGraph` (от `conn.From` к `conn.To`, с радиусом + смещением).
+
+- **Линии не доходят до квадрата зоны / начинаются за его пределами**: перпендикулярное смещение (`fanSpread = 18px`) могло превышать радиус зоны (например, 4 соединения → offset 27px > radius 24px). Точка начала/конца линии оказывалась за пределами квадрата зоны.
+
+  **Решение**: смещение зажимается в `[-maxPerp, maxPerp]`, где `maxPerp = min(rFrom, rTo) * 0.85`. Линии всегда начинаются/заканчиваются в пределах квадрата зоны.
+
+### Notes
+- `_edgeFanOffsets` очищается в начале `RebuildGraph()`
+- Все вычисления теперь единообразны: направление всегда от `conn.From` к `conn.To`, с корректным применением радиуса и перпендикулярного смещения
+
+## 2026-07-01 22:50 — User: геометрические несоответствия схемы (асимметрия, углы, сетка)
+
+### Fixed
+- **Центральная зона не распознавалась как хаб**: `LayoutZonesRing` искал хаб по имени (`"Hub"` / `"Hub-*"`), но реальные шаблоны используют зону с layout `zone_layout_center` (обычно названную "Center"). Хаб не находился → все зоны (включая центр) размещались на кольце, а центр был пуст. С 8 спавнами + центром на кольце получалось 9 узлов с углами 40° вместо 45°, что вызывало все описанные искажения.
+
+  **Решение**: добавлено определение хаба по layout (`zone_layout_center`, `zone_layout_center_zone`) в дополнение к проверке по имени.
+
+- **Позиции не привязаны к сетке**: перетаскивание зон использует `SnapToGrid` (50px), но начальные позиции из `LayoutZonesRing` не привязывались. Зоны визуально не совпадали с линиями фоновой сетки.
+
+  **Решение**: добавлен `SnapAllPositionsToGrid()` в `ComputePositions()` — все зоны после расчёта позиционируются строго по узлам сетки 50×50px, что даёт идеальное совпадение с фоновой решёткой.
+
+## 2026-07-01 23:00 — User: "удлини линии связей что бы они не обрывались"
+
+### Fixed
+- **Линии обрываются, не доходя до квадрата зоны**: линии рисовались от границы зоны (`center + ux * r`). Из-за перпендикулярного смещения (fan-out) и квадратной формы зоны точка границы могла не совпадать с видимым краем квадрата — линия казалась обрезанной.
+
+  **Решение**: линии теперь рисуются от **центра** до **центра** зоны (с перпендикулярным смещением). Квадраты зон рисуются ПОВЕРХ линий и скрывают внутреннюю часть. Благодаря этому линии всегда доходят до видимого края квадрата. `RebuildGraph()` и `RepositionZone()` синхронизированы — оба используют center-to-center подход.
+
+## 2026-07-01 23:10 — User: "при создании зоны в биомах выставляются аргументы по умолчанию измени их на: matchmainzone..."
+
+### Changed
+- **Biome defaults**: при создании зоны (`AddZoneAt`) тип биома изменён с `MatchZone` на `MatchMainZone`, аргументы пустые (вместо `Args = [name]`)
+- **Добавлен "MatchMainZone"** в `KnownValues.SelectorTypes`
+- **Скрытие поля ввода аргументов** при выборе `FromList` в `AddBiomeSelector`: теперь `argsBox` скрывается (`Visibility.Collapsed`), а панель available-args показывается
+- **Авто-дороги между главными объектами**: при добавлении дополнительного главного объекта (`addAdditionalMoBtn.Click`) автоматически создаётся `Road` от `MainObject["0"]` к `MainObject[newIndex]` с типом `Stone`
+
+## 2026-07-01 23:40 — User: "локализацию скрытых полей тоже нужны скрывать так же нужно добавить возможность полного копирования зон..."
+
+### Fixed
+- **Скрытие локализации поля аргументов биома**: `BiomeArgs` (label + textbox) теперь обёрнуты в `StackPanel argsSection`. При выборе `FromList` скрывается весь `argsSection`, а не только textbox. `UpdateBiomeArgsVisibility` тогглит видимость `argsSection` вместо `argsBox`.
+
+### Added
+- **Копирование/вставка зоны**: `CopySelectedZone()` — глубокое копирование выбранной зоны через JSON (сериализация/десериализация), сохранение в `_copiedZone`. `PasteCopiedZone()` — вставка копии с новым уникальным именем, позиция со смещением.
+- **Горячие клавиши**: `Ctrl+C` — копировать, `Ctrl+V` — вставить (в `Window_KeyDown`).
+- **Кнопки на тулбаре**: `BtnCopyZone` (`S.Ed.013`) и `BtnPasteZone` (`S.Ed.014`).
+- **Новые строки локализации**: `S.EC.SelectZoneFirst`, `S.EC.NothingCopied`, `S.EC.ZoneCopied`, `S.EC.ZonePasted`, `S.Ed.013`, `S.Ed.014` (RU + EN).
+
+## 2026-07-02 00:10 — Fix visual editor after template audit
+
+### Fixed
+- **Чистка дорог при удалении связи** (`TemplateEditorWindow.xaml.cs`): добавлен `RemoveRoadReferences(string)`, удаляет `roads[]` во всех зонах, ссылающиеся на удаляемую связь. Вызывается при удалении связи через `BtnDelete_Click` и `ConnectionManagerWindow`.
+- **Чистка дорог при удалении зоны**: перед удалением связей зоны, для каждой вызывается `RemoveRoadReferences`.
+- **Уникальность имён связей при создании** (`HandleConnectClick`): если `"Direct-A-B"` занято, добавляет суффикс `-2`, `-3`...
+- **Уникальность имён связей при редактировании** (инспектор `ConnName`): при изменении имени проверяется уникальность, иначе `MessageBox` + отмена.
+- **Валидация дубликатов связей** (`ZoneGraphValidator`): добавлена проверка `connNames.Add(c.Name)`, выводит `"Duplicate connection name"`.
+- **`ContentSidLimit.Sid` → `string?`**: пустые SID не сериализуются (null → `WhenWritingNull`). Добавлены поля `Variant`, `IncludeLists`, `Content` для сохранения entry с `includeLists`/`content` вместо `sid` (которые терялись при round-trip).
+- **Очистка пустых SID при сохранении**: `BtnSave_Click` перед записью удаляет `ContentSidLimit` с пустым Sid из `contentCountLimits` и `mandatoryContent`.
+- **`NewEmptyTemplate`**: добавлены дефолтные `Orientation` (MinimalBoundingSquare) и `Border` (CornerRadius=0, ObstaclesWidth=3), чтобы не терялись при создании нового шаблона.
+- **`MatchMainZone` → `MatchMainObject["0"]`**: дефолтный тип биома при создании зоны заменён на `MatchMainObject`. `MatchMainZone` удалён из `KnownValues.SelectorTypes`.
+- **`simTurnSquad = true`** при создании `Direct`-связи.
+- **`Length = 0.94`** при создании `Proximity`-связи.
+
+## 2026-07-02 00:30 — JSON preview with edit capability
+
+### Added
+- **`JsonPreviewWindow`** — новое окно предварительного просмотра JSON шаблона:
+  - `JsonBox` — большой TextBox (Consolas, моноширинный) с сериализованным `_template`
+  - Валидация JSON в реальном времени при изменении текста (зелёный/красный статус)
+  - Кнопка **«Применить»** — десериализует JSON в `RmgTemplate`, вызывает `LoadTemplate()`, обновляет граф; если ошибка — изменения сбрасываются, показывается сообщение
+  - Кнопка **«Сбросить»** — перезаписывает текст текущей сериализацией `_template`
+  - Кнопка **«Закрыть»**
+- **Кнопка `📄 JSON`** на тулбаре редактора (`BtnJsonPreview`)
+- **`LoadTemplate(RmgTemplate)`** — public метод для перезагрузки шаблона из JSON
+- **`CurrentTemplate`** — public свойство для доступа к `_template` из `JsonPreviewWindow`
+- **`UpdateStatus`** → public (для вызова из `JsonPreviewWindow`)
+- **Строки локализации**: `S.Ed.JP`, `S.Ed.JP.Title`, `S.Ed.JP.Hint`, `S.Ed.JP.Apply`, `S.Ed.JP.Reset`, `S.Ed.JP.Close` (RU + EN)
+
+## 2026-07-02 — Proximity Length & Placement editor for additional main objects
+
+### Added
+- **Length field in connection inspector**: поле `length` отображается только для типа `Proximity`; скрывается/показывается при смене типа связи
+- **Placement/PlacementArgs editor for new additional objects**: при добавлении нового главного объекта (секция 5) показываются:
+  - ComboBox выбора `Placement` (Center/Connection/NearZone/Uniform)
+  - TextBox для `PlacementArgs` (через запятую; скрыт при Center)
+  - CheckBox «Авто-дорога» (вкл по умолчанию) — создаёт `Road { MainObject[0] → MainObject[N] }`
+- **PlacementArgs editing in additional objects list**: поле `PlacementArgs` добавляется в `RebuildAdditionalMainObjectsList` для каждого объекта; редактируется через запятую; скрывается при Center
+
+### Fixed
+- **CS0841 ordering**: `lengthPanel` объявлен до `AddComboField` (который ссылается на него через callback)
+
+## 2026-07-02 18:50 — Player de-dup, guard-vs-owner, zone validation, placement fix
+
+### Added
+- **`GetUsedPlayers(excludeZoneName)`** — helper that scans all zones for already-assigned `Owner` values
+- **`ValidateZone(Zone)`** — post-paste/insert validation that fixes:
+  - Invalid `Placement` → `"Uniform"`
+  - `Spawn` cleared on non-Spawn types
+  - `Owner` cleared on non-City types
+  - Guard values zeroed + `RemoveGuardIfHasOwner=true` when `Owner` is set
+  - Stale roads (index out of range) removed
+
+### Changed
+- **Owner duplicate prevention** (both `RebuildMainObjectEditor` + `RebuildAdditionalMainObjectsList`):
+  - При выборе игрока-владельца проверяется, не занят ли он в другой зоне
+  - Если занят — автоматически назначается первый свободный игрок с предупреждением
+- **Guard fields auto-hide on owner/spawn**:
+  - `UpdateGuardFieldsVisibility` (primary) and `UpdateFieldVisibility` (additional) now check `mo.Owner != null || mo.Spawn != null`
+  - Когда владелец назначен: `RemoveGuardIfHasOwner=true`, guard values → `null`, поля скрыты
+  - Когда владелец снят: `RemoveGuardIfHasOwner=false`, поля показываются
+- **`PlacementArgs` editor added to primary `RebuildMainObjectEditor`** (ранее был только в additional list)
+- **`removeGuardCheck.Unchecked`** now calls `UpdateGuardFieldsVisibility()` instead of directly setting visibility (respects owner check)
+- **Spawn player combo** now calls `UpdateGuardFieldsVisibility()` to hide guards when spawn player is set
+
+### Fixed
+- **Placement defaults UI**: `addAdditionalMoBtn.Click` uses the new placement/args controls (from previous sessionʼs change) instead of hardcoded `"Uniform"`
+
+## 2026-07-03 — Auto-rewrite roads on main object removal + removeGuardIfHasOwner on spawn
+
+### Added
+- **`AdjustRoadIndicesAfterRemoval(Zone, int)`** — static method in `TemplateEditorWindow.xaml.cs:2798`
+  - Удаляет дороги, ссылающиеся на `MainObject[removedIndex]`
+  - Декрементирует индексы > `removedIndex` в оставшихся дорогах
+- **`ShiftArgs(List<string>, int)`** — helper для декремента числовых args
+
+### Changed
+- **Оба remove-обработчика** (`RebuildMainObjectsList` ~line 1405, `RebuildAdditionalMainObjectsList` ~line 1541):
+  - Перед `z.MainObjects.RemoveAt(capturedIdx)` вызывается `AdjustRoadIndicesAfterRemoval(z, capturedIdx)`
+- **Spawn combo handler** (`RebuildMainObjectEditor`, moved после `removeGuardCheck`):
+  - При назначении `Spawn` → `RemoveGuardIfHasOwner = true`, guard values → null, UI-боксы → "0"
+  - При снятии `Spawn` → `RemoveGuardIfHasOwner = false`
+- **`ValidateZone`** (~line 2868): условие расширено с `mo.Owner != null` до `mo.Owner != null || mo.Spawn != null`
+  - На load/paste также проставляется `RemoveGuardIfHasOwner` для spawn-объектов
+
+### Fixed
+- **Crash on zone click** — duplicate `panel.Children.Add(spawnPanel)` removed (WPF throws `InvalidOperationException` when same child added twice)
+
+## 2026-07-03 — Duplicate player check on paste zone
+
+### Changed
+- **`PasteCopiedZone()`** — после `ValidateZone(copy)` проверяет конфликты `Owner` и `Spawn` с существующими зонами:
+  - Собирает `usedOwners` (через `GetUsedPlayers()`) и `usedSpawns` (все `mo.Spawn` из существующих зон)
+  - При конфликте переназначает первого свободного игрока из `KnownValues.SpawnPlayers`
+  - Показывает `MessageBox.Warning` если были переназначения
+
+### Serialization
+- Без изменений. JSON-формат дорог и main objects не меняется.
+
+## 2026-07-03 — NearZone dropdown + panel relocation
+
+### Added
+- **`BuildNearZoneCombo(MainObject)`** — helper method in `TemplateEditorWindow.xaml.cs`, creates a zone name ComboBox populated from `Zones` list. On selection, sets `mo.PlacementArgs = [selectedZone]`. Used in all three placement editor sections.
+- **NearZone zone selector dropdown** in all three Placement editor locations:
+  - `RebuildMainObjectEditor` (primary MO): `nearZonePanel` with zone ComboBox, hidden by default, visible only when `Placement = "NearZone"`
+  - `RebuildAdditionalMainObjectsList` (additional MO list): same pattern for each city item
+  - `BuildInspector` (new MO panel): `newMoNearZonePanel` + `newMoNearZoneCombo`, values read in `addAdditionalMoBtn.Click` handler
+- **Localization strings**: `S.EC.MoAdditionalArgs` (RU: "Аргументы дополнительно добавленных главных объектов", EN: "Additional main object arguments")
+
+### Changed
+- **Placement visibility logic**: When `Placement = "NearZone"`, the text box (`PlacementArgs`) is hidden and the zone dropdown (`NearZone`) is shown. When switching away from NearZone, the dropdown is hidden and the text box is shown again.
+- **New MO panel moved**: `newMoPlacePanel` moved from `mainPanel.Children` into `additionalMoSection.Children` as its first child (inside Section 5 instead of between sections)
+- **Header text**: Changed from `L("S.EC.MoPlacement") + " (новый)"` to `L("S.EC.MoAdditionalArgs")`
+
+### Serialization
+- `"placement": "NearZone"` with `"placementArgs": ["ZoneName"]` — matches format found in `Christmas Tree.rmg.json`
+
+## 2026-07-03 — Road sync, auto-roads for Connection, NearZone visibility, player reassignment
+
+### Added
+- **`SyncConnectionRoadFlags()`** — scans all `zone.roads`, finds road endpoints with `Type = "Connection"`, and sets `conn.Road = true` for the matching connection by name. Called in `LoadTemplate`, `RebuildGraph` (covers paste, JSON apply too).
+- **`AddUniqueRoad(Zone, fromType, fromArgs, toType, toArgs)`** — adds a road to zone.Roads only if an identical endpoint pair doesn't already exist (duplicate-safe).
+
+### Changed
+- **Auto-roads for Connection-placed MainObjects** (`addAdditionalMoBtn.Click`):
+  - Canonical OctoJebus pattern: creates `MainObject[0] → Connection[name]` + `MainObject[newIdx] → Connection[name]`
+  - Non-Connection placements keep `MainObject[0] → MainObject[newIdx]` (unchanged)
+  - `name` = the value of `placementArgs[0]` from the new main object
+- **NearZone panel initial visibility**: `nearZonePanel` now starts with `Visibility = mo.Placement == "NearZone" ? Visible : Collapsed` (was always Visible before first placement change). Applied in both `RebuildMainObjectEditor` and `RebuildAdditionalMainObjectsList`.
+- **Player reassignment ascending**:
+  - `GetUsedPlayers()` now collects both `mo.Owner` AND `mo.Spawn` values (was Owner-only). Prevents assigning a player that's already used as Spawn in another zone.
+  - `PasteCopiedZone()` uses unified `usedPlayers` set for both Owner and Spawn conflict resolution, with ascending Player1→Player8 selection via `KnownValues.SpawnPlayers.FirstOrDefault`.
+
+## 2026-07-03 — User: "реализуй" (auto-roads for all Connection-placed MOs in loaded/generated templates)
+
+### Added
+- **`RebuildConnectionRoads()`**: scans all zones, for each Connection-placed `MainObject[i>0]`:
+  - Removes stale roads that don't point to the correct connection
+  - Adds `MainObject[0] → Connection[name]` and `MainObject[i] → Connection[name]` via `AddUniqueRoad`
+- **Called in**: `LoadTemplate` (after `AutoGenerateConnectionNames`), `RebuildGraph` (before `SyncConnectionRoadFlags`)
+
+## 2026-07-03 — User: "реализуй" (sync placementArgs to existing connections)
+
+### Changed (rewrite)
+- **`SyncConnectionPlacementArgs()`** rewritten:
+  - Replaced `.ToHashSet()` with `.ToList()` for **deterministic iteration order** (was non-deterministic, caused wrong connection assignment in pasted zones)
+  - **Priority**: road connections (`Road == true`) first, then non-road connections
+  - For each invalid `PlacementArgs[0]`: finds first **free road connection** (unused by other MOs), falls back to any free connection
+- **Called in**: `LoadTemplate` (after `AutoGenerateConnectionNames`, before `RebuildConnectionRoads`), `RebuildGraph` (before `RebuildConnectionRoads`)
+
+## 2026-07-03 - User: 'реализовывай' (zone-aware + bidirectional road priority)
+
+### Rewritten again
+- **'SyncConnectionPlacementArgs()'**:
+  - **Zone-aware**: placementArgs[0] считается невалидным, если соединение не участвует в этой зоне
+  - **Priority** при подборе замены:
+    1. Road=true + участвует в зоне + другая сторона тоже имеет road (bidirectional)
+    2. Road=true + участвует в зоне
+    3. Участвует в зоне (любое)
+    4. Road=true (любая зона)
+    5. Любое свободное
+  - Детерминированный порядок (List)
+- **Called in**: LoadTemplate, RebuildGraph
+
+
+## 2026-07-03 - User: 'реализуй' (fix stale MO[0] roads on connection reassignment)
+
+### Fixed
+- **RebuildConnectionRoads()**: added cleanup of MO[0] -> oldConn roads when a Connection MO is reassigned
+  - Detects old connection name from existing zone roads
+  - If oldConn != connName AND no other Connection MO still uses oldConn:
+    - Removes all MO[0] -> oldConn (and reversed) roads from the zone
+  - Prevents duplicate roads and stale road flags on connections
+
+
+## 2026-07-03 - User: 'реализуй' (fix road flag leak on connection deletion)
+
+### Changed
+- **SyncConnectionRoadFlags()**: now accepts optional Dictionary<string, List<Road>>? preRoads parameter
+  - When provided, uses preRoads snapshot instead of zone.Roads (avoids syncing auto-generated roads)
+- **RebuildGraph()**: snapshots zone.Roads BEFORE RebuildConnectionRoads, passes to SyncConnectionRoadFlags
+- **LoadTemplate()**: removed direct SyncConnectionPlacementArgs/RebuildConnectionRoads/SyncConnectionRoadFlags calls
+  - All road logic now handled by RebuildGraph with proper pre-auto snapshot
+
+### Fixed
+- Deleting a road connection no longer causes the reassigned connection to get Road=true
+- Auto-generated roads from RebuildConnectionRoads no longer set conn.Road flag
+
+
+## 2026-07-03 - User: 'сейчас меньше дорог заражается, но эффект при загрузки шаблона соравно сохранился'
+
+### Changed
+- **RebuildGraph()**: added managed-roads cleanup BEFORE snapshot
+  - Strips all MO -> Connection roads for Connection-placed MOs from zone.Roads
+  - These managed roads are regenerated by RebuildConnectionRoads anyway
+  - Prevents stale saved managed-roads from influencing road flags via snapshot
+
+### Fixed
+- Loading old template files (saved with the bug) no longer causes incorrect road flags
+- Managed roads from previous saves are cleaned before snapshot, so SyncConnectionRoadFlags only sees general roads
+
+## 2026-07-03 — User: "теперь флаг 'дорога' может выставиться на дороге если создавать связь"
+
+### Fixed
+- Stale managed roads (MO → Connection for old connection names) were not stripped before snapshot
+  - After `SyncConnectionPlacementArgs` reassigned a MO from oldConn to newConn, `managedConns` only contained `newConn` (from `placementArgs`)
+  - Stale `MO[*] → Connection[oldConn]` roads survived into `preRoads` snapshot
+  - `SyncConnectionRoadFlags(preRoads)` then set `oldConn.Road = true` even though oldConn no longer has managed roads
+- **Fix**: road scan in managed stripping now also collects stale connection names from existing `MO → Connection` roads, so both current and stale managed roads are stripped before snapshot
+  - Road scan only runs for zones that already have Connection-placed MOs — prevents stripping original template roads (`AutoGenerateRoadsForConnection` roads, etc.) from unrelated zones
+
+## 2026-07-03 — User: "реализуй" (auto-assignment, ComboBox, Center roads, road serialization, MO-index roads)
+
+### Added
+- **`GetAutoPlacementArgs(Zone)`** — auto-assigns PlacementArgs[0] for Connection-placed MOs with priority:
+  1. Connections where the other zone has no castle Connection-placed MOs
+  2. Connections with `Road == true`
+  3. Even distribution (least-used connection first)
+- **`HasCastleConnection(string zoneName)`** — checks if a zone has a City/AbandonedOutpost with `Placement == "Connection"`
+- **`BuildConnectionArgsCombo(ComboBox, Zone, int moIndex)`** — fills a ComboBox with:
+  - All connection names involving this zone
+  - All other MO indices in this zone (excluding moIndex)
+- **Part C: Center MO roads** — in `RebuildConnectionRoads`, for zones with a Center-placed MO, auto-adds `MO[0] → Connection[name]` for every connection involving this zone with `conn.Road == true`
+- **Part D: Road serialization fix** — in `RebuildGraph`, after `SyncConnectionRoadFlags`, iterates all connections with `Road == true` and calls `AutoGenerateRoadsForConnection` to ensure zone.roads entries exist (fixes missing roads on save/load)
+- **Part E: MO-index roads** — when `PlacementArgs[0]` is an integer (MO index), generates `MO[i] → MO[index]` + `MO[0] → MO[index]` roads instead of Connection roads
+
+### Changed
+- **`SyncConnectionPlacementArgs()`** — rewritten to use `GetAutoPlacementArgs` for the new priority system; also accepts MO-index as valid (no reassignment needed)
+- **`RebuildConnectionRoads()`** — stale road removal now handles MO-index targets (`MainObject → MainObject`); `connName` → `connOrIndex` throughout
+- **`placeCombo.SelectionChanged` (Section 4 & 5)** — auto-assigns `PlacementArgs[0]` via `GetAutoPlacementArgs` when switching Placement to "Connection"
+- **`addAdditionalMoBtn.Click`** — reads from Connection ComboBox (`newMoConnArgsCombo`) when Placement="Connection"; falls back to `GetAutoPlacementArgs` if nothing selected; MO-index road generation
+- **UI: PlacementArgs** — in Section 4, Section 5, and New MO panel: when Placement is "Connection", shows a Connection ComboBox (with connections + MO indices) instead of the free-text TextBox; TextBox shown for Uniform/other
+
+### Fixed
+- Roads for `conn.Road == true` connections are now properly generated on template load (not just from UI checkbox)
+- Center-placed MOs now get roads to all road connections involving their zone
+- Connection-placed MOs can target other MOs by index with proper MO → MO roads
+
+### Fixed
+- `BuildConnectionArgsCombo` in Section 5 now passes correct `i` (actual MO index) instead of hardcoded `0` — previously hardcoded `0` prevented additional MOs from targeting the primary MO (index 0); now only the MO's own index is excluded
+

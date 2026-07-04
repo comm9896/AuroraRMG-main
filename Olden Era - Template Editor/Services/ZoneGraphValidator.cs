@@ -31,6 +31,14 @@ namespace Olden_Era___Template_Editor.Services
                     issues.Add(L("S.V.SelfLoop", c.From));
             }
 
+            // Duplicate connection names
+            var connNames = new HashSet<string>(System.StringComparer.Ordinal);
+            foreach (var c in connections)
+            {
+                if (!string.IsNullOrEmpty(c.Name) && !connNames.Add(c.Name))
+                    issues.Add($"• Duplicate connection name: \"{c.Name}\". Connection names must be unique.");
+            }
+
             if (zones.Count > 1)
             {
                 var connected = new HashSet<string>(System.StringComparer.Ordinal);

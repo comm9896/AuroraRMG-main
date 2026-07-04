@@ -75,9 +75,18 @@ namespace OldenEraTemplateEditor.Models
     public class ContentSidLimit
     {
         [JsonPropertyName("sid")]
-        public string Sid { get; set; } = string.Empty;
+        public string? Sid { get; set; }
+
+        [JsonPropertyName("variant")]
+        public int? Variant { get; set; }
 
         [JsonPropertyName("maxCount")]
         public int MaxCount { get; set; }
+
+        [JsonPropertyName("includeLists")]
+        public List<string>? IncludeLists { get; set; }
+
+        [JsonPropertyName("content")]
+        public List<ContentItem>? Content { get; set; }
     }
 }
