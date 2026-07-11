@@ -1,5 +1,14 @@
 # Project Change Log
 
+## 2026-07-11 — Connection inspector: restore keys, remove leftover tooltips, localize + style static note
+
+### Changed
+- Re-added removed localization keys `S.EC.GuardMatchGroup` and `S.EC.SimTurnSquad` (RU + EN) and switched the Advanced section fields back to `L("S.EC.SimTurnSquad")` / `L("S.EC.GuardMatchGroup")` (inspector) and `{DynamicResource S.EC.SimTurnSquad}` / `{DynamicResource S.EC.GuardMatchGroup}` (settings window) — removed hardcoded RU labels
+- Added `S.EC.AdvancedNote` (RU "во всех шаблонах пустая если знаете что ставить ставьте =)" / EN "Empty in all templates; if you know what to set, set it =)") and used it for the static note in both windows
+- Removed the leftover `ToolTip` on the Advanced `Expander` controls (both `ConnectionSettingsWindow.xaml` and `TemplateEditorWindow.xaml.cs`)
+- Static note `TextBlock` is now bold (`FontWeight=Bold`) and font size increased by 2 (11 → 13) in both windows
+- `UnitTest1.NewConnectionKeysExist` re-includes `S.EC.GuardMatchGroup`, `S.EC.SimTurnSquad`, `S.EC.AdvancedNote`
+
 ## 2026-06-21 — FromList Args UI Enhancement
 
 ### Added
@@ -540,4 +549,91 @@
 
 ### Changed
 - **AssemblyInfo.cs**: Version изменена с `1.4.1.0` на `2.0.0.0`. Код `Window_Loaded`, `CheckForUpdatesAsync`, `ShowUpdateBanner`, `BtnUpdateNow_Click`, `BtnUpdateNotes_Click`, `BtnUpdateDismiss_Click` заменён на пустой обработчик.
+
+## 2026-07-11 09:10 — User: "добавь все поля связи на панель инспектора соединений"
+
+### Added
+- **`GuardRandomization` (double?)** to `Connection.cs` with `[JsonPropertyName("guardRandomization")]`
+- **Connection inspector fields** in `TemplateEditorWindow.xaml.cs` (after Road checkbox): GuardZone (combo with zone names), GuardEscape (checkbox), SimTurnSquad (checkbox), GuardWeeklyIncrement (text), GuardMatchGroup (text), GatePlacement (combo), GuardRandomization (text)
+- **Portal rules panel** in connection inspector — visible only when `connectionType == "Portal"`: inline editor for `PortalPlacementRulesFrom` / `PortalPlacementRulesTo` with Type (combo: "Crossroads"), Args (comma-separated text), TargetMin/Max (text), Weight (text), Add/Remove buttons
+- **Connection type combo** now toggles portal panel visibility
+- **`ConnectionSettingsWindow.xaml`** — added all same fields: CmbGuardZone, ChkGuardEscape, ChkSimTurnSquad, TxtGuardWeeklyInc, TxtGuardMatchGroup, CmbGatePlacement, TxtGuardRandomization, PortalRulesPanel (code-behind populated)
+- **`ConnectionSettingsWindow.xaml.cs`** — full save/load for all new fields + portal rules inline editor (BuildRuleList, BuildPortalRulesPanel)
+- **Localization strings** (RU+EN): `S.EC.GuardMatchGroup`, `S.EC.GuardRandomizationConn`, `S.EC.PortalRulesFrom`, `S.EC.PortalRulesTo`, `S.EC.PlacementRuleType`, `S.EC.PlacementRuleArgs`, `S.EC.PlacementRuleTargetMin`, `S.EC.PlacementRuleTargetMax`, `S.EC.PlacementRuleWeight`, `S.EC.AddRule`, `S.EC.RemoveRule`
+- **Test project** `tests/OldenEraTemplateEditor.Tests/` with xUnit tests:
+  - Connection serialization round-trip (all new properties)
+  - Minimal connection (default nulls)
+  - JSON property name verification (camelCase match)
+  - Localization key parity (RU/EN same keys + new keys exist)
+  - ContentPlacementRule serialization round-trip + game format deserialization
+
+### Changed
+- **`build.bat`** — added `[4/4]` test step + `pause` at end
+- **`build.ps1`** — added `[4/4]` test step + `Read-Host` at end
+
+### Fixed
+- **ConnectionSettingsWindow** — `_template.Zones` → `_template.Variants?[0]?.Zones` (RmgTemplate has Variants list, not direct Zones)
+- **TemplateEditorWindow** — `RebuildZoneEditor()` → `BuildInspector()` (correct method name)
+
+## 2026-07-11 09:27 — Build.bat CRLF fix + simplified structure
+
+### Fixed
+- **`build.bat`** — rewritten with clean `GOTO`-based error handling (no nested `if` blocks)
+  - CRLF (`0D 0A`) line endings enforced (cmd.exe breaks on LF-only)
+  - UTF-8 BOM removed (`@echo off` was showing `?@echo off`)
+  - All 4 steps now execute correctly in sequence: [1/4] Restore → [2/4] Build → [3/4] Publish → [4/4] Test → pause on exit
+  - `--verbosity normal` + `echo ^>` command echo on all steps
+  - `pause` before every `exit` (in error paths) + `pause >nul` at end
+
+## 2026-07-11 — Connection defaults from game template analysis + UI restructure
+
+### Analysis
+- Scanned 68 game `map_templates` (`*.rmg.json`) = 1746 connections at `E:\SteamLibrary\...\StreamingAssets\map_templates`
+- Confirmed real field names; `guardRandomization` on connections: 0.1/0.15/0.2/0.25 (most common 0.15); on **zones**: **0.05** (1014×)
+- `guardWeeklyIncrement`: 0.2 (920×), 0.1 (347×), 0.15 (195×), 0.05 (10×), 0.25 (2×)
+- `gatePlacement`: "Center" (224×) + "NearZone" (4×, only `Sand Clover.rmg.json`)
+- `gatePlacementArgs` (List<string>) exists only in Sand Clover — zone connector names, only when `gatePlacement="NearZone"`
+- `guardEscape`: 100% false; `simTurnSquad`: 100% true
+
+### Added
+- **`Connection.cs`** — `GatePlacementArgs` (`List<string>?`, JSON `gatePlacementArgs`)
+- **`KnownValues.cs`** — `GatePlacements` now `["Center", "NearZone"]`
+- **`Strings.cs`** — `S.EC.GatePlacementArgs` ("Зоны размещения ворот" / "Gate placement zones"), `S.EC.Advanced` ("Дополнительно" / "Advanced")
+- **Default values** applied when a user creates a new connection (TemplateEditorWindow connect handler):
+  `GuardValue=25000`, `GuardWeeklyIncrement=0.15`, `GuardRandomization=0.05`, `Length=1`, `GuardEscape=false`, `SimTurnSquad=true`, `GatePlacement="Center"`
+- **`ConnectionSettingsWindow.xaml`** — `LstGatePlacementArgs` (multi-select ListBox, visible only for `NearZone`) + `Expander` "Дополнительно" wrapping `GuardZone`/`GuardMatchGroup` with tooltip "во всех шаблонах пустая если знаете что ставить ставьте =)"
+- **`TemplateEditorWindow.xaml.cs`** — connection inspector: moved `GuardZone` + `GuardMatchGroup` into an "Дополнительно" `Expander` (tooltip as above); added `GatePlacementArgs` multi-select ListBox (filtered to zones excluding the connection's from/to), shown only when `gatePlacement == "NearZone"`
+
+### Changed
+- **`ConnectionSettingsWindow.xaml.cs`** — load/save `GatePlacementArgs`; gate placement combo toggles `GatePlacementArgsPanel` visibility; guardZone/guardMatchGroup now populate inside the Expander
+- **`ConnectionSerializationTests`** — round-trip now covers `gatePlacementArgs`; `JsonPropertyNames_MatchGameFormat` asserts `gatePlacementArgs`; `NewConnectionKeysExist` includes new keys
+
+### Notes
+- Defaults are NOT in the `Connection` constructor (kept null-by-default for clean serialization of loaded templates); only new UI-created connections get them
+- `guardZone` / `guardMatchGroup` remain null (empty) by default per request
+
+## 2026-07-11 (позже) — Defaults tweak + SimTurnSquad moved to Advanced + tooltips
+
+### Changed
+- **`TemplateEditorWindow.xaml.cs`** — `GuardValue` default for new connections: **25000 → 3000**
+- **`TemplateEditorWindow.xaml.cs`** — `SimTurnSquad` ("одновременный отряд") removed from main panel, moved into "Дополнительно" `Expander` (hidden by default)
+- **`ConnectionSettingsWindow.xaml`** — `ChkSimTurnSquad` moved into "Дополнительно" `Expander`
+- **`TemplateEditorWindow.xaml.cs`** — `AddComboField` now accepts optional `tooltip` param; `GuardZone`/`GuardMatchGroup`/`SimTurnSquad` inside Advanced get hover tooltips
+- **`ConnectionSettingsWindow.xaml`** — `CmbGuardZone`/`TxtGuardMatchGroup`/`ChkSimTurnSquad` inside Advanced get hover tooltips
+- **`Strings.cs`** — added `S.EC.GuardZoneTip`, `S.EC.SimTurnSquadTip`, `S.EC.GuardMatchGroupTip` (RU+EN)
+
+## 2026-07-11 (ещё позже) — Remove tooltips, add static note, drop keys
+
+### Removed
+- All tooltip code: `AddComboField` tooltip param reverted; `ToolTip` attributes removed from `ConnectionSettingsWindow.xaml` (CmbGuardZone/TxtGuardMatchGroup/ChkSimTurnSquad); tooltip args removed from inspector
+- Localization keys `S.EC.GuardMatchGroup`, `S.EC.SimTurnSquad` (RU+EN) and the three `*Tip` keys — removed
+- `L("S.EC.GuardMatchGroup")`/`L("S.EC.SimTurnSquad")` in inspector replaced with hardcoded RU labels
+
+### Changed
+- `S.EC.GuardZone` value: RU "Зона охраны" → "появление соединение около зоны"; EN "Guard zone" → "Connection appearance near zone"
+- `ConnectionSettingsWindow.xaml` — GuardZone label hardcoded to "появление соединение около зоны"
+- Both Advanced expanders (inspector + settings window) now end with a read-only note: "во всех шаблонах пустая если знаете что ставить ставьте =)"
+- `UnitTest1.cs` — `NewConnectionKeysExist` no longer asserts removed keys
+
+
 

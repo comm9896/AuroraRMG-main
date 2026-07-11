@@ -523,6 +523,7 @@ namespace OldenEraTemplateEditor.Models
         public static readonly string[] GatePlacements =
         [
             "Center",
+            "NearZone",
         ];
 
         // ── Bannable items catalog ────────────────────────────────────────────────

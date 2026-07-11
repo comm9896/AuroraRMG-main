@@ -69,6 +69,43 @@
 
                 <CheckBox x:Name="ChkRoad" Content="Дорога (Road)" Margin="0,12,0,0"
                           Foreground="#D0D0D0" FontSize="12"/>
+
+                <CheckBox x:Name="ChkGuardEscape" Content="Охрана может сбежать" Margin="0,8,0,0"
+                          Foreground="#D0D0D0" FontSize="12"/>
+
+                <TextBlock Text="Еженед. прирост охраны" Style="{StaticResource FieldLabel}"/>
+                <TextBox x:Name="TxtGuardWeeklyInc" Style="{StaticResource FieldInput}"/>
+
+                <TextBlock Text="Размещение ворот" Style="{StaticResource FieldLabel}"/>
+                <ComboBox x:Name="CmbGatePlacement" Style="{StaticResource FieldCombo}" IsEditable="True"/>
+
+                <TextBlock Text="Рандомизация охраны" Style="{StaticResource FieldLabel}"/>
+                <TextBox x:Name="TxtGuardRandomization" Style="{StaticResource FieldInput}"/>
+
+                <!-- Gate placement args (multi-select, visible only for NearZone) -->
+                <StackPanel x:Name="GatePlacementArgsPanel" Visibility="Collapsed" Margin="0,8,0,0">
+                    <TextBlock Text="Зоны размещения ворот" Style="{StaticResource FieldLabel}"/>
+                    <ListBox x:Name="LstGatePlacementArgs" Background="#302B45" Foreground="#D0D0D0"
+                             BorderThickness="1" BorderBrush="#4A4570" Padding="4"
+                             FontSize="13" MinHeight="80" SelectionMode="Multiple"/>
+                </StackPanel>
+
+                <!-- Advanced section (guardZone + guardMatchGroup) -->
+                <Expander Header="{DynamicResource S.EC.Advanced}" IsExpanded="False"
+                          Margin="0,12,0,0" Foreground="#C8A857" FontSize="13">
+                    <StackPanel Margin="0,8,0,0">
+                        <TextBlock Text="{DynamicResource S.EC.GuardZone}" Style="{StaticResource FieldLabel}"/>
+                        <ComboBox x:Name="CmbGuardZone" Style="{StaticResource FieldCombo}" IsEditable="True"/>
+                        <TextBlock Text="Группа сопоставления охраны" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="TxtGuardMatchGroup" Style="{StaticResource FieldInput}"/>
+                        <CheckBox x:Name="ChkSimTurnSquad" Content="Одновременный отряд" Margin="0,8,0,0"
+                                  Foreground="#D0D0D0" FontSize="12"/>
+                        <TextBlock Text="{DynamicResource S.EC.AdvancedNote}"
+                                   Foreground="#888" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Expander>
+
+                <StackPanel x:Name="PortalRulesPanel" Visibility="Collapsed" Margin="0,8,0,0"/>
             </StackPanel>
         </ScrollViewer>
 

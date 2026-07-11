@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace OldenEraTemplateEditor.Models
@@ -45,6 +46,12 @@ namespace OldenEraTemplateEditor.Models
 
         [JsonPropertyName("gatePlacement")]
         public string? GatePlacement { get; set; }
+
+        [JsonPropertyName("gatePlacementArgs")]
+        public List<string>? GatePlacementArgs { get; set; }
+
+        [JsonPropertyName("guardRandomization")]
+        public double? GuardRandomization { get; set; }
 
         [JsonPropertyName("length")]
         public double? Length { get; set; }

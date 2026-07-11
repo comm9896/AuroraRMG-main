@@ -1101,6 +1101,272 @@ namespace Olden_Era___Template_Editor
                     }
                     RebuildGraph();
                 }, mainPanel);
+
+                // Guard escape
+                AddCheckField(L("S.EC.GuardEscape"), c.GuardEscape == true,
+                    v => { c.GuardEscape = v; MarkDirty(); }, mainPanel);
+
+                // Guard weekly increment
+                AddTextField(L("S.EC.GuardWeeklyIncConn"), (c.GuardWeeklyIncrement ?? 0).ToString(CultureInfo.InvariantCulture),
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { c.GuardWeeklyIncrement = d; MarkDirty(); } }, mainPanel);
+
+                // Guard randomization
+                AddTextField(L("S.EC.GuardRandomizationConn"), (c.GuardRandomization ?? 0).ToString(CultureInfo.InvariantCulture),
+                    v => { if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) { c.GuardRandomization = d; MarkDirty(); } }, mainPanel);
+
+                // Gate placement
+                AddComboField(L("S.EC.GatePlacement"), KnownValues.GatePlacements, c.GatePlacement,
+                    v => { c.GatePlacement = v; MarkDirty(); }, mainPanel);
+
+                // Gate placement args (multi-select, visible only for NearZone)
+                var gateArgsPanel = new StackPanel { Visibility = c.GatePlacement == "NearZone" ? Visibility.Visible : Visibility.Collapsed };
+                AddSectionLabel(L("S.EC.GatePlacementArgs"), gateArgsPanel);
+                var gateArgsListBox = new ListBox
+                {
+                    Margin = new Thickness(0, 0, 0, 8),
+                    MinHeight = 80,
+                    SelectionMode = SelectionMode.Multiple,
+                    Background = (Brush)FindResource("BrushInput"),
+                    Foreground = (Brush)FindResource("BrushText"),
+                };
+                var allZoneNames = Zones.Select(z => z.Name).Where(n => !string.IsNullOrEmpty(n) && n != c.From && n != c.To).ToArray();
+                foreach (var zn in allZoneNames)
+                    _ = gateArgsListBox.Items.Add(zn);
+                if (c.GatePlacementArgs is { Count: > 0 })
+                {
+                    foreach (var item in gateArgsListBox.Items)
+                    {
+                        if (c.GatePlacementArgs.Contains(item as string))
+                            gateArgsListBox.SelectedItems.Add(item);
+                    }
+                }
+                gateArgsListBox.SelectionChanged += (_, _) =>
+                {
+                    c.GatePlacementArgs = gateArgsListBox.SelectedItems.Count > 0
+                        ? gateArgsListBox.SelectedItems.Cast<string>().ToList()
+                        : null;
+                    MarkDirty();
+                };
+                gateArgsPanel.Children.Add(gateArgsListBox);
+                mainPanel.Children.Add(gateArgsPanel);
+                // Toggle gate args panel when gate placement changes
+                // Find the gate placement combo that was just added
+                foreach (var child in mainPanel.Children)
+                {
+                    if (child is ComboBox combo && combo.Items.Contains("NearZone"))
+                    {
+                        combo.SelectionChanged += (_, _) =>
+                        {
+                            var sel = combo.SelectedItem as string ?? combo.Text;
+                            gateArgsPanel.Visibility = sel == "NearZone" ? Visibility.Visible : Visibility.Collapsed;
+                        };
+                        break;
+                    }
+                }
+
+                // Advanced section (guardZone + guardMatchGroup, rarely used)
+                var advancedExpander = new Expander
+                {
+                    Header = L("S.EC.Advanced"),
+                    IsExpanded = false,
+                    Margin = new Thickness(0, 8, 0, 4),
+                };
+                var advancedContent = new StackPanel();
+                advancedExpander.Content = advancedContent;
+                mainPanel.Children.Add(advancedExpander);
+
+                var zoneNames = Zones.Select(z => z.Name).Where(n => n != null).ToArray()!;
+                AddComboField(L("S.EC.GuardZone"), zoneNames, c.GuardZone,
+                    v => { c.GuardZone = v; MarkDirty(); }, advancedContent);
+
+                AddCheckField("Одновременный отряд", c.SimTurnSquad == true,
+                    v => { c.SimTurnSquad = v; MarkDirty(); }, advancedContent);
+
+                AddTextField("Группа сопоставления охраны", c.GuardMatchGroup ?? "",
+                    v => { c.GuardMatchGroup = v; MarkDirty(); }, advancedContent);
+
+                advancedContent.Children.Add(new TextBlock
+                {
+                    Text = L("S.EC.AdvancedNote"),
+                    Foreground = (Brush)FindResource("BrushTextDim"),
+                    FontSize = 13,
+                    FontWeight = FontWeights.Bold,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 8, 0, 4),
+                });
+
+                // ── Portal rules panel ──────────────────────────────────────
+                var portalPanel = new StackPanel { Visibility = c.ConnectionType == "Portal" ? Visibility.Visible : Visibility.Collapsed };
+                mainPanel.Children.Add(portalPanel);
+
+                // Listen for connection type changes to toggle portal panel
+                // We need to hook into the type combo. Since AddComboField creates its own,
+                // we patch by re-applying after the combo's handler
+                // Actually, we can rebuild on type change; but easier: find the type combo in the panel.
+                // Instead, we handle it in the type combo's existing handler via lengthPanel visibility logic.
+                // We'll add our own visibility toggle there. Let's override the type combo handler below.
+
+                // Helper to build a rules panel
+                Panel BuildRuleList(List<ContentPlacementRule>? rules, Action<List<ContentPlacementRule>> onChanged)
+                {
+                    var outer = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
+
+                    if (rules != null)
+                    {
+                        for (int i = 0; i < rules.Count; i++)
+                        {
+                            var rule = rules[i];
+                            var idx = i; // capture
+                            var rulePanel = new StackPanel
+                            {
+                                Margin = new Thickness(4, 4, 4, 4),
+                                Background = (Brush)FindResource("BrushInput"),
+                            };
+
+                            // Type
+                            var typeCombo = new ComboBox
+                            {
+                                IsEditable = false,
+                                Margin = new Thickness(0, 2, 0, 2),
+                                MaxDropDownHeight = 200,
+                            };
+                            typeCombo.Items.Add("Crossroads");
+                            typeCombo.SelectedItem = rule.Type;
+                            typeCombo.SelectionChanged += (_, _) =>
+                            {
+                                if (typeCombo.SelectedItem is string s)
+                                {
+                                    rule.Type = s;
+                                    MarkDirty();
+                                }
+                            };
+                            rulePanel.Children.Add(new TextBlock { Text = L("S.EC.PlacementRuleType"), Foreground = (Brush)FindResource("BrushTextDim"), FontSize = 11 });
+                            rulePanel.Children.Add(typeCombo);
+
+                            // Args
+                            var argsBox = new TextBox
+                            {
+                                Text = rule.Args is { Count: > 0 } ? string.Join(", ", rule.Args) : "",
+                                Margin = new Thickness(0, 2, 0, 2),
+                                MinHeight = 24,
+                            };
+                            argsBox.LostFocus += (_, _) =>
+                            {
+                                rule.Args = string.IsNullOrWhiteSpace(argsBox.Text)
+                                    ? null
+                                    : argsBox.Text.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+                                MarkDirty();
+                            };
+                            rulePanel.Children.Add(new TextBlock { Text = L("S.EC.PlacementRuleArgs"), Foreground = (Brush)FindResource("BrushTextDim"), FontSize = 11 });
+                            rulePanel.Children.Add(argsBox);
+
+                            // TargetMin
+                            var tminBox = new TextBox
+                            {
+                                Text = (rule.TargetMin ?? 0).ToString(CultureInfo.InvariantCulture),
+                                Margin = new Thickness(0, 2, 0, 2),
+                            };
+                            tminBox.LostFocus += (_, _) =>
+                            {
+                                if (double.TryParse(tminBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var d))
+                                { rule.TargetMin = d; MarkDirty(); }
+                            };
+                            rulePanel.Children.Add(new TextBlock { Text = L("S.EC.PlacementRuleTargetMin"), Foreground = (Brush)FindResource("BrushTextDim"), FontSize = 11 });
+                            rulePanel.Children.Add(tminBox);
+
+                            // TargetMax
+                            var tmaxBox = new TextBox
+                            {
+                                Text = (rule.TargetMax ?? 0).ToString(CultureInfo.InvariantCulture),
+                                Margin = new Thickness(0, 2, 0, 2),
+                            };
+                            tmaxBox.LostFocus += (_, _) =>
+                            {
+                                if (double.TryParse(tmaxBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var d))
+                                { rule.TargetMax = d; MarkDirty(); }
+                            };
+                            rulePanel.Children.Add(new TextBlock { Text = L("S.EC.PlacementRuleTargetMax"), Foreground = (Brush)FindResource("BrushTextDim"), FontSize = 11 });
+                            rulePanel.Children.Add(tmaxBox);
+
+                            // Weight
+                            var wBox = new TextBox
+                            {
+                                Text = (rule.Weight ?? 1).ToString(CultureInfo.InvariantCulture),
+                                Margin = new Thickness(0, 2, 0, 2),
+                            };
+                            wBox.LostFocus += (_, _) =>
+                            {
+                                if (double.TryParse(wBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var d))
+                                { rule.Weight = d; MarkDirty(); }
+                            };
+                            rulePanel.Children.Add(new TextBlock { Text = L("S.EC.PlacementRuleWeight"), Foreground = (Brush)FindResource("BrushTextDim"), FontSize = 11 });
+                            rulePanel.Children.Add(wBox);
+
+                            // Remove button
+                            var removeBtn = new Button
+                            {
+                                Content = L("S.EC.RemoveRule"),
+                                Margin = new Thickness(0, 4, 0, 0),
+                                Padding = new Thickness(8, 2, 8, 2),
+                                Cursor = Cursors.Hand,
+                            };
+                            removeBtn.Click += (_, _) =>
+                            {
+                                var list = c.PortalPlacementRulesFrom ?? new List<ContentPlacementRule>();
+                                if (list.Contains(rule)) list = c.PortalPlacementRulesFrom!;
+                                else if (c.PortalPlacementRulesTo?.Contains(rule) == true) list = c.PortalPlacementRulesTo!;
+                                list.RemoveAt(idx);
+                                MarkDirty();
+                                BuildInspector();
+                            };
+                            rulePanel.Children.Add(removeBtn);
+
+                            outer.Children.Add(rulePanel);
+                        }
+                    }
+
+                    var addBtn = new Button
+                    {
+                        Content = L("S.EC.AddRule"),
+                        Margin = new Thickness(0, 4, 0, 0),
+                        Padding = new Thickness(8, 2, 8, 2),
+                        Cursor = Cursors.Hand,
+                    };
+                    addBtn.Click += (_, _) =>
+                    {
+                        var list = rules ?? new List<ContentPlacementRule>();
+                        list.Add(new ContentPlacementRule { Type = "Crossroads", Args = null, TargetMin = 0, TargetMax = 0, Weight = 1 });
+                        onChanged(list);
+                        MarkDirty();
+                        BuildInspector();
+                    };
+                    outer.Children.Add(addBtn);
+                    return outer;
+                }
+
+                // Portal rules From
+                AddSectionLabel(L("S.EC.PortalRulesFrom"), portalPanel);
+                portalPanel.Children.Add(BuildRuleList(c.PortalPlacementRulesFrom, list => c.PortalPlacementRulesFrom = list));
+
+                // Portal rules To
+                AddSectionLabel(L("S.EC.PortalRulesTo"), portalPanel);
+                portalPanel.Children.Add(BuildRuleList(c.PortalPlacementRulesTo, list => c.PortalPlacementRulesTo = list));
+
+                // Patch the type combo to toggle portal panel visibility.
+                // Walk mainPanel children to find the combo added for connection type.
+                foreach (var child in mainPanel.Children)
+                {
+                    if (child is ComboBox combo && combo.Items.Contains("Portal") && combo.Items.Contains("Proximity"))
+                    {
+                        var origSelectionChanged = typeof(ComboBox).GetField("SelectionChangedEvent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null);
+                        combo.SelectionChanged += (_, _) =>
+                        {
+                            var sel = combo.SelectedItem as string;
+                            portalPanel.Visibility = sel == "Portal" ? Visibility.Visible : Visibility.Collapsed;
+                        };
+                        break;
+                    }
+                }
             }
             else
             {
@@ -3125,7 +3391,13 @@ namespace Olden_Era___Template_Editor
             var conn = new Connection
             {
                 Name = autoName, From = _connectFrom.Name, To = z.Name, ConnectionType = connType,
+                GuardValue = 3000,
+                GuardWeeklyIncrement = 0.15,
+                GuardRandomization = 0.05,
+                Length = 1,
+                GuardEscape = false,
                 SimTurnSquad = true,
+                GatePlacement = "Center",
             };
             if (connType == "Proximity") conn.Length = 0.94;
             Connections.Add(conn);
