@@ -97,7 +97,7 @@ namespace Olden_Era___Template_Editor
         {
             if (string.IsNullOrWhiteSpace(PoolNameBox.Text))
             {
-                MessageBox.Show(this, "Введите название пула", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(this, L("S.CPC.EnterName"), "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -112,6 +112,9 @@ namespace Olden_Era___Template_Editor
             OnPoolCreated();
             Close();
         }
+        // ── Localisation helper ──
+        private static string L(string key, params object[] args)
+            => string.Format(Olden_Era___Template_Editor.Services.Localization.LocalizationManager.T(key), args);
     }
 
     public class ContentListInfo
@@ -218,5 +221,9 @@ namespace Olden_Era___Template_Editor
                 new() { Name = "content_list_town_gates", Category = "Особые", Description = "Городские ворота" },
             };
         }
+
+        // ── Localisation helper ──
+        private static string L(string key, params object[] args)
+            => string.Format(Olden_Era___Template_Editor.Services.Localization.LocalizationManager.T(key), args);
     }
 }

@@ -25,8 +25,14 @@
                         Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnLoad_Click"/>
                 <Button x:Name="BtnAddZone" Content="{DynamicResource S.Ed.003}" DockPanel.Dock="Left"
                         Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnAddZone_Click"/>
+                <Button x:Name="BtnCopyZone" Content="{DynamicResource S.Ed.013}" DockPanel.Dock="Left"
+                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnCopyZone_Click"/>
+                <Button x:Name="BtnPasteZone" Content="{DynamicResource S.Ed.014}" DockPanel.Dock="Left"
+                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnPasteZone_Click"/>
                 <Button x:Name="BtnConnectMode" Content="{DynamicResource S.Ed.004}" DockPanel.Dock="Left"
                         Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnConnectMode_Click"/>
+                <Button x:Name="BtnConnectionManager" Content="{DynamicResource S.Ed.015}" DockPanel.Dock="Left"
+                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnConnectionManager_Click"/>
                 <Button x:Name="BtnDelete" Content="{DynamicResource S.Ed.005}" DockPanel.Dock="Left"
                         Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnDelete_Click"/>
                 <Button x:Name="BtnValidate" Content="{DynamicResource S.Ed.006}" DockPanel.Dock="Left"
@@ -35,6 +41,13 @@
                         Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnSave_Click"/>
                 <Button x:Name="BtnExportPng" Content="{DynamicResource S.Ed.ExportPng}" DockPanel.Dock="Left"
                         Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnExportPng_Click"/>
+                <Button x:Name="BtnJsonPreview" Content="{DynamicResource S.Ed.JP}" DockPanel.Dock="Left"
+                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnJsonPreview_Click"/>
+                <Button x:Name="BtnOrientation" Content="{DynamicResource S.Ed.016}" DockPanel.Dock="Left"
+                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnOrientation_Click"/>
+                <Button x:Name="BtnHelp" Content="?" Width="30" DockPanel.Dock="Left"
+                        Style="{StaticResource ToolbarButton}" Margin="0,0,4,0" Click="BtnHelp_Click"
+                        ToolTip="{DynamicResource S.Help.Title}"/>
 
                 <Button x:Name="BtnZoomReset" Content="{DynamicResource S.Ed.008}" DockPanel.Dock="Right"
                         Style="{StaticResource ToolbarButton}" Click="BtnZoomReset_Click"/>
@@ -44,20 +57,6 @@
                         Style="{StaticResource ToolbarButton}" Click="BtnZoomIn_Click" ToolTip="{DynamicResource S.Ed.ZoomIn}"/>
                 <Button x:Name="BtnZoomOut" Content="−" Width="30" DockPanel.Dock="Right" Margin="0,0,8,0"
                         Style="{StaticResource ToolbarButton}" Click="BtnZoomOut_Click" ToolTip="{DynamicResource S.Ed.ZoomOut}"/>
-
-                <Button x:Name="BtnConnectionManager" Content="{DynamicResource S.Ed.015}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnConnectionManager_Click"/>
-                <Button x:Name="BtnCopyZone" Content="{DynamicResource S.Ed.013}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnCopyZone_Click"/>
-                <Button x:Name="BtnPasteZone" Content="{DynamicResource S.Ed.014}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnPasteZone_Click"/>
-                <Button x:Name="BtnJsonPreview" Content="{DynamicResource S.Ed.JP}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnJsonPreview_Click"/>
-                <Button x:Name="BtnOrientation" Content="{DynamicResource S.Ed.016}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnOrientation_Click"/>
-                <Button x:Name="BtnHelp" Content="?" Width="30" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,4,0" Click="BtnHelp_Click"
-                        ToolTip="Справка по визуальному редактору зон"/>
             </DockPanel>
         </Border>
 
@@ -178,6 +177,25 @@
                     <TextBlock x:Name="TxtCanvasHint" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12,10"
                                Foreground="{StaticResource BrushTextDim}" FontSize="11" IsHitTestVisible="False"
                                Text="{DynamicResource S.Ed.CanvasHint}"/>
+                    <!-- Hotkey settings button (top-left, below hint) -->
+                    <Button Content="⌨ Горячие клавиши" HorizontalAlignment="Left" VerticalAlignment="Top"
+                            Margin="12,30,0,0" Background="#2A2540" Foreground="#888"
+                            BorderBrush="#3A3560" BorderThickness="1" Padding="8,3" FontSize="10"
+                            Cursor="Hand" Click="BtnHotkeys_Click"/>
+                    <!-- Selection help (top-right) -->
+                    <TextBlock x:Name="TxtCanvasHelp" HorizontalAlignment="Right" VerticalAlignment="Top"
+                               Margin="12,10" MaxWidth="300" TextWrapping="Wrap" TextAlignment="Right"
+                               Foreground="{StaticResource BrushTextDim}" FontSize="11" IsHitTestVisible="False"
+                               Text="{DynamicResource S.Ed.011}"/>
+                    <!-- Mirror creation (bottom-right) -->
+                    <Button x:Name="BtnCopyConnections" Content="📋 Скопировать связи"
+                            Style="{StaticResource ToolbarButton}" HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom" Margin="0,0,10,40"
+                            Click="BtnCopyConnections_Click"/>
+                    <Button x:Name="BtnMirror" Content="{DynamicResource S.EC.Mirror}"
+                            Style="{StaticResource ToolbarButton}" HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom" Margin="0,0,10,10"
+                            Click="BtnMirror_Click" ToolTip="{DynamicResource S.EC.MirrorTip}"/>
                 </Grid>
             </Border>
 
@@ -227,7 +245,9 @@
                         </TabItem>
                         <TabItem x:Name="TabPools" Header="{DynamicResource S.EC.TabPools}">
                             <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
-                                <StackPanel x:Name="InspectorFieldsPools" Margin="0,6,0,0"/>
+                                <StackPanel>
+                                    <StackPanel x:Name="InspectorFieldsPools" Margin="0,6,0,0"/>
+                                </StackPanel>
                             </ScrollViewer>
                         </TabItem>
                         <TabItem x:Name="TabContent" Header="{DynamicResource S.EC.TabContent}">

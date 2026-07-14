@@ -51,6 +51,7 @@ namespace Olden_Era___Template_Editor
             }
 
             var b = _variant.Border;
+            ChkUseBorder.IsChecked = b is not null;
             if (b is null)
             {
                 TxtCornerRadius.Text = "0.0";
@@ -102,32 +103,39 @@ namespace Olden_Era___Template_Editor
                 if (double.TryParse(TxtRandomAngleStep.Text, out var rStep))
                     _variant.Orientation.RandomAngleStep = rStep;
 
-                var zoneName = (CmbZeroAngleZone.SelectedItem as string) ?? CmbZeroAngleZone.Text.Trim();
+                var zoneName = CmbZeroAngleZone.SelectedItem as string;
                 _variant.Orientation.ZeroAngleZone = string.IsNullOrEmpty(zoneName) ? null : zoneName;
             }
 
-            // Apply border
-            _variant.Border ??= new Border();
-
-            if (double.TryParse(TxtCornerRadius.Text, out var cr))
-                _variant.Border.CornerRadius = cr;
-            if (int.TryParse(TxtObstaclesWidth.Text, out var ow))
-                _variant.Border.ObstaclesWidth = ow;
-            if (int.TryParse(TxtWaterWidth.Text, out var ww))
-                _variant.Border.WaterWidth = ww;
-
-            _variant.Border.WaterType = "water grass";
-
-            if (double.TryParse(TxtObstaclesNoiseAmp.Text, out var oAmp) &&
-                double.TryParse(TxtObstaclesNoiseFreq.Text, out var oFreq))
+            // Apply border only when explicitly enabled
+            if (ChkUseBorder.IsChecked == true)
             {
-                _variant.Border.ObstaclesNoise = [new NoiseEntry { Amp = oAmp, Freq = oFreq }];
+                _variant.Border ??= new Border();
+
+                if (double.TryParse(TxtCornerRadius.Text, out var cr))
+                    _variant.Border.CornerRadius = cr;
+                if (int.TryParse(TxtObstaclesWidth.Text, out var ow))
+                    _variant.Border.ObstaclesWidth = ow;
+                if (int.TryParse(TxtWaterWidth.Text, out var ww))
+                    _variant.Border.WaterWidth = ww;
+
+                _variant.Border.WaterType = "water grass";
+
+                if (double.TryParse(TxtObstaclesNoiseAmp.Text, out var oAmp) &&
+                    double.TryParse(TxtObstaclesNoiseFreq.Text, out var oFreq))
+                {
+                    _variant.Border.ObstaclesNoise = [new NoiseEntry { Amp = oAmp, Freq = oFreq }];
+                }
+
+                if (double.TryParse(TxtWaterNoiseAmp.Text, out var wAmp) &&
+                    double.TryParse(TxtWaterNoiseFreq.Text, out var wFreq))
+                {
+                    _variant.Border.WaterNoise = [new NoiseEntry { Amp = wAmp, Freq = wFreq }];
+                }
             }
-
-            if (double.TryParse(TxtWaterNoiseAmp.Text, out var wAmp) &&
-                double.TryParse(TxtWaterNoiseFreq.Text, out var wFreq))
+            else
             {
-                _variant.Border.WaterNoise = [new NoiseEntry { Amp = wAmp, Freq = wFreq }];
+                _variant.Border = null;
             }
 
             DialogResult = true;

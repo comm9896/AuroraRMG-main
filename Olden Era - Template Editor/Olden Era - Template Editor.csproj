@@ -26,9 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="GameData.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <EmbeddedResource Include="GameData.json" />
   </ItemGroup>
 
 

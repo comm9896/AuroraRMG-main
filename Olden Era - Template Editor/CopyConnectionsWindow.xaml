@@ -1,0 +1,94 @@
+<Window x:Class="Olden_Era___Template_Editor.CopyConnectionsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{DynamicResource S.CC.Title}" Height="420" Width="520"
+        WindowStartupLocation="CenterOwner" Background="#1E1A2B"
+        ResizeMode="NoResize">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Step indicator -->
+        <TextBlock x:Name="TxtStep" Grid.Row="0" Text="{DynamicResource S.CC.Step1}"
+                   Foreground="#C8A857" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
+
+        <!-- Step 1: Source zones -->
+        <Grid x:Name="Step1Panel" Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="{DynamicResource S.CC.Source1}" Foreground="#888" FontSize="11"/>
+            <ComboBox x:Name="CmbSource1" Grid.Row="2" Background="#2A2540" Foreground="#CCC"
+                      BorderBrush="#3A3560" FontSize="12" SelectionChanged="SourceChanged"/>
+
+            <TextBlock Grid.Column="2" Grid.Row="0" Text="{DynamicResource S.CC.Source2}" Foreground="#888" FontSize="11"/>
+            <ComboBox x:Name="CmbSource2" Grid.Column="2" Grid.Row="2" Background="#2A2540" Foreground="#CCC"
+                      BorderBrush="#3A3560" FontSize="12" SelectionChanged="SourceChanged"/>
+
+            <TextBlock x:Name="TxtSourceInfo" Grid.Row="3" Grid.ColumnSpan="3"
+                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"
+                       Text="Между зонами должны быть хотя бы 1 связь"/>
+        </Grid>
+
+        <!-- Step 2: Target zones -->
+        <Grid x:Name="Step2Panel" Grid.Row="1" Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="{DynamicResource S.CC.Target1}" Foreground="#888" FontSize="11"/>
+            <ComboBox x:Name="CmbTarget1" Grid.Row="2" Background="#2A2540" Foreground="#CCC"
+                      BorderBrush="#3A3560" FontSize="12" SelectionChanged="TargetChanged"/>
+
+            <TextBlock Grid.Column="2" Grid.Row="0" Text="{DynamicResource S.CC.Target2}" Foreground="#888" FontSize="11"/>
+            <ComboBox x:Name="CmbTarget2" Grid.Column="2" Grid.Row="2" Background="#2A2540" Foreground="#CCC"
+                      BorderBrush="#3A3560" FontSize="12" SelectionChanged="TargetChanged"/>
+
+            <TextBlock x:Name="TxtTargetInfo" Grid.Row="3" Grid.ColumnSpan="3"
+                       Foreground="#888" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+            <Border Grid.Row="5" Grid.ColumnSpan="3" Background="#0E0B16" CornerRadius="3" Padding="8">
+                <TextBlock x:Name="TxtPreview" Foreground="#AAA" FontSize="11" TextWrapping="Wrap"
+                           Text="Выберите 2 зоны для копирования связей"/>
+            </Border>
+        </Grid>
+
+        <!-- Footer buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="BtnBack" Content="{DynamicResource S.CC.Back}" Background="#4A4570" Foreground="#D0D0D0"
+                    BorderThickness="0" Padding="14,6" FontSize="12" Cursor="Hand"
+                    Margin="0,0,8,0" Visibility="Collapsed" Click="BtnBack_Click"/>
+            <Button x:Name="BtnNext" Content="{DynamicResource S.CC.Next}" Background="#4A7040" Foreground="#D0D0D0"
+                    BorderThickness="0" Padding="14,6" FontSize="12" Cursor="Hand"
+                    Margin="0,0,8,0" IsEnabled="False" Click="BtnNext_Click"/>
+            <Button x:Name="BtnCopy" Content="{DynamicResource S.CC.Copy}" Background="#4A7040" Foreground="#D0D0D0"
+                    BorderThickness="0" Padding="14,6" FontSize="12" Cursor="Hand"
+                    Visibility="Collapsed" IsEnabled="False" Click="BtnCopy_Click"/>
+            <Button x:Name="BtnCancel" Content="{DynamicResource S.CC.Cancel}" Background="#4A4570" Foreground="#D0D0D0"
+                    BorderThickness="0" Padding="14,6" FontSize="12" Cursor="Hand"
+                    Click="BtnCancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

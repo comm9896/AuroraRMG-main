@@ -34,6 +34,10 @@ namespace Olden_Era___Template_Editor.Services.GameData
         [JsonPropertyName("simple")]
         public SimpleModeState Simple { get; set; } = new();
 
+        /// <summary>Per-action hotkey bindings (action name → "Ctrl+Key" string). Empty = defaults.</summary>
+        [JsonPropertyName("hotkeys")]
+        public Dictionary<string, string> Hotkeys { get; set; } = new();
+
         // ── Singleton-ish access ────────────────────────────────────────────────
         private static AppSettings? _current;
         public static AppSettings Current => _current ??= Load();

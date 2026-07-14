@@ -1,7 +1,7 @@
 <Window x:Class="Olden_Era___Template_Editor.ContentPoolCreatorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Создание нового пула"
+        Title="{DynamicResource S.CPC.Title}"
         Height="700" Width="900"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BrushPanel}"
@@ -16,13 +16,13 @@
 
         <!-- Pool name -->
         <StackPanel Grid.Row="0" Margin="0,0,0,12">
-            <TextBlock Text="Название пула:" Foreground="{StaticResource BrushTextDim}" FontSize="12" Margin="0,0,0,4"/>
+            <TextBlock Text="{DynamicResource S.CPC.PoolName}" Foreground="{StaticResource BrushTextDim}" FontSize="12" Margin="0,0,0,4"/>
             <TextBox x:Name="PoolNameBox" FontSize="12" Padding="4"/>
         </StackPanel>
 
         <!-- Category filter -->
         <StackPanel Grid.Row="1" Margin="0,0,0,8">
-            <TextBlock Text="Категория:" Foreground="{StaticResource BrushTextDim}" FontSize="12" Margin="0,0,0,4"/>
+            <TextBlock Text="{DynamicResource S.CPC.Category}" Foreground="{StaticResource BrushTextDim}" FontSize="12" Margin="0,0,0,4"/>
             <ComboBox x:Name="CategoryCombo" SelectionChanged="CategoryCombo_SelectionChanged" FontSize="12" Padding="4"/>
         </StackPanel>
 
@@ -37,7 +37,7 @@
             <!-- Available lists -->
             <Border Grid.Column="0" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="4">
                 <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="Доступные списки контента" Foreground="{StaticResource BrushGold}" FontSize="11" Padding="8,4"/>
+                    <TextBlock DockPanel.Dock="Top" Text="{DynamicResource S.CPC.Available}" Foreground="{StaticResource BrushGold}" FontSize="11" Padding="8,4"/>
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <ItemsControl x:Name="AvailableLists" Margin="4">
                             <ItemsControl.ItemTemplate>
@@ -68,7 +68,7 @@
             <!-- Selected lists -->
             <Border Grid.Column="2" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="4">
                 <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="Списки в пуле" Foreground="{StaticResource BrushGold}" FontSize="11" Padding="8,4"/>
+                    <TextBlock DockPanel.Dock="Top" Text="{DynamicResource S.CPC.InPool}" Foreground="{StaticResource BrushGold}" FontSize="11" Padding="8,4"/>
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <ItemsControl x:Name="SelectedLists" Margin="4">
                             <ItemsControl.ItemTemplate>

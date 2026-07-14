@@ -1,6 +1,7 @@
 using Olden_Era___Template_Editor.Models;
 using Olden_Era___Template_Editor.Services.Generation;
 using OldenEraTemplateEditor.Models;
+using OldenEraTemplateEditor.Models.Generated;
 using OldenEraTemplateEditor.Services.ContentManagement;
 using System.Collections.Generic;
 using System.Linq;
@@ -41,6 +42,22 @@ namespace Olden_Era___Template_Editor.Services
 
         public static RmgTemplate Generate(GeneratorSettings settings)
         {
+            // Pools are sourced from ONE base game template (see CatalogContent.UseTemplate),
+            // auto-resolved from the settings' template name / best-effort fallback. The editor
+            // no longer forces a per-template gate — pool selection is done per zone via the
+            // categorized pickers. Only fail if the catalog is genuinely empty.
+            var baseTemplate = settings.BaseTemplate;
+            if (string.IsNullOrWhiteSpace(baseTemplate) || !GameContentCatalog.Templates.ContainsKey(baseTemplate))
+                baseTemplate = CatalogContent.ResolveBaseTemplate(settings.TemplateName);
+            if (string.IsNullOrWhiteSpace(baseTemplate) || !GameContentCatalog.Templates.ContainsKey(baseTemplate))
+                baseTemplate = CatalogContent.ResolveBaseTemplate(null);
+            if (string.IsNullOrWhiteSpace(baseTemplate) || !GameContentCatalog.Templates.ContainsKey(baseTemplate))
+                throw new InvalidOperationException(
+                    "Базовый шаблон недоступен: каталог игровых шаблонов пуст. " +
+                    "Проверьте наличие .rmg.json в папке map_templates игры.");
+            settings.BaseTemplate = baseTemplate;
+            CatalogContent.UseTemplate(baseTemplate);
+
             _rng = settings.Seed.HasValue ? new Random(settings.Seed.Value) : new Random();
 
             var playerLetters = ZoneLetters.Take(settings.PlayerCount).ToList();
@@ -2508,7 +2525,7 @@ namespace Olden_Era___Template_Editor.Services
             GuardedContentPool = [.. T3GuardedPools],
             UnguardedContentPool = [.. T3UnguardedPools],
             ResourcesContentPool = [.. GeneralResourcesMedium],
-            MandatoryContent = hubContentGroupName != null ? [hubContentGroupName] : [],
+            MandatoryContent = hubContentGroupName != null ? [CatalogContent.McName("center")] : [],
             GuardedContentValue = ScaleStructureValue(300000 * tuning.ContentScale, tuning),
             GuardedContentValuePerArea = ScaleStructureValue(2400 * Math.Sqrt(tuning.ContentScale), tuning),
             UnguardedContentValue = ScaleStructureValue(50000 * tuning.ContentScale, tuning),
@@ -2873,7 +2890,7 @@ namespace Olden_Era___Template_Editor.Services
                 GuardedContentPool = [.. T2GuardedPools],
                 UnguardedContentPool = [.. T2UnguardedPools],
                 ResourcesContentPool = [.. GeneralResourcesPoor],
-                MandatoryContent = [$"mandatory_content_side_{letter}"],
+                MandatoryContent = [CatalogContent.McName("spawn")],
                 ContentCountLimits = BuildSideContentLimits(),
                 GuardedContentValue = ScaleStructureValue(200000 * tuning.ContentScale, tuning),
                 GuardedContentValuePerArea = ScaleStructureValue(2000 * Math.Sqrt(tuning.ContentScale), tuning),
@@ -2951,7 +2968,7 @@ namespace Olden_Era___Template_Editor.Services
                 GuardedContentPool = [.. profile.GuardedContentPool],
                 UnguardedContentPool = [.. profile.UnguardedContentPool],
                 ResourcesContentPool = [.. profile.ResourcesContentPool],
-                MandatoryContent = [$"mandatory_content_neutral_{letter}"],
+                MandatoryContent = [CatalogContent.McName(plan.Quality == NeutralZoneQuality.High ? "treasure" : plan.Quality == NeutralZoneQuality.Low ? "side" : "sides")],
                 ContentCountLimits = BuildSideContentLimits(),
                 GuardedContentValue = ScaleStructureValue(profile.GuardedContentValue * tuning.ContentScale, tuning),
                 GuardedContentValuePerArea = ScaleStructureValue(profile.GuardedContentValuePerArea * Math.Sqrt(tuning.ContentScale), tuning),
@@ -3256,8 +3273,13 @@ namespace Olden_Era___Template_Editor.Services
 
         private static List<string> BuildSideContentLimits()
         {
-            // Identical list used by every outer zone in JCC.
+            // Every outer zone references the pairwise side limits (always defined)
+            // plus the real role-based limit pools parsed from the game templates.
             var limits = new List<string>();
+            var side = CatalogContent.ClName("side");
+            var sides = CatalogContent.ClName("sides");
+            if (side != null) limits.Add(side);
+            if (sides != null) limits.Add(sides);
             for (int a = 1; a <= 5; a++)
                 for (int b = a + 1; b <= 6; b++)
                     limits.Add($"content_limits_side_{a}_{b}");
@@ -3429,23 +3451,23 @@ namespace Olden_Era___Template_Editor.Services
             var groups = new List<MandatoryContentGroup>();
             var definedNames = new HashSet<string>(StringComparer.Ordinal);
 
-            // First pass: build groups for known player/neutral zones
-            foreach (var letter in playerLetters)
+            // Emit one group per logical role, filled with the real content parsed from
+            // the game templates (via the auto-generated GameContentCatalog / CatalogContent).
+            // Falls back to an empty group (matching the old name) when the catalog
+            // is unavailable, so the generator still emits valid (if empty) blocks.
+            foreach (var role in new[] { "spawn", "side", "sides", "treasure", "center", "connector", "leaf", "trunk", "country", "hallway", "branch", "second", "ai" })
             {
-                var group = BuildSpawnMandatoryContent(letter, settings);
-                groups.Add(group);
-                definedNames.Add(group.Name);
+                var name = CatalogContent.McName(role);
+                if (!definedNames.Add(name)) continue;
+
+                if (CatalogContent.TryGetMc(role, out var g) && g != null)
+                    groups.Add(g);
+                else
+                    groups.Add(new MandatoryContentGroup { Name = name, Content = [] });
             }
 
-            foreach (var neutralZone in neutralZones)
-            {
-                var group = BuildNeutralMandatoryContent(neutralZone.Letter, neutralZone.CastleCount, neutralZone.Quality, settings);
-                groups.Add(group);
-                definedNames.Add(group.Name);
-            }
-
-            // Second pass: collect all mandatory content names referenced by zones
-            // and create groups for any that are missing
+            // Safety net: any mandatory-content name a zone references that isn't
+            // covered by a role above still gets a (empty) group so the reference resolves.
             if (variant.Zones != null)
             {
                 foreach (var zone in variant.Zones)
@@ -3466,34 +3488,6 @@ namespace Olden_Era___Template_Editor.Services
             }
 
             return groups;
-        }
-
-        private static MandatoryContentGroup BuildSpawnMandatoryContent(string letter, GeneratorSettings settings)
-        {
-            return new MandatoryContentGroup
-            {
-                Name = $"mandatory_content_side_{letter}",
-                Content = ZoneContentManager.BuildPlayerZoneMandatoryContent(settings)
-            };
-        }
-
-        private static MandatoryContentGroup BuildNeutralMandatoryContent(string letter, int castleCount, NeutralZoneQuality quality, GeneratorSettings settings)
-        {
-            var content = quality switch
-            {
-                NeutralZoneQuality.Low    => ZoneContentManager.BuildLowNeutralMandatoryContent(settings),
-                NeutralZoneQuality.High   => ZoneContentManager.BuildHighNeutralMandatoryContent(settings),
-                _                         => ZoneContentManager.BuildMediumNeutralMandatoryContent(settings),
-            };
-
-            if (castleCount == 0)
-                content = ZoneContentManager.StripNearCastleRules(content);
-
-            return new MandatoryContentGroup
-            {
-                Name = $"mandatory_content_neutral_{letter}",
-                Content = content
-            };
         }
     }
 }

@@ -69,6 +69,13 @@ namespace Olden_Era___Template_Editor.Models
     public class GeneratorSettings
     {
         public string TemplateName { get; set; } = "Custom Template";
+        /// <summary>
+        /// The base game template (a <see cref="GameContentCatalog.TemplateNames"/> key, i.e. the
+        /// <c>.rmg.json</c> file name without extension) whose real mandatoryContent / contentCountLimits
+        /// pools the generator sources from. Required for generation — the editor exposes an explicit
+        /// "base template" picker and blocks generation until one is chosen.
+        /// </summary>
+        public string? BaseTemplate { get; set; }
         public string GameMode { get; set; } = "Classic";
         public bool SingleHeroMode { get; set; } = false;
         public int PlayerCount { get; set; } = 2;

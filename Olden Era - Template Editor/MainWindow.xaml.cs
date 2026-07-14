@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using Olden_Era___Template_Editor.Models;
 using Olden_Era___Template_Editor.Services;
 using OldenEraTemplateEditor.Models;
@@ -177,7 +177,7 @@ namespace Olden_Era___Template_Editor
             LbBannedHeroes.ItemsSource = _bannedHeroes;
             LbBonuses.ItemsSource      = _bonuses;
 
-            // Game-asset integration is opt-in (default OFF → fully works out of the box).
+            // Game-asset integration is opt-in (default OFF > fully works out of the box).
             _suppressAssetToggle = true;
             ChkUseGameAssets.IsChecked = Services.GameData.AppSettings.Current.UseGameAssets;
             _suppressAssetToggle = false;
@@ -249,35 +249,35 @@ namespace Olden_Era___Template_Editor
         }
         private void InitializeDefaultPlayerZoneContents()
         {
-            // ── Basic mines — guarded, anchored near the player castle (every template). ──
+            // -- Basic mines � guarded, anchored near the player castle (every template). --
             _playerZoneMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.MineWood, nearCastle: true, roadDistance: "Near"));
             _playerZoneMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.MineOre, nearCastle: true, roadDistance: "Near"));
-            // ── Gold mine (Exodus/Staircase/Yin Yang pattern). ──
+            // -- Gold mine (Exodus/Staircase/Yin Yang pattern). --
             _playerZoneMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.MineGold, roadDistance: "Near"));
-            // ── Rare mines spread along roads (Exodus/Staircase/Yin Yang pattern). ──
+            // -- Rare mines spread along roads (Exodus/Staircase/Yin Yang pattern). --
             _playerZoneMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.MineCrystals, roadDistance: "Next To"));
             _playerZoneMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.MineMercury, roadDistance: "Next To"));
             _playerZoneMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.MineGemstones, roadDistance: "Next To"));
             _playerZoneMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.AlchemyLab, roadDistance: "Next To"));
-            // ── Loot — epic items + army pandora (Exodus/Blitz pattern). ──
+            // -- Loot � epic items + army pandora (Exodus/Blitz pattern). --
             _playerZoneMandatoryContent.treasures.Add(CreateZoneContentItem(ContentIds.PandoraBox));
             _playerZoneMandatoryContent.treasures.Add(CreateZoneContentItem(ContentIds.RandomItemEpic));
 
-            // ── Hiring — low-tier × 2 + high-tier × 1 + full pool × 1 (Kerberos + Universe blend). ──
+            // -- Hiring � low-tier ? 2 + high-tier ? 1 + full pool ? 1 (Kerberos + Universe blend). --
             _playerZoneMandatoryContent.unitRecruitment.Add(CreateZoneContentItem(IncludeListIds.RandomHiresLowTier, count: 2));
             _playerZoneMandatoryContent.unitRecruitment.Add(CreateZoneContentItem(IncludeListIds.RandomHiresHighTier));
             _playerZoneMandatoryContent.unitRecruitment.Add(CreateZoneContentItem(IncludeListIds.RandomHiresAllTier));
 
-            // ── Guarded resource banks — tier 1 × 2 + tier 2 × 1 (Exodus pattern). ──
+            // -- Guarded resource banks � tier 1 ? 2 + tier 2 ? 1 (Exodus pattern). --
             _playerZoneMandatoryContent.resourceBanks.Add(CreateZoneContentItem(IncludeListIds.ResourceBanksTier1, count: 2));
             _playerZoneMandatoryContent.resourceBanks.Add(CreateZoneContentItem(IncludeListIds.ResourceBanksTier2));
 
-            // ── Utility buildings (Blitz/Kerberos/Exodus pattern). ──
+            // -- Utility buildings (Blitz/Kerberos/Exodus pattern). --
             _playerZoneMandatoryContent.utilityStructures.Add(CreateZoneContentItem(ContentIds.Watchtower));
             _playerZoneMandatoryContent.utilityStructures.Add(CreateZoneContentItem(ContentIds.Market, roadDistance: "Near"));
             _playerZoneMandatoryContent.utilityStructures.Add(CreateZoneContentItem(ContentIds.ManaWell, roadDistance: "Near"));
             
-            // ── Hero training — tier-2 stat building (fort/university/orb_observatory) ──
+            // -- Hero training � tier-2 stat building (fort/university/orb_observatory) --
             //    + uncommon hero bank (university/wise_owl/tree_of_knowledge) (Blitz/Exodus pattern).
             _playerZoneMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.HeroStatsAndSkillsTier2));
             _playerZoneMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.HeroImprovementUncommon));
@@ -286,53 +286,53 @@ namespace Olden_Era___Template_Editor
 
         private void InitializeDefaultLowNeutralContents()
         {
-            // Mines — biome rare mine + one random rare mine
+            // Mines � biome rare mine + one random rare mine
             _lowNeutralMandatoryContent.mines.Add(CreateZoneContentItem(IncludeListIds.RandomRareMinesBiomeRestricted));
             _lowNeutralMandatoryContent.mines.Add(CreateZoneContentItem(IncludeListIds.RandomRareMines));
-            // Utility — guarded market + vision building
+            // Utility � guarded market + vision building
             _lowNeutralMandatoryContent.utilityStructures.Add(CreateZoneContentItem(ContentIds.Market));
             _lowNeutralMandatoryContent.utilityStructures.Add(CreateZoneContentItem(IncludeListIds.VisionBuildingsTier1));
-            // Buff buildings — two hero buff tier-1 picks
+            // Buff buildings � two hero buff tier-1 picks
             _lowNeutralMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.HeroBuffTier1));
             _lowNeutralMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.HeroBuffTier1));
-            // Hero stat building — tier-1
+            // Hero stat building � tier-1
             _lowNeutralMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.HeroStatsAndSkillsTier1));
-            // Hiring — two low-tier random hires
+            // Hiring � two low-tier random hires
             _lowNeutralMandatoryContent.unitRecruitment.Add(CreateZoneContentItem(IncludeListIds.RandomHiresLowTier, count: 2));
-            // Loot — pandora box + random pickup item
+            // Loot � pandora box + random pickup item
             _lowNeutralMandatoryContent.treasures.Add(CreateZoneContentItem(ContentIds.PandoraBox));
             _lowNeutralMandatoryContent.treasures.Add(CreateZoneContentItem(IncludeListIds.RandomPickupItems));
-            // Magic buildings — tier 1
+            // Magic buildings � tier 1
             _lowNeutralMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.MagicBuildingsTier1));
         }
 
         private void InitializeDefaultMediumNeutralContents()
         {
-            // Mines — full rare set + gold + alchemy lab
+            // Mines � full rare set + gold + alchemy lab
             _mediumNeutralMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.MineCrystals, roadDistance: "Next To"));
             _mediumNeutralMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.MineMercury, roadDistance: "Next To"));
             _mediumNeutralMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.MineGemstones, roadDistance: "Next To"));
             _mediumNeutralMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.AlchemyLab, roadDistance: "Next To"));
             _mediumNeutralMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.MineGold, roadDistance: "Near"));
-            // Utility — guarded watchtower + vision building
+            // Utility � guarded watchtower + vision building
             _mediumNeutralMandatoryContent.utilityStructures.Add(CreateZoneContentItem(ContentIds.Watchtower));
             _mediumNeutralMandatoryContent.utilityStructures.Add(CreateZoneContentItem(IncludeListIds.VisionBuildingsTier1));
             // Buff buildings
             _mediumNeutralMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.HeroBuffTier1));
-            // Hero stats — tier 1 + tier 2
+            // Hero stats � tier 1 + tier 2
             _mediumNeutralMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.HeroStatsAndSkillsTier1));
             _mediumNeutralMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.HeroStatsAndSkillsTier2));
-            // Magic buildings — tier 1 + tier 2
+            // Magic buildings � tier 1 + tier 2
             _mediumNeutralMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.MagicBuildingsTier1));
             _mediumNeutralMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.MagicBuildingsTier2));
-            // Hiring — low + high tier
+            // Hiring � low + high tier
             _mediumNeutralMandatoryContent.unitRecruitment.Add(CreateZoneContentItem(IncludeListIds.RandomHiresLowTier));
             _mediumNeutralMandatoryContent.unitRecruitment.Add(CreateZoneContentItem(IncludeListIds.RandomHiresHighTier));
-            // Unit banks — biome-restricted
+            // Unit banks � biome-restricted
             _mediumNeutralMandatoryContent.resourceBanks.Add(CreateZoneContentItem(IncludeListIds.GuardedUnitBanksBiomeRestricted));
-            // Guarded resource banks — tier 2
+            // Guarded resource banks � tier 2
             _mediumNeutralMandatoryContent.resourceBanks.Add(CreateZoneContentItem(IncludeListIds.ResourceBanksTier2));
-            // Loot — epic items + pandora boxes
+            // Loot � epic items + pandora boxes
             _mediumNeutralMandatoryContent.treasures.Add(CreateZoneContentItem(ContentIds.RandomItemEpic));
             _mediumNeutralMandatoryContent.treasures.Add(CreateZoneContentItem(ContentIds.RandomItemEpic));
             _mediumNeutralMandatoryContent.treasures.Add(CreateZoneContentItem(ContentIds.PandoraBox));
@@ -342,27 +342,27 @@ namespace Olden_Era___Template_Editor
 
         private void InitializeDefaultHighNeutralContents()
         {
-            // Epic encounters — utopias + epic resource banks
+            // Epic encounters � utopias + epic resource banks
             _highNeutralMandatoryContent.resourceBanks.Add(CreateZoneContentItem(IncludeListIds.UtopiaBuildings, count: 2));
             _highNeutralMandatoryContent.resourceBanks.Add(CreateZoneContentItem(IncludeListIds.EpicGuardedResourceBanks, count: 2));
-            // Utility — vision + buff buildings
+            // Utility � vision + buff buildings
             _highNeutralMandatoryContent.utilityStructures.Add(CreateZoneContentItem(IncludeListIds.VisionBuildingsTier1));
             _highNeutralMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.HeroBuffTier1));
-            // Hero stats — tier 2 + tier 3 × 2
+            // Hero stats � tier 2 + tier 3 ? 2
             _highNeutralMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.HeroStatsAndSkillsTier2));
             _highNeutralMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.HeroStatsAndSkillsTier3, count: 2));
-            // Magic buildings — tier 2 × 2
+            // Magic buildings � tier 2 ? 2
             _highNeutralMandatoryContent.heroImprovementStructures.Add(CreateZoneContentItem(IncludeListIds.MagicBuildingsTier2, count: 2));
-            // Hiring — high-tier × 2 + all-tier
+            // Hiring � high-tier ? 2 + all-tier
             _highNeutralMandatoryContent.unitRecruitment.Add(CreateZoneContentItem(IncludeListIds.RandomHiresHighTier, count: 2));
             _highNeutralMandatoryContent.unitRecruitment.Add(CreateZoneContentItem(IncludeListIds.RandomHiresAllTier));
-            // Unit banks — biome-restricted + no-restriction × 2
+            // Unit banks � biome-restricted + no-restriction ? 2
             _highNeutralMandatoryContent.resourceBanks.Add(CreateZoneContentItem(IncludeListIds.GuardedUnitBanksBiomeRestricted));
             _highNeutralMandatoryContent.resourceBanks.Add(CreateZoneContentItem(IncludeListIds.GuardedUnitBanksNoBiome, count: 2));
-            // Guarded resource banks — tier 2 + tier 3
+            // Guarded resource banks � tier 2 + tier 3
             _highNeutralMandatoryContent.resourceBanks.Add(CreateZoneContentItem(IncludeListIds.ResourceBanksTier2));
             _highNeutralMandatoryContent.resourceBanks.Add(CreateZoneContentItem(IncludeListIds.GuardedBanksTier3));
-            // Loot — mythic scrolls × 2, legendary × 2, epic, pandoras + high-tier army × 2
+            // Loot � mythic scrolls ? 2, legendary ? 2, epic, pandoras + high-tier army ? 2
             _highNeutralMandatoryContent.treasures.Add(CreateZoneContentItem(IncludeListIds.MythicScrollBoxPickup, count: 2));
             _highNeutralMandatoryContent.treasures.Add(CreateZoneContentItem(ContentIds.RandomItemLegendary));
             _highNeutralMandatoryContent.treasures.Add(CreateZoneContentItem(ContentIds.RandomItemLegendary));
@@ -371,7 +371,7 @@ namespace Olden_Era___Template_Editor
             _highNeutralMandatoryContent.treasures.Add(CreateZoneContentItem(ContentIds.PandoraBox));
             _highNeutralMandatoryContent.treasures.Add(CreateZoneContentItem(ContentIds.PandoraBox));
             _highNeutralMandatoryContent.treasures.Add(CreateZoneContentItem(IncludeListIds.PandoraBoxArmyHighTier, count: 2));
-            // Mines — gold-heavy with full rare set
+            // Mines � gold-heavy with full rare set
             _highNeutralMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.MineGold, count: 3));
             _highNeutralMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.MineCrystals));
             _highNeutralMandatoryContent.mines.Add(CreateZoneContentItem(ContentIds.MineMercury));
@@ -521,7 +521,7 @@ namespace Olden_Era___Template_Editor
                 : L.Get("S.CB.Untitled");
             string fileLabel = _isDirty ? $"{file}*" : file;
             // Taskbar / OS window title keeps the full brand + version + file.
-            Title = $"{_baseTitle}  —  {fileLabel}";
+            Title = $"{_baseTitle}  �  {fileLabel}";
             // In-app header shows only the current file (brand & version are separate elements).
             if (IsInitialized) TxtWindowTitle.Text = fileLabel;
         }
@@ -552,12 +552,12 @@ namespace Olden_Era___Template_Editor
             if (BtnMaximize == null) return;
             if (WindowState == WindowState.Maximized)
             {
-                BtnMaximize.Content = "🗗";
+                BtnMaximize.Content = "??";
                 BtnMaximize.ToolTip = L.Get("S.CB.Restore");
             }
             else
             {
-                BtnMaximize.Content = "🗖";
+                BtnMaximize.Content = "??";
                 BtnMaximize.ToolTip = L.Get("S.CB.Maximize");
             }
         }
@@ -577,7 +577,7 @@ namespace Olden_Era___Template_Editor
             Validate();
         }
 
-        // ── Free numeric entry for hero-count fields ──────────────────────────────
+        // -- Free numeric entry for hero-count fields ------------------------------
         // The editable TextBoxes feed their value into the backing slider (the single
         // source of truth read everywhere else). The slider's ValueChanged then
         // normalises the TextBox text. Commit on Enter or focus loss.
@@ -593,7 +593,7 @@ namespace Olden_Era___Template_Editor
         private void HeroBox_LostFocus(object sender, RoutedEventArgs e)
             => CommitHeroBox(sender as System.Windows.Controls.TextBox);
 
-        // Stepper (−/+) buttons. Tag is "+SldHeroMin" / "-SldHeroMin" etc.
+        // Stepper (?/+) buttons. Tag is "+SldHeroMin" / "-SldHeroMin" etc.
         private void HeroStep_Click(object sender, RoutedEventArgs e)
         {
             if (!IsInitialized || ChkSingleHeroMode.IsChecked == true) return;
@@ -880,7 +880,7 @@ namespace Olden_Era___Template_Editor
 
         private bool _suppressTopologySync;
 
-        /// <summary>"Вид карты" in the Template block mirrors the topology combo on the Zones tab.</summary>
+        /// <summary>"��� �����" in the Template block mirrors the topology combo on the Zones tab.</summary>
         private void CmbMapView_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!IsInitialized || _suppressTopologySync) return;
@@ -893,7 +893,7 @@ namespace Olden_Era___Template_Editor
             }
         }
 
-        /// <summary>Keeps the "Вид карты" combo in sync when the topology changes on the Zones tab.</summary>
+        /// <summary>Keeps the "��� �����" combo in sync when the topology changes on the Zones tab.</summary>
         private void SyncMapViewFromTopology(int idx)
         {
             if (_suppressTopologySync || CmbMapView == null) return;
@@ -905,7 +905,7 @@ namespace Olden_Era___Template_Editor
             }
         }
 
-        /// <summary>"Нежелательные герои" jumps to the Bonuses &amp; Bans tab (hero-ban list).</summary>
+        /// <summary>"������������� �����" jumps to the Bonuses &amp; Bans tab (hero-ban list).</summary>
         private void BtnUnwantedHeroes_Click(object sender, RoutedEventArgs e)
         {
             MainTabs.SelectedItem = TabBonusesBans;
@@ -957,7 +957,7 @@ namespace Olden_Era___Template_Editor
             }
         }
 
-        // ── Ban list picker helpers ───────────────────────────────────────────────
+        // -- Ban list picker helpers -----------------------------------------------
 
         /// <summary>Builds a BanEntry from an artifact ID using the catalog, or a plain fallback entry.</summary>
         private static BanEntry ItemEntryFromId(string id)
@@ -1148,7 +1148,7 @@ namespace Olden_Era___Template_Editor
                 _bannedHeroes[i] = HeroEntryFromId(_bannedHeroes[i].Id);
         }
 
-        // ── Bonus list handlers ───────────────────────────────────────────────────
+        // -- Bonus list handlers ---------------------------------------------------
 
         private void BtnAddBonus_Click(object sender, RoutedEventArgs e)
         {
@@ -1215,7 +1215,7 @@ namespace Olden_Era___Template_Editor
             Validate();
         }
 
-        /// <summary>Builds the grouped preset menu (one submenu per mode group) attached to the Пресет button.</summary>
+        /// <summary>Builds the grouped preset menu (one submenu per mode group) attached to the ������ button.</summary>
         private void BuildPresetMenu()
         {
             bool en = L.CurrentLanguage == Services.Localization.AppLanguage.En;
@@ -1265,7 +1265,7 @@ namespace Olden_Era___Template_Editor
         private string? _lastRandomPreset;
 
         /// <summary>
-        /// "🎲" — picks a random built-in preset whose player count matches the slider and applies it
+        /// "??" � picks a random built-in preset whose player count matches the slider and applies it
         /// (size, name, heroes, view, etc. come from the preset). Repeated clicks cycle the matching pool
         /// without immediately repeating the last pick. A plain slider drag never triggers this.
         /// </summary>
@@ -1359,7 +1359,7 @@ namespace Olden_Era___Template_Editor
         {
             if (PnlAdvancedNeutralZones == null) return;
             bool advanced = _advancedZoneSettings;
-            // Neutral zone quality panels are always visible — advanced mode is always used for zone generation.
+            // Neutral zone quality panels are always visible � advanced mode is always used for zone generation.
             PnlAdvancedNeutralZones.Visibility = Visibility.Visible;
             PnlSimpleNeutralCountLabel.Visibility = Visibility.Collapsed;
             SldNeutral.Visibility = Visibility.Collapsed;
@@ -1432,7 +1432,7 @@ namespace Olden_Era___Template_Editor
 
             if (isTournament)
             {
-                // Tournament is exclusive — force it on and disable all other conditions.
+                // Tournament is exclusive � force it on and disable all other conditions.
                 ChkTournament.IsChecked = true;
                 ChkLostStartCity.IsChecked = false;
                 ChkCityHold.IsChecked = false;
@@ -2135,7 +2135,7 @@ namespace Olden_Era___Template_Editor
 
         // -- Generate ----------------------------------------------------------
 
-        // The most recently generated template — used by BtnSaveGenerated_Click
+        // The most recently generated template � used by BtnSaveGenerated_Click
         private RmgTemplate? _generatedTemplate;
         private MapTopology  _generatedTopology;
         private bool _templateOutdated = false;
@@ -2240,7 +2240,7 @@ namespace Olden_Era___Template_Editor
             BtnLangEn.Opacity    = en ? 1.0  : 0.55;
         }
 
-        // ── Simple Mode / Quick Generate ──────────────────────────────────────────
+        // -- Simple Mode / Quick Generate ------------------------------------------
 
         private static readonly string[] SimpleTypeKeys   = ["S.Simple.Type.Duel", "S.Simple.Type.FFA", "S.Simple.Type.Pve", "S.Simple.Type.Team", "S.Simple.Type.Lanes"];
         private static readonly string[] SimpleScaleKeys  = ["S.Simple.Scale.Small", "S.Simple.Scale.Medium", "S.Simple.Scale.Large", "S.Simple.Scale.Huge"];
@@ -2359,6 +2359,7 @@ namespace Olden_Era___Template_Editor
             var opts = BuildQuickOptions();
             TxtSimpleSeed.Text = ((uint)opts.Seed).ToString("X8"); // normalise display
             var settings = Olden_Era___Template_Editor.Services.Generation.RandomTemplateBuilder.Build(opts);
+            settings.BaseTemplate = CatalogContent.ResolveBaseTemplate(settings.TemplateName);
 
             _generatedTemplate = TemplateGenerator.Generate(settings);
             _generatedTopology = settings.Topology;
@@ -2398,9 +2399,9 @@ namespace Olden_Era___Template_Editor
 
         private static readonly string[] SimpleLenLabelKeys = ["S.Simple.Len.Short", "S.Simple.Len.Medium", "S.Simple.Len.Long"];
 
-        // ── Balance report (shared by the Simple summary + the Advanced result panel) ──
+        // -- Balance report (shared by the Simple summary + the Advanced result panel) --
 
-        /// <summary>Formats the balance report for <paramref name="template"/> as a "⚖ score + findings"
+        /// <summary>Formats the balance report for <paramref name="template"/> as a "? score + findings"
         /// block (warnings first, max 3 findings); null when the map has fewer than two players.</summary>
         private static string? FormatBalanceSummary(RmgTemplate? template)
         {
@@ -2413,7 +2414,7 @@ namespace Olden_Era___Template_Editor
             foreach (var f in report.Findings
                 .OrderByDescending(f => f.Severity == Services.Analysis.BalanceSeverity.Warning)
                 .Take(3))
-                sb.Append("\n•  ").Append(L.Get(f.Key, f.Args));
+                sb.Append("\n�  ").Append(L.Get(f.Key, f.Args));
             return sb.ToString();
         }
 
@@ -2428,7 +2429,7 @@ namespace Olden_Era___Template_Editor
                  + "\n" + L.Get("S.Content.Wealth", FormatBig(c.TotalTreasure), FormatBig(c.TotalResources));
         }
 
-        /// <summary>Compact human number: 1234→"1k", 2500000→"2.5M".</summary>
+        /// <summary>Compact human number: 1234>"1k", 2500000>"2.5M".</summary>
         private static string FormatBig(long v)
         {
             var ci = System.Globalization.CultureInfo.InvariantCulture;
@@ -2476,7 +2477,7 @@ namespace Olden_Era___Template_Editor
             summary += "\n" + L.Get("S.Simple.Sum.Guards",
                 L.Get(SimpleGuardsKeys[(int)opts.BorderGuards]), s.ZoneCfg.BorderGuardStrengthPercent);
 
-            // Flag maps beyond the official 240×240 cap so the player knows it's an experimental large map.
+            // Flag maps beyond the official 240?240 cap so the player knows it's an experimental large map.
             if (s.MapSize > KnownValues.MaxOfficialMapSize)
                 summary += "\n" + L.Get("S.Simple.ExpNote");
 
@@ -2539,8 +2540,8 @@ namespace Olden_Era___Template_Editor
                 SldLakeAmount.Value          = s.LakeAmountPercent;
 
                 // Advanced reads neutral zones ONLY from the per-tier sliders (the SldNeutral aggregate is
-                // hidden in Advanced mode), so push every tier here — otherwise opening a quick map in
-                // Advanced shows zero neutral zones (the reported Simple→Advanced transfer bug).
+                // hidden in Advanced mode), so push every tier here � otherwise opening a quick map in
+                // Advanced shows zero neutral zones (the reported Simple>Advanced transfer bug).
                 var a = s.ZoneCfg.Advanced;
                 SldNeutralLowNoCastle.Value    = a.NeutralLowNoCastleCount;
                 SldNeutralLowCastle.Value      = a.NeutralLowCastleCount;
@@ -2573,11 +2574,11 @@ namespace Olden_Era___Template_Editor
         private async void BtnSimpleCopySeed_Click(object sender, RoutedEventArgs e)
         {
             try { Clipboard.SetText(TxtSimpleSeed.Text.Trim()); }
-            catch { return; } // clipboard can be transiently locked — ignore
+            catch { return; } // clipboard can be transiently locked � ignore
             if (sender is Button btn)
             {
                 object? prev = btn.Content;
-                btn.Content = "✓";
+                btn.Content = "?";
                 await System.Threading.Tasks.Task.Delay(900);
                 btn.Content = prev;
             }
@@ -2704,6 +2705,7 @@ namespace Olden_Era___Template_Editor
         private GeneratorSettings BuildSettings() => new()
         {
             TemplateName = TxtTemplateName.Text.Trim(),
+            BaseTemplate = CatalogContent.ResolveBaseTemplate(TxtTemplateName.Text.Trim()),
             GameMode = CmbGameMode.SelectedItem as string ?? "Classic",
             SingleHeroMode = ChkSingleHeroMode.IsChecked == true,
             PlayerCount = (int)SldPlayers.Value,
@@ -2973,7 +2975,7 @@ namespace Olden_Era___Template_Editor
                     || normalised.StartsWith(expected + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
             }
 
-            // Game not found via registry/fallback paths — match on the known folder-structure tail.
+            // Game not found via registry/fallback paths � match on the known folder-structure tail.
             const string expectedTail = @"HeroesOldenEra_Data\StreamingAssets\map_templates";
             return chosenDir.EndsWith(expectedTail, StringComparison.OrdinalIgnoreCase)
                 || chosenDir.Contains(expectedTail + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
@@ -3007,7 +3009,7 @@ namespace Olden_Era___Template_Editor
                             return templatesDir;
                     }
                 }
-                catch { /* registry access denied — skip */ }
+                catch { /* registry access denied � skip */ }
             }
 
             // Fallback: check common Steam library locations manually.

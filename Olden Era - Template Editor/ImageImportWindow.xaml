@@ -1,0 +1,174 @@
+<Window x:Class="Olden_Era___Template_Editor.ImageImportWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{DynamicResource S.EI.Title}" Height="600" Width="800"
+        WindowStartupLocation="CenterOwner"
+        Background="#1E1A2B" UseLayoutRounding="True">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header with mode toggle (3 radiobuttons: .rmg.json default, h3t, visual) -->
+        <Border Grid.Row="0" Background="#2A2540" Padding="12,8">
+            <DockPanel>
+                <TextBlock Text="{DynamicResource S.EI.Title}" Foreground="#C8A857"
+                           FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"
+                           DockPanel.Dock="Left"/>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <RadioButton x:Name="ModeRmg" Content="📋 .rmg.json" GroupName="ImportMode"
+                                 Foreground="#CCC" FontSize="11" IsChecked="True"
+                                 Margin="0,0,12,0" Click="ModeRmg_Click"/>
+                    <RadioButton x:Name="ModeH3T" Content="📄 H3T" GroupName="ImportMode"
+                                 Foreground="#CCC" FontSize="11"
+                                 Margin="0,0,12,0" Click="ModeH3T_Click"/>
+                    <RadioButton x:Name="ModeVisual" Content="📷 Визуальный" GroupName="ImportMode"
+                                 Foreground="#CCC" FontSize="11"
+                                 Click="ModeVisual_Click"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Content -->
+        <Grid Grid.Row="1" Margin="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="280"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left panel (switches by mode) -->
+            <Grid Grid.Column="0">
+
+                <!-- .rmg.json mode -->
+                <Border x:Name="RmgPanel" Background="#12101E" BorderBrush="#2A2540"
+                        BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+                    <Grid Margin="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="8"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock x:Name="RmgFileInfo" Grid.Row="0"
+                                   Text="Выберите .rmg.json файл шаблона" Foreground="#888" FontSize="12"/>
+                        <Border Grid.Row="2" Background="#0E0B16" CornerRadius="3"
+                                Padding="8">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <TextBlock x:Name="RmgInfoText" Text="—" Foreground="#AAA"
+                                           FontSize="11" TextWrapping="Wrap"/>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Visual mode: image preview -->
+                <Border x:Name="VisualPanel" Background="#12101E" BorderBrush="#2A2540"
+                        BorderThickness="1" CornerRadius="4" ClipToBounds="True" Visibility="Collapsed">
+                    <Grid>
+                        <Image x:Name="PreviewImage" Stretch="Uniform" Margin="8"
+                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <TextBlock x:Name="PlaceholderText"
+                                   Text="{DynamicResource S.EI.Placeholder}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="#555" FontSize="13"/>
+                    </Grid>
+                </Border>
+
+                <!-- H3T mode: detected zones fills entire space, connections at bottom -->
+                <Border x:Name="H3TPanel" Background="#12101E" BorderBrush="#2A2540"
+                        BorderThickness="1" CornerRadius="4" ClipToBounds="True" Visibility="Collapsed">
+                    <Grid Margin="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Detected zones (stretches to fill all remaining space) -->
+                        <TextBlock Grid.Row="0" Text="Обнаруженные зоны:" Foreground="#C8A857"
+                                   FontWeight="SemiBold" FontSize="11" Margin="0,0,0,4"/>
+                        <Border Grid.Row="1" Background="#0E0B16" CornerRadius="3" Padding="8">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <TextBlock x:Name="H3TZonesList" Text="—" Foreground="#AAA"
+                                           FontSize="11" TextWrapping="Wrap"/>
+                            </ScrollViewer>
+                        </Border>
+
+                        <!-- Detected connections (fills remaining space) -->
+                        <TextBlock Grid.Row="2" Text="Обнаруженные связи:" Foreground="#C8A857"
+                                   FontWeight="SemiBold" FontSize="11" Margin="0,0,0,4"/>
+                        <Border Grid.Row="3" Background="#0E0B16" CornerRadius="3" Padding="8">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <TextBlock x:Name="H3TConnsList" Text="—" Foreground="#AAA"
+                                           FontSize="11" TextWrapping="Wrap"/>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Right panel: controls (switches by mode) -->
+            <StackPanel Grid.Column="2" VerticalAlignment="Top">
+
+                <!-- .rmg.json controls -->
+                <StackPanel x:Name="RmgControls">
+                    <Button x:Name="BtnSelectRmg" Content="📁 Выбрать .rmg.json"
+                            Background="#4A7040" Foreground="#D0D0D0" BorderThickness="0"
+                            Padding="16,8" FontSize="12" Cursor="Hand" Margin="0,0,0,8"
+                            Click="BtnSelectRmg_Click"/>
+                </StackPanel>
+
+                <!-- Visual mode controls -->
+                <StackPanel x:Name="VisualControls" Visibility="Collapsed">
+                    <Button x:Name="BtnSelect" Content="{DynamicResource S.EI.Select}"
+                            Background="#4A7040" Foreground="#D0D0D0" BorderThickness="0"
+                            Padding="16,8" FontSize="12" Cursor="Hand" Margin="0,0,0,8"
+                            Click="BtnSelect_Click"/>
+
+                    <TextBlock Text="{DynamicResource S.EI.Zones}" Foreground="#888" FontSize="11"
+                               Margin="0,4,0,4"/>
+                    <Border Background="#12101E" BorderBrush="#2A2540" BorderThickness="1"
+                            CornerRadius="4" Height="280">
+                        <ListBox x:Name="ZonesList" Background="Transparent" Foreground="#CCC"
+                                 BorderThickness="0" FontSize="11"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                    </Border>
+                </StackPanel>
+
+                <!-- H3T mode controls -->
+                <StackPanel x:Name="H3TControls" Visibility="Collapsed">
+                    <Button x:Name="BtnSelectH3T" Content="📁 Выбрать .h3t файл"
+                            Background="#4A7040" Foreground="#D0D0D0" BorderThickness="0"
+                            Padding="16,8" FontSize="12" Cursor="Hand" Margin="0,0,0,8"
+                            Click="BtnSelectH3T_Click"/>
+                </StackPanel>
+
+                <!-- Status -->
+                <TextBlock x:Name="StatusText" Text="{DynamicResource S.EI.Ready}"
+                           Foreground="#666" FontSize="10" Margin="0,6,0,0"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Background="#2A2540" Padding="12,8">
+            <DockPanel>
+                <TextBlock x:Name="HintText" Text="{DynamicResource S.EI.Hint}"
+                           VerticalAlignment="Center" FontSize="11" Foreground="#666"/>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button x:Name="BtnImport" Content="{DynamicResource S.EI.Import}"
+                            Background="#4A7040" Foreground="#D0D0D0" BorderThickness="0"
+                            Padding="16,6" FontSize="12" Cursor="Hand"
+                            Margin="0,0,8,0" IsEnabled="False" Click="BtnImport_Click"/>
+                    <Button x:Name="BtnClose" Content="{DynamicResource S.EI.Close}"
+                            Background="#4A4570" Foreground="#D0D0D0" BorderThickness="0"
+                            Padding="16,6" FontSize="12" Cursor="Hand"
+                            Click="BtnClose_Click"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

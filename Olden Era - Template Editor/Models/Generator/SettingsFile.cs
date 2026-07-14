@@ -10,6 +10,7 @@ namespace Olden_Era___Template_Editor.Models
     public sealed class SettingsFile
     {
         [JsonPropertyName("templateName")]      public string  TemplateName           { get; set; } = "Custom Template";
+        [JsonPropertyName("baseTemplate")]     public string? BaseTemplate          { get; set; }
         [JsonPropertyName("mapSize")]           public int     MapSize                { get; set; } = 160;
         [JsonPropertyName("playerCount")]       public int     PlayerCount            { get; set; } = 2;
         [JsonPropertyName("neutralZoneCount")]  public int     NeutralZoneCount       { get; set; } = 0;

@@ -1,7 +1,7 @@
 <Window x:Class="Olden_Era___Template_Editor.ConnectionSettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Редактор настроек связи" Height="400" Width="420"
+        Title="{DynamicResource S.CS.Title}" Height="400" Width="420"
         WindowStartupLocation="CenterOwner"
         Background="#1E1A2B" UseLayoutRounding="True">
 
@@ -47,44 +47,44 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Настройки связи" Foreground="#C8A857"
+        <TextBlock Grid.Row="0" Text="{DynamicResource S.CS.Settings}" Foreground="#C8A857"
                    FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel>
-                <TextBlock Text="Имя связи" Style="{StaticResource FieldLabel}"/>
+                <TextBlock Text="{DynamicResource S.CS.Name}" Style="{StaticResource FieldLabel}"/>
                 <TextBox x:Name="TxtName" Style="{StaticResource FieldInput}"/>
 
-                <TextBlock Text="Откуда (зона)" Style="{StaticResource FieldLabelRead}"/>
+                <TextBlock Text="{DynamicResource S.CS.FromZone}" Style="{StaticResource FieldLabelRead}"/>
                 <TextBlock x:Name="TxtFrom" Style="{StaticResource ReadValue}"/>
 
-                <TextBlock Text="Куда (зона)" Style="{StaticResource FieldLabelRead}"/>
+                <TextBlock Text="{DynamicResource S.CS.ToZone}" Style="{StaticResource FieldLabelRead}"/>
                 <TextBlock x:Name="TxtTo" Style="{StaticResource ReadValue}"/>
 
-                <TextBlock Text="Тип связи" Style="{StaticResource FieldLabel}"/>
+                <TextBlock Text="{DynamicResource S.CS.Type}" Style="{StaticResource FieldLabel}"/>
                 <ComboBox x:Name="CmbType" Style="{StaticResource FieldCombo}" IsEditable="False"/>
 
-                <TextBlock Text="Значение стражи" Style="{StaticResource FieldLabel}"/>
+                <TextBlock Text="{DynamicResource S.CS.GuardValue}" Style="{StaticResource FieldLabel}"/>
                 <TextBox x:Name="TxtGuardValue" Style="{StaticResource FieldInput}"/>
 
-                <CheckBox x:Name="ChkRoad" Content="Дорога (Road)" Margin="0,12,0,0"
+                <CheckBox x:Name="ChkRoad" Content="{DynamicResource S.CS.Road}" Margin="0,12,0,0"
                           Foreground="#D0D0D0" FontSize="12"/>
 
-                <CheckBox x:Name="ChkGuardEscape" Content="Охрана может сбежать" Margin="0,8,0,0"
+                <CheckBox x:Name="ChkGuardEscape" Content="{DynamicResource S.CS.GuardEscape}" Margin="0,8,0,0"
                           Foreground="#D0D0D0" FontSize="12"/>
 
-                <TextBlock Text="Еженед. прирост охраны" Style="{StaticResource FieldLabel}"/>
+                <TextBlock Text="{DynamicResource S.CS.GuardWeekly}" Style="{StaticResource FieldLabel}"/>
                 <TextBox x:Name="TxtGuardWeeklyInc" Style="{StaticResource FieldInput}"/>
 
-                <TextBlock Text="Размещение ворот" Style="{StaticResource FieldLabel}"/>
+                <TextBlock Text="{DynamicResource S.CS.GatePlacement}" Style="{StaticResource FieldLabel}"/>
                 <ComboBox x:Name="CmbGatePlacement" Style="{StaticResource FieldCombo}" IsEditable="True"/>
 
-                <TextBlock Text="Рандомизация охраны" Style="{StaticResource FieldLabel}"/>
+                <TextBlock Text="{DynamicResource S.CS.GuardRandom}" Style="{StaticResource FieldLabel}"/>
                 <TextBox x:Name="TxtGuardRandomization" Style="{StaticResource FieldInput}"/>
 
                 <!-- Gate placement args (multi-select, visible only for NearZone) -->
                 <StackPanel x:Name="GatePlacementArgsPanel" Visibility="Collapsed" Margin="0,8,0,0">
-                    <TextBlock Text="Зоны размещения ворот" Style="{StaticResource FieldLabel}"/>
+                    <TextBlock Text="{DynamicResource S.CS.GateZones}" Style="{StaticResource FieldLabel}"/>
                     <ListBox x:Name="LstGatePlacementArgs" Background="#302B45" Foreground="#D0D0D0"
                              BorderThickness="1" BorderBrush="#4A4570" Padding="4"
                              FontSize="13" MinHeight="80" SelectionMode="Multiple"/>
@@ -96,9 +96,9 @@
                     <StackPanel Margin="0,8,0,0">
                         <TextBlock Text="{DynamicResource S.EC.GuardZone}" Style="{StaticResource FieldLabel}"/>
                         <ComboBox x:Name="CmbGuardZone" Style="{StaticResource FieldCombo}" IsEditable="True"/>
-                        <TextBlock Text="Группа сопоставления охраны" Style="{StaticResource FieldLabel}"/>
+                        <TextBlock Text="{DynamicResource S.CS.GuardMatchGroup}" Style="{StaticResource FieldLabel}"/>
                         <TextBox x:Name="TxtGuardMatchGroup" Style="{StaticResource FieldInput}"/>
-                        <CheckBox x:Name="ChkSimTurnSquad" Content="Одновременный отряд" Margin="0,8,0,0"
+                        <CheckBox x:Name="ChkSimTurnSquad" Content="{DynamicResource S.CS.SimTurnSquad}" Margin="0,8,0,0"
                                   Foreground="#D0D0D0" FontSize="12"/>
                         <TextBlock Text="{DynamicResource S.EC.AdvancedNote}"
                                    Foreground="#888" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" Margin="0,8,0,0"/>
@@ -111,11 +111,11 @@
 
         <Border Grid.Row="2" Background="#2A2540" Padding="0,12" CornerRadius="6" Margin="0,8,0,0">
             <DockPanel>
-                <Button x:Name="BtnSave" Content="Сохранить" DockPanel.Dock="Right"
+                <Button x:Name="BtnSave" Content="{DynamicResource S.CS.Save}" DockPanel.Dock="Right"
                         Background="#6A5ACD" Foreground="White" BorderThickness="0"
                         Padding="20,8" FontSize="13" FontWeight="SemiBold"
                         Cursor="Hand" Click="BtnSave_Click"/>
-                <Button x:Name="BtnCancel" Content="Отмена" DockPanel.Dock="Right"
+                <Button x:Name="BtnCancel" Content="{DynamicResource S.CS.Cancel}" DockPanel.Dock="Right"
                         Background="#4A4570" Foreground="#D0D0D0" BorderThickness="0"
                         Padding="16,8" FontSize="12" Margin="0,0,8,0"
                         Cursor="Hand" Click="BtnCancel_Click"/>

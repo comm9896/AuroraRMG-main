@@ -34,6 +34,29 @@ namespace OldenEraTemplateEditor.Models
         public static bool IsExperimentalMapSize(int size) =>
             Array.IndexOf(ExperimentalMapSizes, size) >= 0;
 
+        /// <summary>
+        /// Returns the supported map size nearest to <paramref name="size"/> (from
+        /// <see cref="AllMapSizes"/>). On an exact tie, rounds up. Used when serializing a
+        /// template whose size is not one of the project's supported sizes (e.g. decoded
+        /// from a HotA .h3t map-size code).
+        /// </summary>
+        public static int NearestMapSize(int size)
+        {
+            if (size <= 0) return MapSizes[0];
+            int best = AllMapSizes[0];
+            int bestDist = Math.Abs(AllMapSizes[0] - size);
+            foreach (int s in AllMapSizes)
+            {
+                int d = Math.Abs(s - size);
+                if (d < bestDist || (d == bestDist && s > best))
+                {
+                    best = s;
+                    bestDist = d;
+                }
+            }
+            return best;
+        }
+
         /// <summary>Returns a short size label (S, M, L, XL, H, G, C) for a given map size.</summary>
         public static string MapSizeLabel(int size) => size switch
         {

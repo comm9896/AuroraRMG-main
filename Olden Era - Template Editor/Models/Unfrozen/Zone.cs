@@ -24,6 +24,20 @@ namespace OldenEraTemplateEditor.Models
         [JsonIgnore]
         public int? GeneratorRing { get; set; }
 
+        /// <summary>
+        /// UI-only flag: when true, every main object in this zone gets the same Owner
+        /// as the first main object. Not serialised.
+        /// </summary>
+        [JsonIgnore]
+        public bool SyncOwners { get; set; }
+
+        /// <summary>
+        /// Transient key/value metadata populated by the H3T import parser (e.g. parsed
+        /// object counts, terrain, strength). Not serialised — used only in-memory during import.
+        /// </summary>
+        [JsonIgnore]
+        public Dictionary<string, string>? MetaData { get; set; }
+
         [JsonPropertyName("size")]
         public double? Size { get; set; }
 

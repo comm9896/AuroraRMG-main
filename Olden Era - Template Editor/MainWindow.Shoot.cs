@@ -5,6 +5,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Olden_Era___Template_Editor.Models;
 using Olden_Era___Template_Editor.Services;
+using OldenEraTemplateEditor.Services.ContentManagement;
 
 namespace Olden_Era___Template_Editor
 {
@@ -55,6 +56,7 @@ namespace Olden_Era___Template_Editor
                 foreach (var preset in Presets.All)
                 {
                     var settings = Presets.ToGeneratorSettings(preset.Settings);
+                    settings.BaseTemplate = CatalogContent.ResolveBaseTemplate(preset.Settings.TemplateName);
                     var template = TemplateGenerator.Generate(settings);
                     string json = System.Text.Json.JsonSerializer.Serialize(template, JsonExport.Options);
                     string file = $"[Gen] {preset.Settings.TemplateName}.rmg.json";
@@ -163,6 +165,7 @@ namespace Olden_Era___Template_Editor
                         Advanced = new AdvancedSettings { Enabled = true, NeutralMediumNoCastleCount = 4 },
                     },
                 };
+                settings.BaseTemplate = CatalogContent.ResolveBaseTemplate(settings.TemplateName);
                 var template = TemplateGenerator.Generate(settings);
 
                 var editor = new TemplateEditorWindow(template, settings.Topology)

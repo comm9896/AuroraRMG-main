@@ -203,11 +203,24 @@ public static class ZoneContentManager
 
             var limits = new List<ContentCountLimit>();
 
-            limits.Add(new ContentCountLimit { Name = "content_limits_side", Limits = sidLimits });
+            // Role-based real limit pools parsed from the game templates (via the
+            // auto-generated GameContentCatalog). "side" is handled specially below
+            // because every outer zone also references the pairwise side_{a}_{b} pools.
+            foreach (var role in new[] { "spawn", "sides", "treasure", "center", "connector", "leaf", "trunk", "country", "hallway", "branch", "second", "ai", "red", "green", "blue", "yellow", "orange", "violet" })
+            {
+                if (CatalogContent.TryGetCl(role, out var g) && g != null)
+                    limits.Add(g);
+            }
 
+            // Pairwise side limits (referenced by every outer zone), filled from the
+            // catalog's side limits when present, else the fallback sidLimits above.
+            var sideLimits = (CatalogContent.TryGetCl("side", out var sideGroup) && sideGroup?.Limits != null)
+                ? sideGroup.Limits
+                : sidLimits;
+            limits.Add(new ContentCountLimit { Name = "content_limits_side", Limits = sideLimits });
             for (int a = 1; a <= 5; a++)
                 for (int b = a + 1; b <= 6; b++)
-                    limits.Add(new ContentCountLimit { Name = $"content_limits_side_{a}_{b}", Limits = sidLimits });
+                    limits.Add(new ContentCountLimit { Name = $"content_limits_side_{a}_{b}", Limits = sideLimits });
 
             return limits;
         }

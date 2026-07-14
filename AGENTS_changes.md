@@ -1,5 +1,25 @@
 # Project Change Log
 
+## 2026-07-11 — Visual editor: mirror creation mode (vertical split, dialog-driven options)
+
+### Added
+- Localization keys `S.EC.Mirror`, `S.EC.MirrorTip`, `S.EC.MirrorOn`, `S.EC.MirrorOff`, `S.EC.MirrorSettings`, `S.EC.MirrorEnable`, `S.EC.MirrorProps`, `S.EC.MirrorConns` (RU + EN)
+- New `MirrorSettingsWindow` dialog (salvaged from `NamePromptWindow` style) with a master «Включить зеркальное создание» checkbox and two sub-options: «Отзеркаливание свойств» and «Отзеркаливание соединений»
+- Mirror mode: when ON, the canvas splits into left/right halves with a vertical gold dashed divider at `CanvasWidth/2`; all existing zones are duplicated mirrored immediately (each twin gets a fresh unique name — names are never mirrored)
+
+### Changed
+- `BtnMirror_Click` now opens `MirrorSettingsWindow` (no longer a direct toggle); on OK it applies the master enable + the two sub-options; button highlights when mode is on
+- Reflection axis is now **vertical** (`x → CanvasWidth − x`)
+- `AddZoneAt` — when mirror mode is on, creating a zone also creates a mirrored twin and records the bidirectional `_mirrorMap`
+- `CanvasHost_MouseMove` — dragging a zone also moves its mirrored twin live (guarded by `_applyingMirror` to prevent recursion)
+- New `MirrorZoneProperties(Zone)` + `MirrorMarkDirty(Zone)` — when «Отзеркаливание свойств» is on, every zone-property edit in `BuildInspector` (and `RebuildMainObjectEditor`) is copied to the twin via reflection (name excluded)
+- New `MirrorConnection(Connection)` — when «Отзеркаливание соединений» is on, creating a connection also creates the mirrored connection between the twins (settings copied), except when the connection is itself between a zone and its mirror, or a duplicate already exists; hooked into `HandleConnectClick`
+- `RenameZone` — keeps `_mirrorMap` keys consistent (names are re-keyed, not mirrored)
+- `BtnDelete_Click` — clears both `_mirrorMap` entries for a deleted zone
+- **Divider visibility fixed**: `RebuildGraph()` was calling `GraphCanvas.Children.Clear()`, which wiped the divider; now `RebuildGraph` detaches+nulls the divider before clearing and re-adds it at the end when `_mirrorMode` is on. `DrawMirrorDivider` draws a full-height translucent gold band + 2px vertical dashed gold line + «Зеркальное создание» label
+- `BtnMirror` moved into the main toolbar `DockPanel` (was a floating button overlapping `BtnGridSnap`)
+- New helpers: `EnableMirrorMode`, `DisableMirrorMode`, `DrawMirrorDivider`, `RemoveMirrorDivider`, `Mirror(Point)`, `GetZoneByName`, `CloneZone`, `MirrorMarkDirty`, `MirrorZoneProperties`, `MirrorConnection`
+
 ## 2026-07-11 — Connection inspector: restore keys, remove leftover tooltips, localize + style static note
 
 ### Changed
@@ -637,3 +657,350 @@
 
 
 
+
+
+## 2026-07-11 — User: доработка зеркального режима (хаб, близнецы-соединения, клэмп оси, авто-логика)
+
+### Added
+- `MirrorSettingsWindow.xaml/.cs`: кнопка "Создать хаб" -> создаёт неподвижную центральную зону "hub" (не зеркалится)
+- `TemplateEditorWindow.xaml.cs`: `CreateHubZone`/`CreateHubZoneExternally`, множество `_lockedZones`
+- `_connectionMirrorMap` + `MirrorConnectionMarkDirty`: правки настроек соединения отзеркаливаются в близнец
+- `ApplyAutoLogicToTwin`: авто-переименование зоны при спавне наследуется близнецом
+- `Strings.cs`: `S.EC.MirrorHub`, `S.EC.HubCreated` (RU+EN)
+
+### Changed
+- `MirrorZoneProperties` теперь делает глубокую копию (близнец получает независимые MainObjects) — исправлено отсутствие отзеркаливания добавлений
+- `EnableMirrorMode` пропускает уже сопоставленные и заблокированные зоны (исправлено дублирование при повторном включении)
+- `DisableMirrorMode` сохраняет `_mirrorMap`/`_connectionMirrorMap`/`_lockedZones` (близнецы не удаляются)
+- `BtnDelete_Click`: удаление зоны удаляет и близнеца; очистка карты зеркал соединений; удаление соединения чистит карту
+- Перетаскивание: зона зажимается на своей стороне оси; хаб/заблокированные зоны неподвижны (нельзя пересечь ось)
+- `RebuildMainObjectsList` + `RebuildAdditionalMainObjectsList`: все правки MainObject вызывают `MirrorMarkDirty(z)`
+- Сеттеры инспектора соединения направлены в `MirrorConnectionMarkDirty(c)`
+
+
+## 2026-07-11 — User: исправление багов зеркального режима (хаб, road, близнецы объектов)
+
+### Fixed
+- `MirrorConnectionMarkDirty`: больше НЕ копирует `From`/`To` (концы связи) — раньше близнец-соединение перезаписывал свои концы концами источника, из-за чего связь "переносилась" на ту, где подняли флаг road
+- Переключение флага `Road`: авто-генерация дорог внутри зон теперь выполняется и для зон близнеца-соединения (а не только для одной из зон)
+- `MirrorSettingsWindow`: установлен `Owner = this`, поэтому кнопка "Создать хаб" достигает редактора и создаёт зону (раньше `Owner` был null и хаб не создавался)
+- Добавление MainObject в инспекторе зоны (`addAdditionalMoBtn`) теперь вызывает `MirrorMarkDirty(z)` вместо `MarkDirty()` — дополнительные объекты отзеркаливаются в близнец-зону
+
+
+## 2026-07-11 — User: ещё баги зеркального режима (объекты, дороги, хаб-связи)
+
+### Changed
+- `_mirrorProperties` и `_mirrorConnections` теперь включены по умолчанию — раньше при включении зеркального режима обе под-опции были выключены, из-за чего объекты (MainObject) не отзеркаливались (нужно было вручную ставить галочку "Отзеркаливание свойств")
+- `MirrorConnection` переписан: теперь зеркалирует связь даже если один из концов — хаб (не имеет близнеца). Связь близнец→хаб создаёт зеркальную связь исходная-зона→хаб (и наоборот)
+- `RemapMirrorReferences`: у близнеца переназначаются кросс-ссылки — `PlacementArgs` MainObject (placement "Connection"/"NearZone") и дороги зоны (`Roads`) теперь указывают на зеркальные связи/зоны близнеца, а не на исходные (исправлено "авто-дороги использовали связь близнеца вместо реальной")
+
+
+## 2026-07-11 — User: объекты вкладки "Объекты" не зеркалировались близнецу
+
+### Fixed
+- `RebuildContentObjectsList`: обработчики добавления и удаления контент-объекта (вкладка "Объекты") вызывали `MarkDirty()` вместо `MirrorMarkDirty(z)`, из-за чего `MandatoryContent` не отзеркаливался в близнец-зону. Заменено на `MirrorMarkDirty(z)` (строки ~2424 и ~2471)
+- Примечание: зеркалирование объектов вкладки "Объекты" подчиняется галочке "Отзеркаливание свойств" (включена по умолчанию)
+
+## 2026-07-11 18:51 — User: "обнови справку" (move help text, reorganize toolbar/canvas)
+
+### Changed
+- Moved the selection-help text S.Ed.011 ("Выберите зону или связь...") off the inspector hint and onto a top-right TextBlock overlay inside GraphCanvas (it overflowed where it was).
+- Reordered toolbar buttons: Copy Zone + Paste Zone now follow Zone; Connection Manager follows Connect; JSON preview follows PNG.
+- Removed the Mirror button from the toolbar and placed it as a bottom-right button inside the canvas (BtnMirror), alongside the existing top-left canvas hint.
+- TemplateEditorWindow.xaml.cs: when nothing is selected, TxtInspectorHint is now cleared (text comes from canvas instead).
+- Build green; 8/8 tests pass.
+
+## 2026-07-11 19:24 — User: авто-выставление аргумента "владелец" (и Spawn) в зеркальном режиме должно соответствовать не-зеркальной логике
+
+### Changed
+- Added public static bool ResolvePlayerConflicts(Zone, HashSet<string> used) — pure (no UI) helper that re-points a zone's Owner/Spawn to free players, mirroring the inspector combo / PasteCopiedZone conflict-resolution: clears Owner for non-City and Spawn for non-Spawn, reassigns an already-taken player to the first free KnownValues.SpawnPlayers, applies side effects (RemoveGuardIfHasOwner=true, nulled guards, Faction→Match), updates used in place, returns whether anything changed.
+- ApplyAutoLogicToTwin now calls ResolvePlayerConflicts(twin, GetUsedPlayers(twin.Name)) (excludes the twin, includes the source + other zones) so a mirrored twin no longer duplicates the source's Owner/Spawn; then runs AutoRenameZoneForSpawn per MainObject (zone rename preserved via RenameZone's mirror-map update).
+- Covers both Owner and Spawn per user decision.
+- Added 5 unit tests (PlayerConflictResolutionTests) for the helper; total 8 -> 13 pass.
+- Build green (publish step OK); CRLF line endings preserved.
+
+## 2026-07-11 19:47 — User: исправить ошибку в test11072026.rmg.json (дороги hub-зоны)
+
+### Analyzed
+- Compared generated 	est11072026.rmg.json against all ~80 templates in the game's StreamingAssets/map_templates folder.
+- Confirmed 
+ame is valid UTF-8 (console garble was PowerShell ANSI misdecode, not mojibake); owners Player1..Player4 distinct (validates earlier mirror fix); no dangling connection refs; Direct/zone_layout_* valid; empty contentPools + single variant match other project exports.
+
+### Fixed
+- AddRoadToZone castle-less branch (TemplateEditorWindow.xaml.cs) generated an invalid hub: a self-loop road (Direct-Zone-2-hub -> Direct-Zone-2-hub) plus 3 roads all anchored to the same connection (anchor was whatever connection got added first). Root cause: first connection got a self-loop, which then became the star anchor.
+- Extracted public static Road? BuildCastleLessRoad(connectionName, incidentConnections) — builds a deterministic star among the zone's incident connections (anchor = first by ordinal name; one road per other incident connection; never a self-loop). A single incident connection keeps the legacy self-loop; zero incident connections → no road.
+- AddRoadToZone now computes the zone's incident connections from Connections and delegates to the helper.
+- Added 5 unit tests (CastleLessRoadTests): 2-incident -> 1 road no self-loop; anchor returns null; 4-incident -> spokes from anchor, no self-loop; single -> self-loop; none -> null. Total 13 -> 18 pass.
+- Build green (publish step OK after freeing a locked running exe); CRLF line endings preserved.
+
+## 2026-07-11 20:13 � User: "��� ����������� road � ���������� ������ ���� road ������������ � �� ������ �����, ��������� �� ��� �� ����"
+
+### Fixed
+- AddRoadToZone castle-less (hub) branch now builds the star only from connections with Road==true (new public static RoadIncidentConnections(zone, connections)). Previously it used ALL incident connections, so toggling one hub connection created a phantom anchor road that SyncConnectionRoadFlags then promoted to Road on reload � the flag bled to sibling connections of the same zone (most visible on the hub between mirror halves).
+- Road checkbox OFF branch now fully reversible: deletes roads referencing the connection (both endpoint zones + mirror twin via _connectionMirrorMap) and rebuilds the castle-less star from surviving Road==true connections (new helpers RemoveConnectionRoads + RebuildCastleLessStar).
+- Added 4 unit tests (RoadIncidentConnections: only road-flagged siblings participate / two road-flagged / none; one road-flagged hub -> self-loop, no sibling promotion). Total 18 -> 22 pass.
+- build.bat green (22/22 tests, publish OK); CRLF line endings preserved.
+
+## 2026-07-12 — User: "убрать сериализацию orientation.zeroAngleZone и border если не нажата кнопка «макет и границы»; переименовать в «ориентация и граница»; добавить Spawn как отдельный выбор над «владелец»; убрать автоматизацию выставления owner; уникальность spawn (9 значений) живо и при сохранении"
+
+### Changed — serialization / orientation window
+- Removed the seeded `Orientation = {Mode="MinimalBoundingSquare"}` and `Border = {...}` defaults from `NewEmptyTemplate()` so a brand-new template no longer serializes `orientation`/`border` unless the user actually opens the window and presses Apply.
+- `OrientationWindow.BtnApply_Click` now writes `ZeroAngleZone` ONLY from `CmbZeroAngleZone.SelectedItem` (was `?? Text.Trim()`, the source of bogus free-text like "Spawn-A"); `Border` is created only when the new `ChkUseBorder` checkbox is checked, otherwise `_variant.Border = null`; `Mode` index 2 keeps `Orientation = null`. Added `CheckBox ChkUseBorder` to OrientationWindow.xaml; `LoadCurrentValues` initializes it from whether a Border already exists.
+- Localization `S.Ed.016`: "Макет и границы" -> "Ориентация и граница" (RU) / "Layout and borders" -> "Orientation and border" (EN). `S.EC.OrientationApplied` messages updated to "ориентации и границы" / "Orientation and border".
+- Added `S.EC.MoSpawn` = "Спавн" / "Spawn".
+
+### Changed — Spawn selector + owner sync (first main object)
+- `RebuildMainObjectEditor` now shows a **Spawn** selector ABOVE the Owner row, but only for the FIRST main object of a `City` zone. Selecting Spawn keeps `Owner` in sync (`Owner = Spawn`); editing Owner keeps `Spawn` in sync for the first City MO. Both live-refresh the open combo boxes.
+- Removed the auto-owner automation: deleted `AutoRenameZoneForSpawn` and its calls (type-combo handler, `ApplyAutoLogicToTwin`); removed the interactive duplicate-owner `MessageBox` conflict blocks in both owner handlers (primary + `RebuildAdditionalMainObjectsList`); removed the Owner branch of `ResolvePlayerConflicts` (kept the Spawn dedup branch) and the Owner dedup block in `PasteCopiedZone` (kept Spawn dedup). Re-added the `UniqueZoneName(string)` overload that a surviving caller needs.
+
+### Added — spawn uniqueness
+- New public static `EnsureUniqueSpawns(RmgTemplate)` / `EnsureUniqueSpawns(IEnumerable<Zone>)`: enforces unique non-empty `spawn` across all zones from the canonical 9-value set (empty + Player1..Player8); duplicates are reassigned to the first free Player, the 9th collides to empty; the first main object's `Owner` is synced to its (possibly reassigned) Spawn. Called live from the spawn/owner handlers and once in `BtnSave_Click` before serialization.
+- Replaced `PlayerConflictResolutionTests` (owner auto-assignment removed) with `SpawnUniquenessTests` (5 tests: distinct players across zones; 9 zones -> Player1..8 + empty; empty/unset untouched; owner sync on first MO; duplicate on non-first MO reassigned). Total 22 pass.
+- build.bat green (22/22 tests, publish OK); CRLF line endings preserved.
+
+## 2026-07-12 — User: "убрать из функции отзеркаливания свойств зон отзеркаливание spawn т.к. это уникальный аргумент"
+
+### Fixed
+- `MirrorZoneProperties` (TemplateEditorWindow.xaml.cs) no longer mirrors `Spawn`: it captures the twin's own `Spawn` values before the reflection copy and restores them by index after `ApplyAutoLogicToTwin` + `RemapMirrorReferences` (so the twin keeps its unique spawn, not the source's). The first `City` main object's `Owner` is re-synced to the restored `Spawn` to preserve the spawn↔owner invariant.
+- `CloneZone` (initial mirror creation) now clears `Spawn` (and the first `City` main object's `Owner`) on the new twin so a freshly mirrored zone does not duplicate the source's unique `Spawn`; it gets a unique one via `EnsureUniqueSpawns` on save.
+- build.bat green (22/22 tests, publish OK after stopping a locked running exe); CRLF line endings preserved.
+
+## 2026-07-12 — User: "если выставляется owner отдельно от spawn не применять логику переназначения; если после этого выставляется spawn — логика должна сработать; не использовать логику переназначения owner для mainobject, кроме первого"
+
+### Changed — односторонняя синхронизация спавн → владелец
+- Owner handler (первый MO, `RebuildMainObjectEditor`): убрана обратная синхронизация `mo.Spawn = mo.Owner` и вызов `EnsureUniqueSpawns(Zones)`. Владелец, выставленный отдельно от спавна, больше не переназначает спавн/владельца.
+- Owner handler в `RebuildAdditionalMainObjectsList`: убран вызов `EnsureUniqueSpawns(Zones)` (последующие MO не должны задействовать логику переназначения владельца).
+- Spawn handler (первый MO): поменян порядок — сначала `EnsureUniqueSpawns(Zones)`, затем синхронизация `mo.Owner = mo.Spawn` по **финальному** (после дедупликации) спавну, чтобы владелец совпадал с итоговым значением. Логика срабатывает именно при выставлении спавна.
+- `EnsureUniqueSpawns`: синхронизация владельца защищена условием `isFirst && finalSpawn != null && string.IsNullOrEmpty(mo.Owner)` — явно выставленный (непустой) владелец больше не затирается при сохранении, пустой владелец по-прежнему подтягивается к спавну.
+- build.bat green (22/22 tests, publish OK); CRLF line endings preserved.
+
+## 2026-07-12 11:09 — User: "убери синхронизацию owner в зеркальном режиме, добавь флаг «Одинаковые владелец» вверху вкладки «основное», добавь синхронизацию spawn -> zone_layout_spawn"
+
+### Changed
+- MirrorZoneProperties (зеркальный режим): убрана синхронизация owner — у двойника больше не принудительно выставляется владелец первого City равным отзеркаленному spawn. Spawn по-прежнему не отзеркаливается (уникальный аргумент).
+- Zone: добавлен UI-флаг [JsonIgnore] public bool SyncOwners (не сериализуется).
+- BuildInspector: в самом верху вкладки «Основное» добавлен чекбокс «Одинаковые владелец» (S.EC.SameOwner). При включении (и при каждом изменении owner/spawn первого main object) все main object зоны получают owner первого main object (SyncOwnersInZone).
+- Добавлена синхронизация spawn -> layout: при установке любого аргумента Spawn (непустой, кроме « ») зоне выставляется Layout = «zone_layout_spawn»; при очистке spawn Layout возвращается в null только если он равен «zone_layout_spawn» (SyncZoneLayoutForSpawn). Применяется в обоих обработчиках spawn (первый City и Spawn-тип) и в обработчике owner первого main object.
+- Strings.cs: добавлены ключи S.EC.SameOwner («Одинаковые владелец» / «Same owner»).
+
+### Verified
+- dotnet build (0 ошибок), dotnet test 22/22, build.bat -> release/OldenEraTemplateGenerator.exe (залоченный exe остановлен перед публикацией).
+## 2026-07-12 11:09 — User: "при включении зеркального создания канвас полностью очищался вместе с содержащейся информацией"
+
+### Changed
+- BtnMirror_Click: при включении зеркального режима канвас теперь полностью очищается (старое поведение клонировало все зоны в зеркальные двойники, из-за чего старая информация «вылазила» позже).
+- Добавлен метод ClearCanvasForMirror(): удаляет разделитель, очищает Zones, _positions, _mirrorMap, _connectionMirrorMap, _lockedZones, Variant.Connections и GraphCanvas.Children.
+- Удалён метод EnableMirrorMode (массовое клонирование существующих зон при входе в режим). Зеркальное создание НОВЫХ зон по-прежнему работает (CloneZone используется в AddZone/перемещении).
+
+### Verified
+- dotnet build (0 ошибок), dotnet test 22/22, build.bat -> release/OldenEraTemplateGenerator.exe.
+## 2026-07-12 — User: "реализуй (исправить загрузку GameData.json в single-file exe)"
+
+### Fixed
+- GameData.json теперь встраивается как EmbeddedResource (csproj: <EmbeddedResource Include=\"GameData.json\" /> вместо Content+CopyToOutputDirectory). В single-file публикации Content-файлы не извлекаются на диск, из-за чего пулы не грузились («⚠ Файл не найден…»).
+- GamePoolDataLoader.Load(): добавлен fallback на встроенный ресурс, если файл на диске не найден. Поиск на диске остаётся первым (дропнутый GameData.json рядом с exe по-прежнему имеет приоритет). _dataPath при загрузке из ресурса = «<embedded: …>».
+- Добавлено свойство [JsonIgnore] public Dictionary<string, string>? MetaData в Zone (используется H3TParser.cs, который был добавлен как неотслеживаемый файл и ломал сборку — ссылался на отсутствующий Zone.MetaData). JsonIgnore — чтобы не засорять сериализуемый шаблон.
+
+### Tests
+- Добавлен GameDataEmbeddedResourceTests.Load_ReadsGameDataFromEmbeddedResource (проверяет загрузку из встроенного ресурса, т.к. на диске в тестовом выводе файла нет).
+
+### Verified
+- dotnet build (0 ошибок), dotnet test 23/23, build.bat -> release/OldenEraTemplateGenerator.exe. Встроенный ресурс подтверждён в бандле (PE-ридер: Olden_Era___Template_Editor.GameData.json присутствует).
+## 2026-07-12 — User: "изменить визуальное отображение mainobject внутри zone (показать spawn), спавн только для типа Spawn, HoldCityWinCon чекбокс перекрывает локализацию — подвинуть"
+
+### Changed
+- DrawNode (визуализация зоны на холсте): добавлено отображение mainobject типа Spawn внутри узла — строка «⚑{count}» зелёным (SpawnBorder), рядом с «🏰{castles}».
+- RebuildMainObjectEditor: убран селектор «Спавн» над полем Owner для первого City (firstSpawnCombo/firstSpawnPanel). Теперь спавн-поле («Спавн игрока», playerCombo/spawnPanel) показывается ТОЛЬКО для mainobject типа Spawn. Удалены все ссылки на firstSpawnCombo; isFirstMainObject оставлен (используется в SyncOwners).
+- RebuildMainObjectEditor: чекбокс «Условие победы (удержание)» (MoHoldCity / HoldCityWinCon) перенесён в конец секции mainobject (после placement-полей), чтобы не перекрывать блок типа/владельца/спавна.
+
+### Verified
+- dotnet build (0 ошибок), dotnet test 23/23, build.bat -> release/OldenEraTemplateGenerator.exe.
+## 2026-07-12 — User: "Hold-city чекбокс в самый верх; spawn добавляет +1 к отображению city; локализация SameOwner -> «одинаковые владельцы для всех создаваемых city в этой зоне»"
+
+### Changed
+- RebuildMainObjectEditor: чекбокс «Условие победы (удержание)» (HoldCityWinCon) перенесён в САМЫЙ ВЕРХ секции mainobject (сразу после panel.Children.Clear()).
+- DrawNode: отображение spawn-объекта теперь прибавляется к текущему счётчику городов — показывается «🏰{castles + spawns}» (отдельная строка ⚑ убрана).
+- Strings.cs: S.EC.SameOwner (RU) = «Одинаковые владельцы для всех создаваемых city в этой зоне»; (EN) = «Same owners for all created cities in this zone».
+
+### Verified
+- dotnet build (0 ошибок), dotnet test 23/23, build.bat -> release/OldenEraTemplateGenerator.exe.
+## 2026-07-13 — User: "изменить систему так что бы автоматическое размещение зон учитывало связи между зонами лучше (force-directed для Default/HubAndSpoke/Chain/SharedWeb)"
+
+### Changed
+- TemplatePreviewPngWriter.LayoutZones: диспетчеризация для Default/HubAndSpoke/Chain/SharedWeb теперь вызывает новый LayoutZonesForceDirected вместо LayoutZonesRing (чистый круг, игнорировавший связи). Random/Balanced/Lanes/MultiHub НЕ изменены.
+- Добавлен LayoutZonesForceDirected: детерминированный (без RNG) force-directed (Fruchterman-Reingold) — посев на окружности, притяжение только вдоль связей, отталкивание между всеми парами, затем CorrectOverlapsAndFit.
+- Добавлен общий CorrectOverlapsAndFit (Pass A: мин. центр-центр дистанция; Pass B: очистка от ребёр; финальный fit/центровка/масштаб под холст). Используется новым методом (существующий Random/Balanced-путь оставлен нетронутым ради безопасности).
+- Proximity/Portal связи исключаются из графа (как и в остальных layout-методах).
+- LayoutZonesRing сохранён для Lanes-fallback и MultiHub.
+
+### Impact
+- Загрузка шаблонов («загрузка шаблонов») тоже затрагивается: LoadTemplate принудительно ставит _topology = Default и вызывает ComputePositions, поэтому загруженные шаблоны теперь раскладываются force-directed (раньше — чистый круг). Координаты зон не сериализуются, так что перекладка при загрузке происходила всегда; поведение стало лучше, регрессий нет.
+
+### Tests
+- Добавлен ForceDirectedLayoutTests: ForceDirected_NoOverlappingZones (Theory для Default/HubAndSpoke/Chain/SharedWeb — круги не пересекаются), ForceDirected_ConnectedZonesAreCloserThanUnconnected, ForceDirected_IsDeterministic.
+
+### Verified
+- dotnet test 29/29 (было 23), build.bat -> release/OldenEraTemplateGenerator.exe (0 ошибок).
+## 2026-07-13 — User: "добавить в сериализатор указание координат зон (блок AuroraRMG) чтобы при импорте зоны выставлялись по сохранённым координатам"
+
+### Added
+- Модель `AuroraRmgCoords` / `ZoneCoord` (OldenEraTemplateEditor.Models): `AuroraRmgCoords.Zones` = список `{ name, x, y }`.
+- Свойство `RmgTemplate.AuroraRmg` ([JsonPropertyName("AuroraRMG")]), объявлено ПЕРЕД `Name`, поэтому сериализуется первым (сразу после `{`, перед `"name"`).
+- `TemplateEditorWindow.ApplyAuroraRmgPositions(RmgTemplate, Dictionary<string,Point>)` (public static): перезаписывает `_positions` зон, присутствующих в блоке; зоны без координат в блоке сохраняют авто-раскладку.
+
+### Changed
+- `BtnSave_Click`: перед `File.WriteAllText(... Serialize(_template))` заполняет `_template.AuroraRmg` из текущих `_positions` (только для зон, реально присутствующих в шаблоне) — сохраняются и ручные перетаскивания.
+- `LoadTemplate`: после `ComputePositions()` вызывает `ApplyAuroraRmgPositions(loaded, _positions)`, так что повторный импорт восстанавливает точную раскладку по сохранённым координатам (x/y — логические координаты холста, тот же формат, что у авто-раскладки).
+
+### Format
+- JSON: `{ "AuroraRMG": { "zones": [ { "name": "<ZoneName>", "x": 0, "y": 0 }, … ] }, "name": "…", … }`. Якоря "start"/"stop" из исходного описания заменены единым валидным объектом-обёрткой (по согласованию с пользователем — дубликат ключа "AuroraRMG" невалиден в JSON).
+
+### Tests
+- AuroraRmgCoordTests: Serialize_WritesAuroraRmgBlockBeforeName (блок раньше "name" + round-trip координат), ApplyAuroraRmgPositions_OverridesMatchedZones_KeepsOthers, ApplyAuroraRmgPositions_NullBlock_NoOp.
+
+### Verified
+- dotnet test 32/32, build.bat -> release/OldenEraTemplateGenerator.exe (0 ошибок).
+## 2026-07-13 — User: "декодировать размер импортируемого h3t по таблице кодов и подбирать ближайший размер при сериализации; переименовать ключи координат zones/name во избежание конфликта с загрузкой шаблона"
+
+### Added
+- `H3TParser.DecodeH3TMapSize(int code)` (public static): таблица HotA кодов размера → реальный размер поверхности. Коды 1/2→36, 4/8→72, 9/18→108, 16/32→144, 25/50→180, 36/72→216, 49/99→252. Флаг подземелья игнорируется (редактор моделирует только поверхность). Неизвестный код → 160.
+- `KnownValues.NearestMapSize(int size)`: ближайший из `AllMapSizes` (офиц. 64..240 + эксперим. 256..512); при точном равенстве расстояний — округление вверх.
+
+### Changed
+- `H3TParser.Parse`: вместо прямого использования закодированного поля `FIELD_MAX_SIZE` (field 17 карты) как SizeX, теперь декодирует код через `DecodeH3TMapSize` и ставит `SizeX = SizeZ = decoded` (квадрат, формат "*x*").
+- `BtnSave_Click`: перед сериализацией `SizeX`/`SizeZ` округляются до ближайшего поддерживаемого размера через `KnownValues.NearestMapSize` (напр. 36→64, 72→80, 108→112, 144→144, 180→176, 216→208, 252→256). Безопасно для шаблонов, размер которых уже в допустимом наборе (no-op).
+- `AuroraRmgCoords.Zones` JSON-ключ переименован `"zones"` → `"coords"`; `ZoneCoord.Name` JSON-ключ переименован `"name"` → `"id"`. Причина: ключи `"zones"`/`"name"` конфликтуют со схемой игры (`variants[].zones[]`, имя зоны/шаблона) и ломали загрузку шаблона. C#-имена свойств (`Zones`, `Name`) и вся логика сопоставления не изменились. Формат блока: `{ "AuroraRMG": { "coords": [ { "id": "<ZoneName>", "x": 0, "y": 0 }, … ] }, "name": "…", … }`.
+
+### Tests
+- H3TAndMapSizeTests: DecodeH3TMapSize_DecodesToSurfaceSize (15 cases, включая fallback для неизвестных кодов), NearestMapSize_SnapsToSupportedSize (9 cases, включая tie 72→80 и неположительный → 64).
+- AuroraRmgCoordTests.Serialise_WritesAuroraRmgBlockBeforeName дополнен проверкой наличия ключей `"coords"`/`"id"`.
+
+### Verified
+- dotnet test 57/57, build.bat -> release/OldenEraTemplateGenerator.exe (0 ошибок).
+
+### Note
+- Блок `AuroraRMG` — editor-only метаданные. .rmg.json также читается движком игры; если игровой ридер не игнорирует неизвестные ключи, может понадобиться отдельный "export for game" путь без этого блока (не реализовано — требует подтверждения, что файл должен читаться и игрой).
+
+## 2026-07-14 — User: "задай mandatory тег mandatory, content_limits тег content_limits чтобы они отображались в категориях 'содержимое пулов' (просмотр, без редактирования); перемести эти два блока в конец файла при сохранении"
+
+### Added
+- `GamePool.Tag` (string?, Models/GamePoolData.cs): тег для синтетических/шаблонных пулов (реальные GameData-пулы оставляют null).
+- `PoolItemInfo.Detail` (string?): свободное текстовое поле настроек (isMine/isGuarded/rules или maxCount) для шаблонных пулов.
+- `TemplatePoolBuilder.Build(List<MandatoryContentGroup>?, List<ContentCountLimit>?)` (static, Models/GamePoolData.cs): строит синтетические `GamePool` (имя = SID пула, Tag = "mandatory"/"content_limits") и словарь строк отображения `Dictionary<GamePool, List<PoolItemInfo>>`. Для mandatory — по строке на ContentItem (sid + Detail с isMine/isGuarded/rules); для limits — по строке на ContentSidLimit (sid + Detail "maxCount: N", Weight = maxCount).
+
+### Changed
+- `ContentPoolViewerWindow`: конструктор принимает `mandatory`/`limits`; синтетические пулы добавляются в `_allPools` и в словарь `_templateItems`; `ShowPool` отдаёт строки из словаря, иначе `GamePoolDataLoader.GetPoolItems`. Категории комбо-бокса дополнены "Mandatory" и "Content limits"; `MatchesCategory` маршрутизирует их по `pool.Tag` (с запасным совпадением по имени).
+- `ContentPoolViewerWindow.xaml`: добавлена колонка "Настройки" (Binding=Detail).
+- `TemplateEditorWindow.xaml.cs` (~:782): при открытии "📋 Просмотр содержимого пулов" передаётся `_template.MandatoryContent` и `_template.ContentCountLimits`.
+- `RmgTemplate.cs`: свойства `MandatoryContent` и `ContentCountLimits` перенесены в конец объявлений (после `contentPools`/`contentLists`), чтобы сериализовались в конец .rmg.json — как в игровых шаблонах. `AuroraRMG`/`name` остаются первыми.
+
+### Tests
+- TemplatePoolsViewerTests.TemplatePoolBuilder_TagsMandatoryAndContentLimitPools: теги "mandatory"/"content_limits", строки с sid + Detail (isMine/Crossroads/maxCount).
+- TemplatePoolsViewerTests.Serialize_WritesMandatoryContentAndLimitsAtEnd: round-trip сохраняет items/limits; порядок — mandatoryContent и contentCountLimits пишутся после contentLists (и после variants).
+
+### Verified
+- dotnet test 59/59, build.bat -> release/OldenEraTemplateGenerator.exe (0 ошибок). Просмотр только (без редактирования). .h3t-импорт изменений не требовал (по запросу).
+## 2026-07-14 20:07 — User: (debug) catalog generator produced wrong file path + malformed class; fix and make real MC/CL generation green
+
+### Fixed
+- Replaced scripts/UpdateGameContentCatalog.ps1 with a C# generator scripts/GenCatalog/ (Program.cs + GenCatalog.csproj) using System.Text.Json. Reason: PowerShell 5.1 ConvertTo-Json/ConvertFrom-Json collapse single-element arrays into scalars (["0"]->"0", [{}]->{}), so the generated .cs could not be deserialized by STJ. The C# generator normalizes bare-object/single-string array fields (ArrayFields: mandatoryContent, content, rules, args, includeLists, contentCountLimits, limits) into JSON arrays via JsonNode deep clones.
+- scripts/GenCatalog/Program.cs: fixed the output path. FindRepoRoot() now walks up from the current directory to locate the repo (previously Directory.GetCurrentDirectory() was combined with ..\\.., writing the file to a phantom G:\table\Olden Era - Template Editor\...\ instead of G:\table\AuroraRMG-main\...\), so the real Models\Generated\GameContentCatalog.generated.cs was never updated.
+- Fixed malformed generated class: Header previously contained the full class body AND its closing brace, which emitted DataJson outside the class. Restructured so Header only opens the class, DataJson is the first member, and Footer holds CatalogDoc/helpers and closes the class once (braces now balanced: 3088/3088).
+- uild.bat [0/5] now runs dotnet run --project "%~dp0scripts\GenCatalog" --verbosity quiet (ps1 removed).
+
+### Changed
+- 	ests/.../UnitTest1.cs: relaxed CatalogContent_ResolvesRolesToRealContent and Generator_EmitsNonEmptyMandatoryContentAndLimits to accept content items that use includeLists instead of a sid (real game data has e.g. mandatory_content_blue items with only includeLists).
+
+### Verified
+- dotnet test 63/63 pass (4 GameContentCatalogTests now green: catalog loads 78 MC + 64 CL, source-file annotation, role resolution, non-empty MC/CL emit).
+- uild.bat -> elease/OldenEraTemplateGenerator.exe, 0 errors (80 pre-existing nullable/CA1416 warnings only). Generator emits 78 mandatoryContent and 64 contentCountLimits pools from the 69 game .rmg.json templates.
+
+## 2026-07-14 21:00 вЂ” User: "РѕСЃС‚Р°РІСЊ Р°РІС‚РѕРІС‹СЃС‚Р°РІР»РµРЅРёРµ РїСѓР»РѕРІ РІ С‚РµС… Р»РѕРіРёРєР°С… РІ РєРѕС‚РѕСЂС‹С… РѕРЅ СѓР¶Рµ РµСЃС‚СЊ; РІ РїСѓР»С‹ РІС‹Р±РѕСЂ РєР°Р¶РґРѕРіРѕ РїСѓР»Р° РѕС‚РґРµР»СЊРЅРѕ; СЂРµР°Р»РёР·СѓР№ (СЏРІРЅС‹Р№ РІС‹Р±РѕСЂ Р±Р°Р·РѕРІРѕРіРѕ С€Р°Р±Р»РѕРЅР° РІ UI)"
+
+### Changed
+- **РџСѓР»С‹ С…СЂР°РЅСЏС‚СЃСЏ РѕС‚РґРµР»СЊРЅРѕ РїРѕ РєР°Р¶РґРѕРјСѓ С€Р°Р±Р»РѕРЅСѓ** (Р±РµР· СЃР»РёСЏРЅРёСЏ РїРѕ РёРјРµРЅРё): scripts/GenCatalog/Program.cs С‚РµРїРµСЂСЊ РїРёС€РµС‚ `GameContentCatalog` РєР°Рє `{ templates: { "<key>": { mandatoryContent, contentCountLimits } } }`, РіРґРµ key = РёРјСЏ С„Р°Р№Р»Р° Р±РµР· `.rmg.json`. РџСЂРёС‡РёРЅР°: РѕРґРёРЅ Рё С‚РѕС‚ Р¶Рµ pool name РЅРµСЃС‘С‚ СЂР°Р·РЅС‹Р№ РєРѕРЅС‚РµРЅС‚ РІ СЂР°Р·РЅС‹С… С€Р°Р±Р»РѕРЅР°С… (РїСЂРѕРІРµСЂРµРЅРѕ: 36/36 mandatoryContent-РёРјС‘РЅ РІ >1 С„Р°Р№Р»Рµ СЂР°Р·Р»РёС‡Р°СЋС‚СЃСЏ, 38/41 contentCountLimits).
+- `Models/Generated/GameContentCatalog.generated.cs` (СЂРµРіРµРЅРµСЂРёСЂРѕРІР°РЅ, 69 С€Р°Р±Р»РѕРЅРѕРІ): РЅРѕРІС‹Р№ API вЂ” `TemplateNames`, `Templates` (Dictionary<string,TemplateEntry>), `GetMandatoryContent(key)`, `GetContentCountLimits(key)`, `TryFindMandatoryContent(key, out, params names)`, `TryFindContentCountLimits(key, out, params names)`, `TemplateFile(key)`. РЈРґР°Р»РµРЅС‹ `MandatoryContentGroups`/`ContentCountLimits`/`MandatoryContentByName`/`ContentCountLimitsByName`/`SourceFilesFor`.
+- `Services/ContentManagement/CatalogContent.cs` (РЅРѕРІС‹Р№): С…СЂР°РЅРёС‚ `_templateKey`; `UseTemplate(key)` РІС‹Р±РёСЂР°РµС‚ Р±Р°Р·РѕРІС‹Р№ С€Р°Р±Р»РѕРЅ; `ResolveBaseTemplate(preferred)` вЂ” best-effort (exact -> substring -> first) РґР»СЏ РїСЂРµСЃРµС‚РѕРІ/РїСЂРѕСЃС‚РѕРіРѕ СЂРµР¶РёРјР°; `McName`/`ClName`/`TryGetMc(role)`/`TryGetCl(role)` СЂРµР·РѕР»РІСЏС‚ РїСѓР» Р’РќРЈРўР Р РІС‹Р±СЂР°РЅРЅРѕРіРѕ С€Р°Р±Р»РѕРЅР°; `Clone<T>` Р»РѕРєР°Р»СЊРЅРѕ (Р±РµР· РєСЂРѕСЃСЃ-РЅРµР№РјСЃРїРµР№СЃРЅРѕРіРѕ `JsonExport`).
+- `Models/Generator/GeneratorSettings.cs`: РґРѕР±Р°РІР»РµРЅРѕ `BaseTemplate` (РєР»СЋС‡ Р±Р°Р·РѕРІРѕРіРѕ РёРіСЂРѕРІРѕРіРѕ С€Р°Р±Р»РѕРЅР°). `Models/Generator/SettingsFile.cs`: `baseTemplate` (JSON). `Models/Generator/Presets.cs`: РєРѕРїРёСЂСѓРµС‚ `BaseTemplate`.
+- `Services/TemplateGenerator.cs` `Generate`: РІР°Р»РёРґРёСЂСѓРµС‚ `settings.BaseTemplate` (Р±СЂРѕСЃР°РµС‚, РµСЃР»Рё null/РїСѓСЃС‚Рѕ/РЅРµС‚ РІ РєР°С‚Р°Р»РѕРіРµ) Рё РІС‹Р·С‹РІР°РµС‚ `CatalogContent.UseTemplate(baseTemplate)`. РЎСѓС‰РµСЃС‚РІСѓСЋС‰Р°СЏ Р°РІС‚Рѕ-СЂР°Р·РґР°С‡Р° РїСѓР»РѕРІ (СЂРѕР»Рё) СЂР°Р±РѕС‚Р°РµС‚ РїСЂРѕР·СЂР°С‡РЅРѕ С‡РµСЂРµР· `CatalogContent`.
+- MainWindow РіРµРЅРµСЂР°С†РёСЏ (MainWindow.Shoot.cs `GenerateReadyMaps`, editor demo; MainWindow.xaml.cs `BtnSimpleGenerate_Click`) С‚РµРїРµСЂСЊ: `settings.BaseTemplate = CatalogContent.SelectedBaseTemplateKey ?? CatalogContent.ResolveBaseTemplate(...)` вЂ” СЏРІРЅС‹Р№ РІС‹Р±РѕСЂ РёР· РІРєР»Р°РґРєРё РџСѓР»С‹ РёРјРµРµС‚ РїСЂРёРѕСЂРёС‚РµС‚, РёРЅР°С‡Рµ auto (РїСЂРµСЃРµС‚С‹/РїСЂРѕСЃС‚РѕР№ СЂРµР¶РёРј СЃРѕС…СЂР°РЅСЏСЋС‚ auto).
+- `scripts/GenCatalog/Program.cs`: normalize С‚РµРїРµСЂСЊ РїСЂРёРІРѕРґРёС‚ С‡РёСЃР»РѕРІС‹Рµ СЌР»РµРјРµРЅС‚С‹ СЃС‚СЂРѕРєРѕРІС‹С… СЃРїРёСЃРєРѕРІ (`args`, `includeLists`, РЅР°РїСЂ. `[0]`) Рє СЃС‚СЂРѕРєР°Рј, С‚.Рє. РјРѕРґРµР»СЊ РєР°С‚Р°Р»РѕРіР° С‚РёРїРёР·РёСЂСѓРµС‚ РёС… РєР°Рє `List<string>`.
+
+### Added (UI)
+- Р’РєР»Р°РґРєР° В«РџСѓР»С‹В» (`TemplateEditorWindow.xaml` TabPools): РІРІРµСЂС…Сѓ РґРѕР±Р°РІР»РµРЅ ComboBox В«Р‘Р°Р·РѕРІС‹Р№ С€Р°Р±Р»РѕРЅ РёРіСЂС‹В» (CmbBaseTemplate), Р·Р°РїРѕР»РЅСЏРµС‚СЃСЏ РёР· `GameContentCatalog.TemplateNames`. Р’С‹Р±РѕСЂ РІС‹Р·С‹РІР°РµС‚ `CatalogContent.SelectBaseTemplate(key)` (Рё `UseTemplate`) вЂ” РїСѓР»С‹ Рё Р°РІС‚Рѕ-РЅР°Р·РЅР°С‡РµРЅРёРµ Р·РѕРЅ Р±РµСЂСѓС‚СЃСЏ РёР· РІС‹Р±СЂР°РЅРЅРѕРіРѕ С€Р°Р±Р»РѕРЅР°; РІС‹Р±РѕСЂ СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ РІ `CatalogContent.SelectedBaseTemplateKey` Рё РІР»РёСЏРµС‚ РЅР° РіРµРЅРµСЂР°С†РёСЋ. РџРµСЂ-РїСѓР»РѕРІС‹Р№ РІС‹Р±РѕСЂ РІ РёРЅСЃРїРµРєС‚РѕСЂРµ Р·РѕРЅС‹ СЃРѕС…СЂР°РЅС‘РЅ (С‡РёС‚Р°РµС‚ `GamePoolDataLoader.GetAllPools()`).
+- `CatalogContent.SelectBaseTemplate(key)` + РїСѓР±Р»РёС‡РЅРѕРµ `SelectedBaseTemplateKey`.
+
+### Fixed
+- `ContentPoolViewerWindow.xaml.cs`: СѓР±СЂР°РЅ РІС‹Р·РѕРІ СѓРґР°Р»С‘РЅРЅРѕРіРѕ `GameContentCatalog.SourceFilesFor` (РїСѓР»С‹ РїСЂРёС…РѕРґСЏС‚ Р±РµР· РєР°С‚Р°Р»РѕРіР°; Р°РЅРЅРѕС‚Р°С†РёСЏ Р±С‹Р»Р° РёРЅРµСЂС‚РЅРѕР№).
+- РўРµСЃС‚С‹ `GameContentCatalogTests` (UnitTest1.cs) РїРµСЂРµРїРёСЃР°РЅС‹ РїРѕРґ per-template API; `Clone` Р»РѕРєР°Р»СЊРЅРѕ РІРѕ РёР·Р±РµР¶Р°РЅРёРµ РЅРµРґРѕСЃС‚СѓРїРЅРѕСЃС‚Рё РЅРµР№РјСЃРїРµР№СЃР° `Old_Era___Template_Editor` РІ WPF temp-compile.
+
+### Verified
+- dotnet test 63/63 (4 GameContentCatalogTests Р·РµР»С‘РЅС‹Рµ). build.bat -> release/OldenEraTemplateGenerator.exe, 0 РѕС€РёР±РѕРє (pre-existing CA1416 warnings). Р“РµРЅРµСЂР°С‚РѕСЂ РІС‹РґР°С‘С‚ СЂРµР°Р»СЊРЅС‹Рµ mandatoryContent/contentCountLimits РёР· РІС‹Р±СЂР°РЅРЅРѕРіРѕ Р±Р°Р·РѕРІРѕРіРѕ С€Р°Р±Р»РѕРЅР°.
+
+
+## 2026-07-14 21:30 вЂ” User: "РїСЂРё РЅР°Р¶Р°С‚РёРё РЅР° РєРЅРѕРїРєСѓ СЃРѕР·РґР°С‚СЊ С€Р°Р±Р»РѕРЅ РїСЂРѕРіСЂР°РјРјР° РєСЂР°С€РёС‚СЃСЏ"
+
+### Fixed (crash on "РЎРѕР·РґР°С‚СЊ С€Р°Р±Р»РѕРЅ" / Generate)
+- Root cause: `MainWindow.BuildSettings()` (MainWindow.xaml.cs:2705) never set `GeneratorSettings.BaseTemplate`. `TemplateGenerator.Generate` had been changed to **throw** `InvalidOperationException` when `BaseTemplate` is null/empty/not-in-catalog, so the main Generate button (label `S.Btn.Generate` = "РЎРѕР·РґР°С‚СЊ С€Р°Р±Р»РѕРЅ", calls `BuildSettings()`) hit the throw в†’ unhandled в†’ app crash.
+- `Services/TemplateGenerator.cs` `Generate`: replaced the hard `throw` with a graceful fallback chain вЂ” `settings.BaseTemplate` в†’ `CatalogContent.SelectedBaseTemplateKey` (Pools-tab ComboBox) в†’ `CatalogContent.ResolveBaseTemplate(null)` (auto). Throws only if the catalog is genuinely empty (never at runtime вЂ” embedded 69 templates). Then `settings.BaseTemplate = resolvedKey; CatalogContent.UseTemplate(resolvedKey);`. Honors "keep auto-resolution" while the explicit Pools-tab pick still wins.
+- `MainWindow.xaml.cs` `BuildSettings()`: now also sets `BaseTemplate = CatalogContent.SelectedBaseTemplateKey ?? CatalogContent.ResolveBaseTemplate(TxtTemplateName.Text.Trim())` for consistency with the other 3 generate paths.
+
+### Added (tests)
+- `GameContentCatalogTests.Generator_DoesNotThrowWithoutExplicitBaseTemplate`: Generate with `BaseTemplate` left null must not throw and must still emit pools (regression guard for the crash).
+
+### Verified
+- dotnet test 64/64 pass. build.bat -> release/OldenEraTemplateGenerator.exe, 0 errors.
+
+
+## 2026-07-14 23:20 � User: "���� content_limits � mandatory_content ����� ������� �� ����������� �� �������, � ��������� �������� � ���������� ������� ���� ... ������� �� ������������� � ���������� ����� ... � ������� ����������� �� �������� � ��������������� ����������. ����� �� ���������� �����: � 1 � 2 ������: guarded, unguarded, random, specific-template, ���������; � ��� ��������: resources"
+
+### Changed
+- Removed the per-template `������� ������ ����` ComboBox (and `TxtBaseTemplateHint`) from the Pools tab; removed `InitBaseTemplatePicker` / `CmbBaseTemplate_SelectionChanged` in TemplateEditorWindow.
+- Removed `CatalogContent.SelectedBaseTemplateKey` and `SelectBaseTemplate`; `TemplateGenerator.Generate` now auto-resolves the base template via `CatalogContent.ResolveBaseTemplate(TemplateName/null)` instead of a user-gated selection. MainWindow/MainWindow.Shoot `BaseTemplate` assignments drop the `?? SelectedBaseTemplateKey` part.
+- Added `GamePool.SourceTemplate` (catalog key of the originating game template) and `GamePoolDataLoader.GetAllPoolsWithTemplates(out Dictionary<GamePool,List<PoolItemInfo>>)` which returns the full universe: game pools + every one of the 69 game templates' `mandatoryContent` / `contentCountLimits` pools (built via `TemplatePoolBuilder.Build`, each tagged with its source template).
+- ContentPoolViewerWindow now loads that full universe by default (view mode) and gained a selection mode (`selectionMode`, `allowedCategories`, `SelectedPools`): categories include a new `Specific-template` (matches `SourceTemplate != null`); shows the source template under each pool; double-click / "�������� ��������� ���" adds to the selection; OK returns chosen pool names.
+- Pools-tab pickers (Guarded, Unguarded, Resources, MandatoryContent, ContentCountLimits) converted to category-based selection via new `AddCategoryPicker`, which opens the viewer in selection mode restricted to the requested categories: p1/p2 = guarded/unguarded/random/specific-template/created; p3 = resources; p4/p5 = specific-template/created.
+
+### Verified
+- dotnet build (Debug) clean; dotnet test 64/64 pass; build.bat -> release/OldenEraTemplateGenerator.exe, 0 errors (includes catalog regen).
+
+## 2026-07-14 23:55 � User: "���������� ���� mandatory/content_limits � ��������� ��������� '������������ �������' � '������ ���������� ��������' (�� specific-template), �������� ��� ������� � �������� (������ UI); ������������� ������� '���'->'�������', '���������'->'������������ ����������', ���������� ' * ' ������ 'maxCount:*'; ������ specific-template �� ������� ��� ������������ �������/������"
+
+### Changed
+- `GamePool.ToString()` now appends "  �  <SourceTemplate>" for template-sourced pools (display only; stored/serialized value stays the bare `Name`).
+- `ContentPoolViewerWindow`: replaced the generic "Specific-template" category with two dedicated categories � "������������ �������" (tag=="mandatory") and "������ ���������� ��������" (tag=="content_limits"); removed the now-unused `Specific-template` option and `GetSourceTemplate` helper.
+- DataGrid column headers renamed: "���" -> "�������", "���������" -> "������������ ����������".
+- `TemplatePoolBuilder.Build` now sets content-limit row `Detail` to " * " (display-only marker) instead of "maxCount: *"; the real `MaxCount` is still carried in `Weight` (and serialized from `ContentCountLimit.Limits`, untouched).
+- Pools-tab pickers: p1/p2 now use "Template-specific" (template_pool_ game pools) instead of the removed "Specific-template"; p4 (mandatory) uses ["������������ �������","���������"]; p5 (limits) uses ["������ ���������� ��������","���������"]. "specific-template" is no longer offered for the mandatory/limits pickers.
+
+### Verified
+- dotnet test 64/64 pass (updated TemplatePoolBuilder_TagsMandatoryAndContentLimitPools assertion to the new " * " display). build.bat -> release/OldenEraTemplateGenerator.exe, 0 errors.
+
+## 2026-07-15 00:15 � User: "� 'maxCount:*' ������ ������ �������� ������ *; ��� mandatory_content ������������� ������� � '�������������', �������: ��� �������� -> �����, ������� -1 -> '-1'"
+
+### Changed
+- `TemplatePoolBuilder.Build` content-limit rows now set `Detail` to the real max-count value (`sl.MaxCount.ToString()`) instead of a literal " * " � the " * " was a placeholder for that value.
+- `ContentPoolViewerWindow` DataGrid now binds to a display projection (`PoolRow`): "�������" (was "���") and "�������������/������������ ����������" (was "���������") columns use pre-formatted strings.
+  - For mandatory-content pools the "�������" column shows nothing when weight is 0 (no variant) and "-1" when weight is -1; the detail column header becomes "�������������".
+  - For content-limits pools the detail column header is "������������ ����������" and shows the max-count value.
+  - For all other pools the header stays "���������" and weight is shown as-is.
+- Updated `TemplatePoolBuilder_TagsMandatoryAndContentLimitPools` assertion to the new `Detail == "1"` (the max-count value).
+
+### Verified
+- dotnet test 64/64 pass. build.bat -> release/OldenEraTemplateGenerator.exe, 0 errors (stopped the locked running exe first so the single-file publish could overwrite).
+
+## 2026-07-14 00:00 � User: ��� includeLists / content_limit ����� (SID = ��� include-������, ������������ variant/maxCount)
+
+### Fixed
+- PoolItemInfo: added Variant (int?) and MaxCount (int) fields.
+- TemplatePoolBuilder.Build:
+  - Mandatory items: Sid falls back to joined IncludeLists when Sid is absent; Variant column = item.Variant (null -> empty, -1 -> -1).
+  - Content-limit items: Sid resolves to sl.Sid -> joined IncludeLists -> first nested content Sid; Variant = sl.Variant (null -> empty); Extra = maxCount value, empty when maxCount is 0/absent.
+- ContentPoolViewerWindow.ShowPool: for mandatory/limits pools the ""�������"" column uses VariantText(int? v) (null -> "", -1 -> "-1"); for limits the Extra column shows MaxCount (empty when 0). Game pools keep raw Weight logic and still expand include-lists.
+- Model unchanged (ContentSidLimit.MaxCount stays int) so serialization is unaffected; absent maxCount is treated as 0 -> empty cell.
+
+### Added
+- Test TemplatePoolBuilder_DisplaysIncludeListsAndOptionalVariantMaxCount covering includeLists Sid, optional variant, and absent maxCount.
+
+### Verified
+- dotnet test 65/65 pass. build.bat -> release/OldenEraTemplateGenerator.exe, 0 errors.

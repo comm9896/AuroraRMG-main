@@ -1,0 +1,71 @@
+<Window x:Class="Olden_Era___Template_Editor.MirrorSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{DynamicResource S.EC.MirrorSettings}" Width="420"
+        SizeToContent="Height"
+        Icon="pack://application:,,,/favicon.ico"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        Background="#0E1117"
+        Foreground="#E7EBF3"
+        FontFamily="Segoe UI" FontSize="13">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="32" ResizeBorderThickness="0"
+                      GlassFrameThickness="0,0,0,1" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
+    <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="32"/>
+                <RowDefinition Height="1"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Title bar -->
+            <Grid Grid.Row="0" Background="#12151D">
+                <TextBlock Text="{DynamicResource S.EC.MirrorSettings}"
+                           FontSize="12" FontWeight="SemiBold"
+                           Foreground="{StaticResource BrushText}"
+                           VerticalAlignment="Center" Margin="10,0,0,0"
+                           MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"/>
+                <Button Content="✕" Style="{StaticResource TitleBarCloseButton}"
+                        HorizontalAlignment="Right"
+                        ToolTip="{DynamicResource S.M.009}" Click="BtnClose_Click"/>
+            </Grid>
+
+            <Rectangle Grid.Row="1" Fill="{StaticResource BrushBorder}"/>
+
+            <!-- Content -->
+            <StackPanel Grid.Row="2" Margin="16" Background="{StaticResource BrushPanel}">
+                <CheckBox x:Name="ChkEnable" Content="{DynamicResource S.EC.MirrorEnable}"
+                          Margin="0,0,0,10" Foreground="#E7EBF3" FontSize="13"
+                          Checked="ChkEnable_Changed" Unchecked="ChkEnable_Changed"/>
+                <CheckBox x:Name="ChkProps" Content="{DynamicResource S.EC.MirrorProps}"
+                          Margin="0,0,0,8" Foreground="#E7EBF3" FontSize="13"
+                          IsEnabled="{Binding IsChecked, ElementName=ChkEnable}"/>
+                <CheckBox x:Name="ChkConns" Content="{DynamicResource S.EC.MirrorConns}"
+                          Margin="0,0,0,10" Foreground="#E7EBF3" FontSize="13"
+                          IsEnabled="{Binding IsChecked, ElementName=ChkEnable}"/>
+                <Button x:Name="BtnHub" Content="{DynamicResource S.EC.MirrorHub}"
+                        Width="130" Height="30" Margin="0,0,0,12"
+                        HorizontalAlignment="Left"
+                        Style="{StaticResource GenerateButton}"
+                        Click="BtnHub_Click"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                    <Button Content="{DynamicResource S.NamePrompt.Save}"
+                            Width="120" Height="30" Margin="0,0,8,0"
+                            IsDefault="True"
+                            Style="{StaticResource GenerateButton}"
+                            Click="BtnOk_Click"/>
+                    <Button Content="{DynamicResource S.NamePrompt.Cancel}"
+                            Width="90" Height="30"
+                            IsCancel="True"
+                            Click="BtnCancel_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

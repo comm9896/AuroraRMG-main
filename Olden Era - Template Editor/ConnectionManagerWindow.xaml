@@ -82,7 +82,7 @@
                                 </DataTemplate>
                             </GridViewColumn.CellTemplate>
                         </GridViewColumn>
-                        <GridViewColumn Width="140" Header="Откуда">
+                        <GridViewColumn Width="140" Header="{DynamicResource S.CM.From}">
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding FromZoneName}" Style="{StaticResource ManagerCell}"/>
@@ -97,14 +97,14 @@
                                 </DataTemplate>
                             </GridViewColumn.CellTemplate>
                         </GridViewColumn>
-                        <GridViewColumn Width="140" Header="Куда">
+                        <GridViewColumn Width="140" Header="{DynamicResource S.CM.To}">
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding ToZoneName}" Style="{StaticResource ManagerCell}"/>
                                 </DataTemplate>
                             </GridViewColumn.CellTemplate>
                         </GridViewColumn>
-                        <GridViewColumn Width="200" Header="Имя связи">
+                        <GridViewColumn Width="200" Header="{DynamicResource S.CM.Name}">
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding DisplayText}" Style="{StaticResource ManagerCell}"
@@ -117,7 +117,7 @@
                                 <DataTemplate>
                                     <Button Content="✕" Style="{StaticResource RemoveBtn}"
                                             Tag="{Binding}" Click="RemoveConnection_Click"
-                                            ToolTip="Удалить связь"/>
+                                            ToolTip="{DynamicResource S.CM.Delete}"/>
                                 </DataTemplate>
                             </GridViewColumn.CellTemplate>
                         </GridViewColumn>
@@ -130,7 +130,7 @@
             <DockPanel>
                 <TextBlock Text="Двойной клик по связи — открыть редактор настроек."
                            VerticalAlignment="Center" FontSize="11" Foreground="#666"/>
-                <Button x:Name="CloseBtn" Content="Закрыть" DockPanel.Dock="Right"
+                <Button x:Name="CloseBtn" Content="{DynamicResource S.CM.Close}" DockPanel.Dock="Right"
                         Background="#4A4570" Foreground="#D0D0D0" BorderThickness="0"
                         Padding="16,6" FontSize="12" Cursor="Hand" Click="Close_Click"/>
             </DockPanel>

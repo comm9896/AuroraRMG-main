@@ -15,7 +15,14 @@ echo  Platform:    win-x64
 echo ==============================================
 echo.
 
-echo [1/4] Restore packages...
+echo [0/5] Update game content catalog (parse map_templates)...
+echo ^> dotnet run --project "%~dp0scripts\GenCatalog" --verbosity quiet
+dotnet run --project "%~dp0scripts\GenCatalog" --verbosity quiet
+if errorlevel 1 goto ERR_CATALOG
+echo OK.
+echo.
+
+echo [1/5] Restore packages...
 echo ^> dotnet restore %PROJ_FILE% -r win-x64 --verbosity normal
 dotnet restore %PROJ_FILE% -r win-x64 --verbosity normal
 if errorlevel 1 goto ERR_RESTORE
@@ -36,7 +43,7 @@ if errorlevel 1 goto ERR_PUBLISH
 echo OK.
 echo.
 
-echo [4/4] Run tests...
+echo [5/5] Run tests...
 if exist %TEST_FILE% (
     echo ^> dotnet test %TEST_FILE% --verbosity normal
     dotnet test %TEST_FILE% --verbosity normal
@@ -58,6 +65,11 @@ goto END
 :ERR_RESTORE
 echo.
 echo [ERROR] restore failed (code: %ERRORLEVEL%)
+goto END
+
+:ERR_CATALOG
+echo.
+echo [ERROR] catalog update failed (code: %ERRORLEVEL%)
 goto END
 
 :ERR_BUILD

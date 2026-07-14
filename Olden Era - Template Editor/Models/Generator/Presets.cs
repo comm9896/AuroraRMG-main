@@ -655,7 +655,8 @@ namespace Olden_Era___Template_Editor.Models
 
             return new GeneratorSettings
             {
-            TemplateName = s.TemplateName,
+                TemplateName = s.TemplateName,
+                BaseTemplate = s.BaseTemplate,
             GameMode = "Classic",
             SingleHeroMode = s.SingleHeroMode,
             PlayerCount = s.PlayerCount,

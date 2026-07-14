@@ -65,7 +65,7 @@
                 </Border>
 
                 <!-- ═══ ORIENTATION ═══ -->
-                <TextBlock Style="{StaticResource SectionHeader}" Text="Ориентация (orientation)"/>
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{DynamicResource S.OR.Mode}"/>
 
                 <TextBlock Style="{StaticResource FieldLabel}" Text="Mode"/>
                 <ComboBox x:Name="CmbMode" Style="{StaticResource FieldCombo}" SelectedIndex="1">
@@ -90,7 +90,8 @@
                 <TextBox x:Name="TxtRandomAngleStep" Style="{StaticResource FieldValue}" Text="90"/>
 
                 <!-- ═══ BORDER ═══ -->
-                <TextBlock Style="{StaticResource SectionHeader}" Text="Граница (border)"/>
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{DynamicResource S.OR.BorderEnabled}"/>
+                <CheckBox x:Name="ChkUseBorder" Content="{DynamicResource S.OR.BorderEnabled}" IsChecked="False" Foreground="#D0D0D0" Margin="0,6,0,4"/>
 
                 <TextBlock Style="{StaticResource FieldLabel}" Text="CornerRadius"/>
                 <TextBox x:Name="TxtCornerRadius" Style="{StaticResource FieldValue}" Text="0.0"/>
