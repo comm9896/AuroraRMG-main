@@ -36,6 +36,8 @@ namespace Olden_Era___Template_Editor
                 ("ExportPng",      "📸 Экспорт PNG",           "Ctrl+E"),
                 ("Mirror",         L("S.EC.Mirror"),               "Ctrl+M"),
                 ("CopyConnections",L("S.EC.CopyConnections"),     ""),
+                ("CopyConnectionProps", L("S.EC.CopyConnProps"),  "Ctrl+Shift+Z"),
+                ("PasteConnectionProps",L("S.EC.PasteConnProps"), "Ctrl+Z"),
                 ("ConnManager",    "📋 Менеджер связей",       "Ctrl+Shift+M"),
             };
 
@@ -178,6 +180,6 @@ namespace Olden_Era___Template_Editor
     {
         // ── Localisation helper ──
         private static string L(string key, params object[] args)
-            => string.Format(Olden_Era___Template_Editor.Services.Localization.LocalizationManager.T(key), args);
+            => Olden_Era___Template_Editor.Services.Localization.LocalizationManager.T(key, args);
     }
 }

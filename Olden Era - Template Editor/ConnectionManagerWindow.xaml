@@ -112,6 +112,27 @@
                                 </DataTemplate>
                             </GridViewColumn.CellTemplate>
                         </GridViewColumn>
+                        <GridViewColumn Width="100" Header="{DynamicResource S.CM.Type}">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding TypeName}" Style="{StaticResource ManagerCell}" FontSize="11"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Width="80" Header="{DynamicResource S.CM.Guard}">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding GuardValue}" Style="{StaticResource ManagerCell}" FontSize="11"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Width="50" Header="{DynamicResource S.CM.Road}">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding RoadFlag}" Style="{StaticResource ManagerCell}" FontSize="14" HorizontalAlignment="Center"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
                         <GridViewColumn Width="36">
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>

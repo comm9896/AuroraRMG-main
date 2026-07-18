@@ -6,7 +6,6 @@
         xmlns:local="clr-namespace:Olden_Era___Template_Editor.Models"
         mc:Ignorable="d"
         Title="CommFork"
-        Icon="pack://application:,,,/favicon.ico"
         Height="820" Width="1240"
         MinHeight="780" MinWidth="1160"
         WindowStyle="None"
@@ -60,7 +59,7 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0"
                             HorizontalAlignment="Left"
                             MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                    <Image Source="pack://application:,,,/favicon.ico" Width="22" Height="22"
+                    <Image Width="22" Height="22"
                            VerticalAlignment="Center" Margin="0,0,10,0"
                            RenderOptions.BitmapScalingMode="HighQuality"/>
                     <!-- Wordmark: CommFork -->
@@ -94,6 +93,7 @@
                                 WindowChrome.IsHitTestVisibleInChrome="True">
                         <Button Content="🔄" Width="38" Margin="0,0,4,0" Click="BtnNew_Click"    Style="{StaticResource ToolbarButton}" ToolTip="{DynamicResource S.M.001}"/>
                         <Button Content="📂" Width="38" Margin="0,0,4,0" Click="BtnOpen_Click"   Style="{StaticResource ToolbarButton}" ToolTip="{DynamicResource S.M.002}"/>
+                        <Button Content="📥" Width="38" Margin="0,0,4,0" Click="BtnImportTemplate_Click" Style="{StaticResource ToolbarButton}" ToolTip="{DynamicResource S.Btn.ImportTemplate}"/>
                         <Button Content="💾" Width="38" Margin="0,0,4,0" Click="BtnSave_Click"   Style="{StaticResource ToolbarButton}" ToolTip="{DynamicResource S.M.003}"/>
                         <Button Content="💾…" Width="44" Margin="0,0,8,0" Click="BtnSaveAs_Click" Style="{StaticResource ToolbarButton}" ToolTip="{DynamicResource S.M.004}"/>
                         <Border Width="1" Background="{StaticResource BrushBorder}" Margin="0,4,8,4" VerticalAlignment="Stretch"/>
@@ -103,6 +103,7 @@
                         <Button x:Name="BtnModeAdvanced" Content="{DynamicResource S.Mode.Advanced}" Tag="advanced"
                                 Margin="0,0,8,0" Click="BtnMode_Click" Style="{StaticResource ToolbarButton}"/>
                         <Border Width="1" Background="{StaticResource BrushBorder}" Margin="0,4,8,4" VerticalAlignment="Stretch"/>
+                        <Button x:Name="BtnMainHelp" Content="?" Width="34" Margin="0,0,2,0" Click="BtnMainHelp_Click" Style="{StaticResource ToolbarButton}" ToolTip="{DynamicResource S.Ed.Help}"/>
                         <Button x:Name="BtnLangRu" Content="RU" Width="34" Margin="0,0,2,0" Click="BtnLang_Click" Tag="ru" Style="{StaticResource ToolbarButton}" ToolTip="{DynamicResource S.M.006}"/>
                         <Button x:Name="BtnLangEn" Content="EN" Width="34" Click="BtnLang_Click" Tag="en" Style="{StaticResource ToolbarButton}" ToolTip="English language"/>
                     </StackPanel>
@@ -299,7 +300,7 @@
 
                             <!-- Игроки (наверху) -->
                             <DockPanel Grid.Row="0" Grid.Column="0">
-                                <Label Content="{DynamicResource S.Lbl.Players}" DockPanel.Dock="Left"/>
+                                <Label x:Name="LblPlayers" Content="{DynamicResource S.Lbl.Players}" DockPanel.Dock="Left"/>
                                 <TextBlock x:Name="TxtPlayers" Text="2" DockPanel.Dock="Right"
                                            HorizontalAlignment="Right" VerticalAlignment="Center"
                                            Margin="0,0,4,0" Style="{StaticResource ValueText}"/>
@@ -310,7 +311,7 @@
                                     ValueChanged="Slider_ValueChanged"/>
 
                             <!-- Вид карты (дублирует топологию из вкладки "Настройка зон") -->
-                            <Label Grid.Row="2" Grid.Column="0" Content="{DynamicResource S.Lbl.MapView}"/>
+                            <Label x:Name="LblMapView" Grid.Row="2" Grid.Column="0" Content="{DynamicResource S.Lbl.MapView}"/>
                             <ComboBox Grid.Row="2" Grid.Column="1" x:Name="CmbMapView"
                                       SelectionChanged="CmbMapView_SelectionChanged"/>
 
@@ -350,6 +351,16 @@
                             <Label Grid.Row="10" Grid.Column="0" Content="{DynamicResource S.Lbl.TemplateName}"/>
                             <TextBox Grid.Row="10" Grid.Column="1" x:Name="TxtTemplateName" Text="{DynamicResource S.M.014}"/>
                         </Grid>
+                        <!-- Описание шаблона -->
+                        <DockPanel Margin="0,6,0,0">
+                            <Label DockPanel.Dock="Left" Content="{DynamicResource S.Lbl.TemplateDescription}"/>
+                            <TextBox x:Name="TxtTemplateDescription" AcceptsReturn="True" Height="48" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                        </DockPanel>
+                        <!-- Режим игры -->
+                        <DockPanel Margin="0,6,0,0">
+                            <Label DockPanel.Dock="Left" Content="{DynamicResource S.Lbl.GameMode}"/>
+                            <ComboBox x:Name="CmbGameModeEdit" SelectedIndex="0" SelectionChanged="CmbGameModeEdit_SelectionChanged"/>
+                        </DockPanel>
                     </StackPanel>
                     </ScrollViewer>
                 </Border>
@@ -409,16 +420,22 @@
                                         TickFrequency="10" SmallChange="10" IsSnapToTickEnabled="True"
                                         ValueChanged="Slider_ValueChanged"/>
 
-                                <DockPanel Grid.Row="8" Grid.Column="0">
-                                    <Label Content="{DynamicResource S.M.038}" DockPanel.Dock="Left"/>
-                                    <TextBlock x:Name="TxtDiplomacy" Text="-0.50" DockPanel.Dock="Right"
-                                               HorizontalAlignment="Right" VerticalAlignment="Center"
-                                               Margin="0,0,10,0" Style="{StaticResource ValueText}"/>
-                                </DockPanel>
-                                <Slider Grid.Row="8" Grid.Column="1" x:Name="SldDiplomacy"
-                                        Minimum="-100" Maximum="100" Value="-50"
-                                        TickFrequency="5" SmallChange="5" IsSnapToTickEnabled="True"
-                                        ValueChanged="Slider_ValueChanged"/>
+                                <Grid x:Name="PnlDiplomacy" Grid.Row="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="210"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <DockPanel Grid.Column="0">
+                                        <Label Content="{DynamicResource S.M.038}" DockPanel.Dock="Left"/>
+                                        <TextBlock x:Name="TxtDiplomacy" Text="-0.50" DockPanel.Dock="Right"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   Margin="0,0,10,0" Style="{StaticResource ValueText}"/>
+                                    </DockPanel>
+                                    <Slider Grid.Column="1" x:Name="SldDiplomacy"
+                                            Minimum="-100" Maximum="100" Value="-50"
+                                            TickFrequency="5" SmallChange="5" IsSnapToTickEnabled="True"
+                                            ValueChanged="Slider_ValueChanged"/>
+                                </Grid>
                             </Grid>
 
                             <StackPanel Margin="0,10,0,0">
@@ -573,6 +590,7 @@
                                              LostFocus="HeroLightingDay_LostFocus"/>
                                 </StackPanel>
 
+                                <StackPanel x:Name="PnlEnvironment">
                                 <TextBlock Text="{DynamicResource S.Hdr.Environment}" Margin="0,16,0,6"
                                            FontWeight="Bold" Opacity="0.85"/>
                                 <Grid>
@@ -633,6 +651,7 @@
                                           Content="{DynamicResource S.M.041}"
                                           Checked="ChkOption_Changed"
                                           Unchecked="ChkOption_Changed"/>
+                                </StackPanel>
 
                                             </StackPanel>
                                         </StackPanel>
@@ -642,7 +661,7 @@
                     </Grid>
                 </TabItem>           
 
-            <TabItem Header="{DynamicResource S.Tab.MapZones}" Tag="{StaticResource BrushTabZones}">
+            <TabItem x:Name="TabMapZones" Header="{DynamicResource S.Tab.MapZones}" Tag="{StaticResource BrushTabZones}">
             <Grid Margin="0,8,0,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>     <!-- Layout -->
@@ -1059,7 +1078,7 @@ ValueChanged="Slider_ValueChanged"/>
         </TabItem>
 
                         <!-- ── BONUSES & BANS TAB ───────────────────────────────────────── -->
-                        <TabItem Header="{DynamicResource S.Tab.ExtraContent}" Tag="{StaticResource BrushTabContent}">
+                        <TabItem x:Name="TabExtraContent" Header="{DynamicResource S.Tab.ExtraContent}" Tag="{StaticResource BrushTabContent}">
             <Grid Margin="0,8,0,0">
                 <DockPanel>
                     <Border DockPanel.Dock="Top"
@@ -2914,25 +2933,29 @@ ValueChanged="Slider_ValueChanged"/>
                                             <Separator Margin="0,12,0,8"/>
                                             <TextBlock Text="{DynamicResource S.M.087}" Style="{StaticResource SectionHeader}" Margin="0,0,0,4"/>
 
-                                            <!-- Value overrides (kept as free-text) -->
-                                            <TextBlock Text="{DynamicResource S.M.088}"
+                                            <!-- Guard-value overrides (chip UI, like pools) -->
+                                            <TextBlock Text="{DynamicResource S.M.114}"
                            Foreground="#E7EBF3" FontSize="12" Margin="0,0,0,4"/>
-                                            <Border Background="#161A24" BorderBrush="#2A3142" BorderThickness="1">
-                                                <DockPanel>
-                                                    <Button DockPanel.Dock="Left" x:Name="BtnPickValueOverride"
-                                Content="+" Width="28"
-                                Click="BtnPickValueOverride_Click"
-                                Background="#0B0E14" BorderBrush="#3A4258" BorderThickness="0,0,1,0"
-                                Foreground="#B3A9FF" FontSize="16"
-                                VerticalAlignment="Stretch" Cursor="Hand"/>
-                                                    <TextBox x:Name="TxtValueOverrides"
-                                 AcceptsReturn="True" Height="68" TextWrapping="NoWrap"
-                                 VerticalScrollBarVisibility="Auto"
-                                 Background="Transparent" BorderThickness="0"
-                                 FontFamily="Consolas" FontSize="11"
-                                 TextChanged="BansOverrides_TextChanged"/>
-                                                </DockPanel>
-                                            </Border>
+                                            <TextBlock Text="{DynamicResource S.M.088}"
+                           Foreground="#8A93A8" FontSize="10" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                                            <WrapPanel x:Name="GuardOverrideChips" Margin="0,0,0,4"/>
+                                            <Button x:Name="BtnAddGuardOverride"
+                            Content="{DynamicResource S.M.116}" FontSize="11"
+                            Padding="10,4,10,4" HorizontalAlignment="Left"
+                            Margin="0,0,0,8" Click="BtnAddGuardOverride_Click"/>
+
+                                            <!-- Value objects redistribution (INACTIVE: no game schema support; serialization blocked) -->
+                                            <StackPanel IsEnabled="False" Opacity="0.5">
+                                                <TextBlock Text="{DynamicResource S.M.115}"
+                                   Foreground="#8A93A8" FontSize="12" Margin="0,8,0,4"/>
+                                                <TextBlock Text="{DynamicResource S.M.117}"
+                                   Foreground="#6A7180" FontSize="10" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                                                <WrapPanel x:Name="ValueOverrideChips" Margin="0,0,0,4"/>
+                                                <Button x:Name="BtnAddValueOverride"
+                                Content="{DynamicResource S.M.116}" FontSize="11"
+                                Padding="10,4,10,4" HorizontalAlignment="Left"
+                                Margin="0,0,0,4" Click="BtnAddValueOverride_Click"/>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
                                 </DockPanel>
@@ -2940,36 +2963,66 @@ ValueChanged="Slider_ValueChanged"/>
                         </TabItem>
 
     </TabControl>
-            <!-- Editor lives in the tab row, set apart with a cyan accent. -->
-            <Button x:Name="BtnEditor" Content="{DynamicResource S.Btn.Editor}"
-                    Click="BtnOpenEditor_Click" ToolTip="{DynamicResource S.M.005}"
-                    Style="{StaticResource TopEditorButton}"
-                    VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,1,4,0"/>
+            <!-- Editor + recreate live in the tab row, set apart with a cyan accent. -->
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,1,4,0">
+                <Button x:Name="BtnRecreate" Content="{DynamicResource S.Btn.Recreate}"
+                        Click="BtnRecreate_Click" Visibility="Collapsed"
+                        Style="{StaticResource TopEditorButton}" Margin="0,0,4,0"/>
+                <Button x:Name="BtnEditor" Content="{DynamicResource S.Btn.Editor}"
+                        Click="BtnOpenEditor_Click" ToolTip="{DynamicResource S.M.005}"
+                        Style="{StaticResource TopEditorButton}"/>
+            </StackPanel>
             </Grid>
 
             <!-- ─── PREVIEW / ACTION COLUMN ──────────────────────────── -->
             <Grid Grid.Column="2">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>   <!-- 0 generate button -->
+                    <RowDefinition Height="Auto"/>   <!-- 1 save editing button -->
                     <RowDefinition Height="6"/>
-                    <RowDefinition Height="Auto"/>   <!-- 2 hints / validation -->
+                    <RowDefinition Height="Auto"/>   <!-- 3 hints / validation -->
                     <RowDefinition Height="8"/>
-                    <RowDefinition Height="*"/>      <!-- 4 image -->
+                    <RowDefinition Height="*"/>      <!-- 5 image -->
                     <RowDefinition Height="8"/>
-                    <RowDefinition Height="Auto"/>   <!-- 6 balance report -->
+                    <RowDefinition Height="Auto"/>   <!-- 7 balance report -->
                     <RowDefinition Height="6"/>
-                    <RowDefinition Height="Auto"/>   <!-- 8 outdated warning -->
+                    <RowDefinition Height="Auto"/>   <!-- 9 outdated warning -->
                     <RowDefinition Height="6"/>
-                    <RowDefinition Height="Auto"/>   <!-- 10 show preview checkbox -->
+                    <RowDefinition Height="Auto"/>   <!-- 11 show preview checkbox -->
                     <RowDefinition Height="6"/>
-                    <RowDefinition Height="Auto"/>   <!-- 12 save button -->
+                    <RowDefinition Height="Auto"/>   <!-- 13 save generated button -->
                 </Grid.RowDefinitions>
 
-                <Button Grid.Row="0"
-                        x:Name="BtnPreview"
-                        Content="{DynamicResource S.Btn.Generate}"
+                <!-- Preview / Edit basic settings button + notification -->
+                <Grid Grid.Row="0">
+                    <Button x:Name="BtnPreview"
+                            Content="{DynamicResource S.Btn.Generate}"
+                            Style="{StaticResource GenerateButton}"
+                            Click="BtnPreview_Click"/>
+                    <TextBlock x:Name="TxtEditNotify"
+                               Text="{DynamicResource S.Btn.Edited}"
+                               Foreground="#E8C860"
+                               FontSize="11" FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Bottom"
+                               Margin="0,0,0,44"
+                               Visibility="Collapsed"
+                               IsHitTestVisible="False">
+                        <TextBlock.Background>
+                            <SolidColorBrush Color="#1A1A2E"/>
+                        </TextBlock.Background>
+                        <TextBlock.Padding>
+                            <Thickness>6,2,6,2</Thickness>
+                        </TextBlock.Padding>
+                    </TextBlock>
+                </Grid>
+
+                <Button Grid.Row="1"
+                        x:Name="BtnSaveEditing"
+                        Content="{DynamicResource S.Btn.SaveEditing}"
                         Style="{StaticResource GenerateButton}"
-                        Click="BtnPreview_Click"/>
+                        Visibility="Collapsed"
+                        Click="BtnSaveEditing_Click"/>
 
                 <ScrollViewer Grid.Row="2"
                               x:Name="PnlValidation"
@@ -3002,7 +3055,7 @@ ValueChanged="Slider_ValueChanged"/>
                     </ItemsControl>
                 </ScrollViewer>
                         
-                        <Border Grid.Row="4"
+                        <Border Grid.Row="5"
                         BorderThickness="2"
                         CornerRadius="4"
                         BorderBrush="{StaticResource BrushBorder}"
@@ -3019,14 +3072,14 @@ ValueChanged="Slider_ValueChanged"/>
                             
                         </Border>
 
-                <TextBlock Grid.Row="6"
+                <TextBlock Grid.Row="7"
                            x:Name="TxtBalanceReport"
                            Foreground="{StaticResource BrushText}"
                            FontSize="12" TextWrapping="Wrap"
                            Visibility="Collapsed"
                            HorizontalAlignment="Stretch"/>
 
-                <CheckBox Grid.Row="10"
+                <CheckBox Grid.Row="11"
                           x:Name="ChkSavePreviewImage"
                           Content="{DynamicResource S.Chk.ShowPreview}"
                           IsChecked="True"
@@ -3034,7 +3087,7 @@ ValueChanged="Slider_ValueChanged"/>
                           Foreground="{StaticResource BrushText}"
                           HorizontalAlignment="Left" Click="ChkSavePreviewImage_Click" />
 
-                <TextBlock Grid.Row="8"
+                <TextBlock Grid.Row="9"
                            x:Name="TxtOutdatedWarning"
                            Foreground="{StaticResource BrushError}"
                            FontSize="12" TextWrapping="Wrap"
@@ -3042,7 +3095,7 @@ ValueChanged="Slider_ValueChanged"/>
                            HorizontalAlignment="Stretch" TextAlignment="Center"
                            Text="{DynamicResource S.M.113}"/>
 
-                <Button Grid.Row="12"
+                <Button Grid.Row="13"
                         x:Name="BtnSaveGenerated"
                         Content="{DynamicResource S.Btn.SaveTemplate}"
                         Style="{StaticResource GenerateButton}"

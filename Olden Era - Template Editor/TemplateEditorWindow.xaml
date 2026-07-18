@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource S.Ed.001}"
         Height="820" Width="1200"
+        MinWidth="800" MinHeight="600"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BrushPanel}"
         UseLayoutRounding="True"
@@ -14,60 +15,86 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Toolbar -->
-        <Border Grid.Row="0" Background="{StaticResource BrushPanelAlt}" Padding="10,7"
+        <!-- Toolbar: fixed 2-row grid layout -->
+        <Border Grid.Row="0" Background="{StaticResource BrushPanelAlt}" Padding="8,5"
                 BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
-            <DockPanel LastChildFill="False">
-                <TextBlock Text="{DynamicResource S.Ed.001}" Foreground="{StaticResource BrushGold}"
-                           FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"
-                           Margin="0,0,16,0" DockPanel.Dock="Left"/>
-                <Button x:Name="BtnLoad" Content="{DynamicResource S.Ed.002}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnLoad_Click"/>
-                <Button x:Name="BtnAddZone" Content="{DynamicResource S.Ed.003}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnAddZone_Click"/>
-                <Button x:Name="BtnCopyZone" Content="{DynamicResource S.Ed.013}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnCopyZone_Click"/>
-                <Button x:Name="BtnPasteZone" Content="{DynamicResource S.Ed.014}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnPasteZone_Click"/>
-                <Button x:Name="BtnConnectMode" Content="{DynamicResource S.Ed.004}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnConnectMode_Click"/>
-                <Button x:Name="BtnConnectionManager" Content="{DynamicResource S.Ed.015}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnConnectionManager_Click"/>
-                <Button x:Name="BtnDelete" Content="{DynamicResource S.Ed.005}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnDelete_Click"/>
-                <Button x:Name="BtnValidate" Content="{DynamicResource S.Ed.006}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnValidate_Click"/>
-                <Button x:Name="BtnSave" Content="{DynamicResource S.Ed.007}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnSave_Click"/>
-                <Button x:Name="BtnExportPng" Content="{DynamicResource S.Ed.ExportPng}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnExportPng_Click"/>
-                <Button x:Name="BtnJsonPreview" Content="{DynamicResource S.Ed.JP}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnJsonPreview_Click"/>
-                <Button x:Name="BtnOrientation" Content="{DynamicResource S.Ed.016}" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,8,0" Click="BtnOrientation_Click"/>
-                <Button x:Name="BtnHelp" Content="?" Width="30" DockPanel.Dock="Left"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,4,0" Click="BtnHelp_Click"
-                        ToolTip="{DynamicResource S.Help.Title}"/>
+            <DockPanel LastChildFill="True">
+                <!-- Left: Title + Hotkeys (vertical) -->
+                <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <TextBlock Text="{DynamicResource S.Ed.001}" Foreground="{StaticResource BrushGold}"
+                               FontWeight="SemiBold" FontSize="14" Margin="0,0,0,2"/>
+                    <Button x:Name="BtnHotkeys" Style="{StaticResource ToolbarButton}" Click="BtnHotkeys_Click"
+                            Padding="6,1,6,1" Height="42">
+                        <StackPanel Orientation="Vertical">
+                            <TextBlock Text="⌨" HorizontalAlignment="Center" FontSize="14" Margin="0,0,0,-2"/>
+                            <TextBlock Text="Горячие клавиши" HorizontalAlignment="Center" FontSize="7" Margin="0,-2,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
 
-                <Button x:Name="BtnZoomReset" Content="{DynamicResource S.Ed.008}" DockPanel.Dock="Right"
-                        Style="{StaticResource ToolbarButton}" Click="BtnZoomReset_Click"/>
-                <Button x:Name="BtnRelayout" Content="{DynamicResource S.Ed.009}" DockPanel.Dock="Right" Margin="0,0,8,0"
-                        Style="{StaticResource ToolbarButton}" Click="BtnRelayout_Click"/>
-                <Button x:Name="BtnZoomIn" Content="+" Width="30" DockPanel.Dock="Right" Margin="0,0,4,0"
-                        Style="{StaticResource ToolbarButton}" Click="BtnZoomIn_Click" ToolTip="{DynamicResource S.Ed.ZoomIn}"/>
-                <Button x:Name="BtnZoomOut" Content="−" Width="30" DockPanel.Dock="Right" Margin="0,0,8,0"
-                        Style="{StaticResource ToolbarButton}" Click="BtnZoomOut_Click" ToolTip="{DynamicResource S.Ed.ZoomOut}"/>
+                <!-- Right: zoom buttons (2 rows) -->
+                <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" Margin="6,0,0,0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="BtnZoomOut" Content="−" Width="28" Style="{StaticResource ToolbarButton}"
+                                Click="BtnZoomOut_Click" ToolTip="{DynamicResource S.Ed.ZoomOut}"/>
+                        <Button x:Name="BtnHelp" Content="?" Width="28" Style="{StaticResource ToolbarButton}"
+                                Click="BtnHelp_Click" Margin="4,0,0,0" ToolTip="{DynamicResource S.Ed.Help}"/>
+                        <Button x:Name="BtnRelayout" Content="{DynamicResource S.Ed.009}" Style="{StaticResource ToolbarButton}"
+                                Click="BtnRelayout_Click" Margin="4,0,0,0"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
+                        <Button x:Name="BtnZoomIn" Content="+" Width="28" Style="{StaticResource ToolbarButton}"
+                                Click="BtnZoomIn_Click" ToolTip="{DynamicResource S.Ed.ZoomIn}"/>
+                        <Button x:Name="BtnZoomReset" Content="{DynamicResource S.Ed.008}" Style="{StaticResource ToolbarButton}"
+                                Click="BtnZoomReset_Click" Margin="4,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Center: 2-row × 7-column grid — paired buttons, uniform width per column -->
+                                <Grid VerticalAlignment="Center" Margin="0,2,0,2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" SharedSizeGroup="C0"/>
+                                        <ColumnDefinition Width="Auto" SharedSizeGroup="C1"/>
+                                        <ColumnDefinition Width="Auto" SharedSizeGroup="C2"/>
+                                        <ColumnDefinition Width="Auto" SharedSizeGroup="C3"/>
+                                        <ColumnDefinition Width="Auto" SharedSizeGroup="C4"/>
+                                        <ColumnDefinition Width="Auto" SharedSizeGroup="C5"/>
+                                        <ColumnDefinition Width="Auto" SharedSizeGroup="C6"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.Resources>
+                                        <Style TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
+                                            <Setter Property="Margin" Value="0,0,4,2"/>
+                                        </Style>
+                                    </Grid.Resources>
+
+                                    <!-- Col 0 -->
+                                    <Button Grid.Row="0" Grid.Column="0" x:Name="BtnLoad" Content="{DynamicResource S.Ed.002}" Click="BtnLoad_Click"/>
+                                    <Button Grid.Row="1" Grid.Column="0" x:Name="BtnSave" Content="{DynamicResource S.Ed.007}" Click="BtnSave_Click"/>
+                                    <!-- Col 1 -->
+                                    <Button Grid.Row="0" Grid.Column="1" x:Name="BtnAddZone" Content="{DynamicResource S.Ed.003}" Click="BtnAddZone_Click"/>
+                                    <Button Grid.Row="1" Grid.Column="1" x:Name="BtnMirror" Content="{DynamicResource S.EC.Mirror}" Click="BtnMirror_Click" ToolTip="{DynamicResource S.EC.MirrorTip}"/>
+                                    <!-- Col 2 -->
+                                    <Button Grid.Row="0" Grid.Column="2" x:Name="BtnCopyZone" Content="{DynamicResource S.Ed.013}" Click="BtnCopyZone_Click"/>
+                                    <Button Grid.Row="1" Grid.Column="2" x:Name="BtnPasteZone" Content="{DynamicResource S.Ed.014}" Click="BtnPasteZone_Click"/>
+                                    <!-- Col 3 -->
+                                    <Button Grid.Row="0" Grid.Column="3" x:Name="BtnConnectMode" Content="{DynamicResource S.Ed.004}" Click="BtnConnectMode_Click"/>
+                                    <Button Grid.Row="1" Grid.Column="3" x:Name="BtnConnectionManager" Content="{DynamicResource S.Ed.015}" Click="BtnConnectionManager_Click"/>
+                                    <!-- Col 4 -->
+                                    <Button Grid.Row="0" Grid.Column="4" x:Name="BtnDelete" Content="{DynamicResource S.Ed.005}" Click="BtnDelete_Click"/>
+                                    <Button Grid.Row="1" Grid.Column="4" x:Name="BtnValidate" Content="{DynamicResource S.Ed.006}" Click="BtnValidate_Click"/>
+                                    <!-- Col 5 -->
+                                    <Button Grid.Row="0" Grid.Column="5" x:Name="BtnExportPng" Content="{DynamicResource S.Ed.ExportPng}" Click="BtnExportPng_Click"/>
+                                    <Button Grid.Row="1" Grid.Column="5" x:Name="BtnJsonPreview" Content="{DynamicResource S.Ed.JP}" Click="BtnJsonPreview_Click"/>
+                                    <!-- Col 6 -->
+                                    <Button Grid.Row="0" Grid.Column="6" x:Name="BtnOrientation" Content="{DynamicResource S.Ed.016}" Margin="0,0,0,2" Click="BtnOrientation_Click"/>
+                                    <Button Grid.Row="1" Grid.Column="6" x:Name="BtnGridSnap" Content="{DynamicResource S.EC.GridSnap}" Margin="0,2,0,0" Click="BtnGridSnap_Click"/>
+                                </Grid>
             </DockPanel>
         </Border>
-
-        <!-- Grid snap toggle (floating, under editor icon) -->
-        <Button x:Name="BtnGridSnap" Grid.Row="0"
-                HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                Margin="12,-30,0,0" Panel.ZIndex="10"
-                Style="{StaticResource ToolbarButton}"
-                Content="{DynamicResource S.EC.GridSnap}"
-                Click="BtnGridSnap_Click"
-                ToolTip="Привязка зон к сетке при перемещении"/>
 
         <!-- Body: canvas + inspector -->
         <Grid Grid.Row="1">
@@ -177,25 +204,11 @@
                     <TextBlock x:Name="TxtCanvasHint" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12,10"
                                Foreground="{StaticResource BrushTextDim}" FontSize="11" IsHitTestVisible="False"
                                Text="{DynamicResource S.Ed.CanvasHint}"/>
-                    <!-- Hotkey settings button (top-left, below hint) -->
-                    <Button Content="⌨ Горячие клавиши" HorizontalAlignment="Left" VerticalAlignment="Top"
-                            Margin="12,30,0,0" Background="#2A2540" Foreground="#888"
-                            BorderBrush="#3A3560" BorderThickness="1" Padding="8,3" FontSize="10"
-                            Cursor="Hand" Click="BtnHotkeys_Click"/>
                     <!-- Selection help (top-right) -->
                     <TextBlock x:Name="TxtCanvasHelp" HorizontalAlignment="Right" VerticalAlignment="Top"
                                Margin="12,10" MaxWidth="300" TextWrapping="Wrap" TextAlignment="Right"
                                Foreground="{StaticResource BrushTextDim}" FontSize="11" IsHitTestVisible="False"
                                Text="{DynamicResource S.Ed.011}"/>
-                    <!-- Mirror creation (bottom-right) -->
-                    <Button x:Name="BtnCopyConnections" Content="📋 Скопировать связи"
-                            Style="{StaticResource ToolbarButton}" HorizontalAlignment="Right"
-                            VerticalAlignment="Bottom" Margin="0,0,10,40"
-                            Click="BtnCopyConnections_Click"/>
-                    <Button x:Name="BtnMirror" Content="{DynamicResource S.EC.Mirror}"
-                            Style="{StaticResource ToolbarButton}" HorizontalAlignment="Right"
-                            VerticalAlignment="Bottom" Margin="0,0,10,10"
-                            Click="BtnMirror_Click" ToolTip="{DynamicResource S.EC.MirrorTip}"/>
                 </Grid>
             </Border>
 

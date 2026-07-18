@@ -10,5 +10,8 @@ namespace OldenEraTemplateEditor.Models
         public string? ToZoneName { get; set; }
         public string? DisplayText { get; set; }
         public bool IsModified { get; set; }
+        public string? TypeName { get; set; }
+        public string? GuardValue { get; set; }
+        public string? RoadFlag { get; set; }
     }
 }

@@ -1,13 +1,28 @@
 <Window x:Class="Olden_Era___Template_Editor.ContentPoolCreatorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="{DynamicResource S.CPC.Title}"
-        Height="700" Width="900"
+        xmlns:local="clr-namespace:Olden_Era___Template_Editor"
+        Title="{DynamicResource S.CPC.Title}" Width="640" Height="500"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource BrushPanel}"
-        UseLayoutRounding="True">
+        Background="#0E1117" Foreground="#E7EBF3"
+        FontFamily="Segoe UI" FontSize="13">
+    <Window.Resources>
+        <Style x:Key="BlackCellText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#000000"/>
+            <Setter Property="FontSize"   Value="11"/>
+            <Setter Property="Padding"    Value="4,2"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="BlackHeaderText" TargetType="DataGridColumnHeader">
+            <Setter Property="Foreground" Value="#000000"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Background" Value="#E0E0E0"/>
+            <Setter Property="Padding"    Value="4,2"/>
+        </Style>
+    </Window.Resources>
     <Grid Margin="12">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -15,19 +30,30 @@
         </Grid.RowDefinitions>
 
         <!-- Pool name -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,12">
-            <TextBlock Text="{DynamicResource S.CPC.PoolName}" Foreground="{StaticResource BrushTextDim}" FontSize="12" Margin="0,0,0,4"/>
-            <TextBox x:Name="PoolNameBox" FontSize="12" Padding="4"/>
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock Text="{DynamicResource S.CPC.PoolName}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox x:Name="PoolNameBox" Width="300"/>
         </StackPanel>
 
         <!-- Category filter -->
-        <StackPanel Grid.Row="1" Margin="0,0,0,8">
-            <TextBlock Text="{DynamicResource S.CPC.Category}" Foreground="{StaticResource BrushTextDim}" FontSize="12" Margin="0,0,0,4"/>
-            <ComboBox x:Name="CategoryCombo" SelectionChanged="CategoryCombo_SelectionChanged" FontSize="12" Padding="4"/>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock Text="{DynamicResource S.CPC.Category}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ComboBox x:Name="CategoryCombo" Width="200" SelectionChanged="CategoryCombo_SelectionChanged"/>
         </StackPanel>
 
-        <!-- Content lists -->
-        <Grid Grid.Row="2">
+        <!-- Available lists (right) and Selected lists with weight (left) -->
+        <Grid Grid.Row="2" Margin="0,0,0,4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="{DynamicResource S.CPC.Available}" FontWeight="SemiBold"/>
+            <TextBlock Grid.Column="2" Text="{DynamicResource S.CPC.InPool}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        </Grid>
+
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -35,64 +61,54 @@
             </Grid.ColumnDefinitions>
 
             <!-- Available lists -->
-            <Border Grid.Column="0" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="4">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="{DynamicResource S.CPC.Available}" Foreground="{StaticResource BrushGold}" FontSize="11" Padding="8,4"/>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="AvailableLists" Margin="4">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="4,2">
-                                        <DockPanel>
-                                            <Button Content="+" DockPanel.Dock="Right" Width="24" Height="24" Margin="4,0,0,0"
-                                                    Click="AddList_Click" Tag="{Binding Name}" ToolTip="Добавить в пул"/>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Name}" Foreground="{StaticResource BrushText}" FontSize="11" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding Description}" Foreground="{StaticResource BrushTextDim}" FontSize="9" TextTrimming="CharacterEllipsis"/>
-                                            </StackPanel>
-                                        </DockPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                </DockPanel>
-            </Border>
+            <ListBox x:Name="AvailableLists" Grid.Column="0"
+                     SelectionMode="Extended"
+                     Background="White" Foreground="Black" BorderBrush="#2A2F3A"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Name}" Foreground="Black" ToolTip="{Binding Description}" TextWrapping="Wrap"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
 
             <!-- Buttons -->
-            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0">
-                <Button Content="→" Width="32" Height="32" Margin="0,4" Click="AddAll_Click" ToolTip="Добавить все"/>
-                <Button Content="←" Width="32" Height="32" Margin="0,4" Click="RemoveAll_Click" ToolTip="Удалить все"/>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8">
+                <!-- Add (+) on the left, Remove (-) on the right, above "Add all" -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                    <Button Content="+" Width="34" Height="28" Margin="0,0,4,0"
+                            Click="AddSelected_Click" FontSize="16" FontWeight="Bold"/>
+                    <Button Content="-" Width="34" Height="28"
+                            Click="RemoveSelected_Click" FontSize="16" FontWeight="Bold"/>
+                </StackPanel>
+                <Button x:Name="AddAllBtn" Content="{DynamicResource S.CPC.AddAll}" Width="110" Margin="0,0,0,4"
+                        Click="AddAll_Click" FontSize="11"/>
+                <Button x:Name="RemoveAllBtn" Content="{DynamicResource S.CPC.RemoveAll}" Width="110"
+                        Click="RemoveAll_Click" FontSize="11"/>
             </StackPanel>
 
-            <!-- Selected lists -->
-            <Border Grid.Column="2" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="4">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="{DynamicResource S.CPC.InPool}" Foreground="{StaticResource BrushGold}" FontSize="11" Padding="8,4"/>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="SelectedLists" Margin="4">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="4,2">
-                                        <DockPanel>
-                                            <Button Content="✕" DockPanel.Dock="Right" Width="24" Height="24" Margin="4,0,0,0"
-                                                    Click="RemoveList_Click" Tag="{Binding Name}" ToolTip="Удалить из пула"/>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Name}" Foreground="{StaticResource BrushText}" FontSize="11" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding Description}" Foreground="{StaticResource BrushTextDim}" FontSize="9" TextTrimming="CharacterEllipsis"/>
-                                            </StackPanel>
-                                        </DockPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                </DockPanel>
-            </Border>
+            <!-- Selected lists with Weight -->
+            <DataGrid x:Name="SelectedLists" Grid.Column="2"
+                      AutoGenerateColumns="False" HeadersVisibility="Column"
+                      SelectionMode="Extended"
+                      Background="White" Foreground="Black" BorderBrush="#2A2F3A"
+                      RowHeaderWidth="0"
+                      ColumnHeaderStyle="{StaticResource BlackHeaderText}"
+                      GridLinesVisibility="None"
+                      CanUserAddRows="False" CanUserDeleteRows="False">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Список" Binding="{Binding Name}" Width="*" IsReadOnly="True"
+                                        ElementStyle="{StaticResource BlackCellText}"/>
+                    <DataGridTextColumn Header="Weight" Binding="{Binding Weight}" Width="60"
+                                        ElementStyle="{StaticResource BlackCellText}"/>
+                </DataGrid.Columns>
+            </DataGrid>
         </Grid>
 
         <!-- Create button -->
-        <Button Grid.Row="3" Content="Создать 池" HorizontalAlignment="Right" Margin="0,12,0,0"
-                Padding="16,8" FontSize="12" Click="CreatePool_Click"/>
+        <Button Grid.Row="4" Content="{DynamicResource S.CPC.Create}"
+                HorizontalAlignment="Right" Margin="0,12,0,0"
+                Width="140" Height="30"
+                Click="CreatePool_Click"/>
     </Grid>
 </Window>

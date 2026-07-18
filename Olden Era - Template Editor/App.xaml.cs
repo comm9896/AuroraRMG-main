@@ -32,6 +32,9 @@ namespace Olden_Era___Template_Editor
             LocalizationManager.Instance.Initialize(lang);
 
             base.OnStartup(e);
+
+            // Ensure config.json exists next to the executable (auto-created with defaults)
+            _ = Services.ConfigJson.Current;
         }
     }
 }

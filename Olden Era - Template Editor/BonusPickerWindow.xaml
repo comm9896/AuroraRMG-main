@@ -2,7 +2,6 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource S.Bonus.001}" Width="420" Height="390"
-        Icon="pack://application:,,,/favicon.ico"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize" MinWidth="350" MinHeight="300"
         WindowStyle="None"

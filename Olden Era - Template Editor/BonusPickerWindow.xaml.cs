@@ -35,17 +35,32 @@ namespace Olden_Era___Template_Editor
 
         // ── Helpers ──────────────────────────────────────────────────────────────
 
-        private BonusPresetType SelectedType =>
-            (BonusPresetType)int.Parse((string)((ComboBoxItem)CmbType.SelectedItem).Tag);
+        private BonusPresetType SelectedType
+        {
+            get
+            {
+                if (CmbType.SelectedItem is ComboBoxItem ci && ci.Tag is string tag && int.TryParse(tag, out int t))
+                    return (BonusPresetType)t;
+                return BonusPresetType.TownPortalFree;
+            }
+        }
 
-        private string SelectedReceiver =>
-            (string)((ComboBoxItem)CmbReceiver.SelectedItem).Tag;
+        private string SelectedReceiver
+        {
+            get
+            {
+                if (CmbReceiver.SelectedItem is ComboBoxItem ci && ci.Tag is string tag)
+                    return tag;
+                return "start_hero";
+            }
+        }
 
         // ── Event handlers ────────────────────────────────────────────────────────
 
         private void CmbType_Changed(object sender, SelectionChangedEventArgs e)
         {
             if (!IsInitialized) return;
+            if (CmbType.SelectedItem == null) return; // ignore re-entrant selection during construction/Text sync
             var type = SelectedType;
 
             PnlSpell.Visibility      = type == BonusPresetType.Spell              ? Visibility.Visible : Visibility.Collapsed;
@@ -82,24 +97,19 @@ namespace Olden_Era___Template_Editor
             var picker = new SpellPickerWindow(_existingSpellIds) { Owner = this };
             if (picker.ShowDialog() != true) return;
 
-            if (picker.SelectedIds.Count > 1)
+            if (picker.SelectedIds.Count > 0)
             {
-                var receiver = SelectedReceiver;
+                TxtSpell.Text = string.Join(", ", picker.SelectedIds);
+                ChkMakeFree.IsChecked = picker.MakeFree;
                 Results = picker.SelectedIds
                     .Select(id => new BonusEntry
                     {
                         PresetType     = BonusPresetType.Spell,
-                        ReceiverFilter = receiver,
+                        ReceiverFilter = SelectedReceiver,
                         Param          = id,
                         Param2         = picker.MakeFree ? "1" : "0",
                     })
                     .ToList();
-                DialogResult = true;
-            }
-            else if (picker.SelectedIds.Count == 1)
-            {
-                TxtSpell.Text         = picker.SelectedIds[0];
-                ChkMakeFree.IsChecked = picker.MakeFree;
             }
         }
 
@@ -110,23 +120,17 @@ namespace Olden_Era___Template_Editor
             var picker = new ItemPickerWindow(entries, _existingItemIds, Services.Localization.LocalizationManager.T("S.Bonus.ChooseItem")) { Owner = this };
             if (picker.ShowDialog() != true) return;
 
-            if (picker.SelectedIds.Count > 1)
+            if (picker.SelectedIds.Count > 0)
             {
-                // Multi-selection: build one StartingItem bonus per artifact and close immediately
-                var receiver = SelectedReceiver;
+                TxtItem.Text = string.Join(", ", picker.SelectedIds);
                 Results = picker.SelectedIds
                     .Select(id => new BonusEntry
                     {
                         PresetType     = BonusPresetType.StartingItem,
-                        ReceiverFilter = receiver,
+                        ReceiverFilter = SelectedReceiver,
                         Param          = id,
                     })
                     .ToList();
-                DialogResult = true;
-            }
-            else if (picker.SelectedIds.Count == 1)
-            {
-                TxtItem.Text = picker.SelectedIds[0];
             }
         }
 
@@ -140,6 +144,13 @@ namespace Olden_Era___Template_Editor
             switch (type)
             {
                 case BonusPresetType.Spell:
+                    // If the spell picker already produced one or more entries (single or multi-select),
+                    // use them directly so the user's visible selection is what gets added.
+                    if (Results.Count > 0 && Results.All(b => b.PresetType == BonusPresetType.Spell))
+                    {
+                        AddPickedResults(receiver);
+                        return;
+                    }
                     param = TxtSpell.Text.Trim();
                     if (string.IsNullOrEmpty(param))
                     {
@@ -160,6 +171,11 @@ namespace Olden_Era___Template_Editor
                     break;
 
                 case BonusPresetType.StartingItem:
+                    if (Results.Count > 0 && Results.All(b => b.PresetType == BonusPresetType.StartingItem))
+                    {
+                        AddPickedResults(receiver);
+                        return;
+                    }
                     param = TxtItem.Text.Trim();
                     if (string.IsNullOrEmpty(param))
                     {
@@ -195,6 +211,32 @@ namespace Olden_Era___Template_Editor
 
         private void BtnCancel_Click(object sender, RoutedEventArgs e)
             => DialogResult = false;
+
+        // Adds the entries already produced by the spell/item picker (which the user can see in
+        // the TxtSpell/TxtItem box). Re-applies the current receiver and skips already-added ones.
+        private void AddPickedResults(string receiver)
+        {
+            var toAdd = Results
+                .Where(b => !_existingKeys.Contains(b.ToString()))
+                .Select(b => new BonusEntry
+                {
+                    PresetType     = b.PresetType,
+                    ReceiverFilter = receiver,
+                    Param          = b.Param,
+                    Param2         = b.Param2,
+                })
+                .ToList();
+
+            if (toAdd.Count == 0)
+            {
+                MessageBox.Show(Services.Localization.LocalizationManager.T("S.Bonus.AlreadyAdded"), Services.Localization.LocalizationManager.T("S.Bonus.Duplicate"), MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            Results      = toAdd;
+            Result       = toAdd[0];
+            DialogResult = true;
+        }
 
         private void TitleBar_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {

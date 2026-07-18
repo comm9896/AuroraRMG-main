@@ -3,7 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource S.NamePrompt.Title}" Width="460"
         SizeToContent="Height"
-        Icon="pack://application:,,,/favicon.ico"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         WindowStyle="None"

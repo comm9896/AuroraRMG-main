@@ -99,7 +99,7 @@ namespace Olden_Era___Template_Editor.Services
 
             var zones = new List<Zone>();
             var connections = new List<Connection>();
-            var zoneIds = new Dictionary<int, string>(); // id → name
+            var zoneIds = new Dictionary<int, string>(); // 1-based zone ordinal → name
 
             // Extract template name from header line (zoneNew=18 or 99, line index 3)
             string headerName = "";
@@ -115,6 +115,44 @@ namespace Olden_Era___Template_Editor.Services
                 }
             }
             template.Name = headerName;
+
+            // ── Validate H3T file before parsing ──
+            // Check 1: Mirror templates (description contains "Mirror")
+            // Check 2: Multi-subtemplate packs (field[15] contains multiple subtemplate names)
+            if (lines.Length > 3)
+            {
+                var headerParts = lines[3].Split('\t');
+                string desc = GetField(headerParts, 8);
+                string mainName = headerName;
+
+                // Mirror template marker: description contains "Mirror"
+                if (desc.Contains("Mirror"))
+                {
+                    throw new InvalidOperationException(
+                        Localization.LocalizationManager.T("S.EC.MirrorImportError"));
+                }
+
+                // Multi-subtemplate: count unique field[15] values across the file.
+                // Normal templates have exactly 1 (the template name). Multi-subtemplate
+                // packs (Default Random Map, Jebus Outcast, Duel, etc.) have 3+.
+                var subNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var line in lines)
+                {
+                    var p = line.Split('\t');
+                    if (p.Length > 15)
+                    {
+                        string f15 = p[15].Trim();
+                        if (!string.IsNullOrEmpty(f15) && f15 != "Name" && f15 != "Map" &&
+                            !string.Equals(f15, mainName, StringComparison.OrdinalIgnoreCase))
+                            subNames.Add(f15);
+                    }
+                }
+                if (subNames.Count >= 2)
+                {
+                    throw new InvalidOperationException(
+                        Localization.LocalizationManager.T("S.EC.MultiTemplateError"));
+                }
+            }
 
             // ── First pass: collect raw sizes to find the mode ──
             var allZoneLines = new List<(string[] parts, bool isZone)>();
@@ -149,22 +187,31 @@ namespace Olden_Era___Template_Editor.Services
                     .Key;
             }
 
-            // ── Second pass: create zones with normalized Size ──
+            // ── Second pass: create zones and build the ordinal→name map ──
+            // H3T connection indices (Zone 1 / Zone 2 fields) are 1-BASED ZONE ORDINALS
+            // (the order zones appear in the file), NOT the zone's internal Id field (field[28]).
+            // Every HotA template has the Id field offset (e.g. starting at 2), so keying the
+            // lookup by Id makes every connection resolve to a non-existent "Zone-1" → all
+            // zones import unconnected. We therefore key zoneIds by 1-based ordinal.
+            // Connections are collected in a SEPARATE pass below: a zone row can carry its
+            // own connection referencing a zone defined LATER in the file, so the ordinal map
+            // must be complete before any connection is resolved.
+            int ordinal = 0;
             foreach (var (parts, isZone) in allZoneLines)
             {
-                if (!isZone) goto checkConnection;
-
-                string zoneNew = GetField(parts, FIELD_ZONE_NEW);
+                if (!isZone) continue;
 
                 // Zone definition: any row with a valid numeric ID (field[28])
                 // Includes header row (zoneNew=18) which carries the first zone's data
                 var zone = ParseZone(parts, fields, template.Name ?? "", sizeMode);
                 zones.Add(zone);
-                int id = int.TryParse(GetField(parts, FIELD_ID), out int idVal2) ? idVal2 : zones.Count;
-                zoneIds[id] = zone.Name;
+                ordinal++;
+                zoneIds[ordinal] = zone.Name;
+            }
 
-                checkConnection:
-                // Connection: fields Z1/Z2 are filled (can coexist with zone data on same row)
+            // ── Connection pass: resolve after the ordinal map is complete ──
+            foreach (var (parts, _) in allZoneLines)
+            {
                 string z1Check = GetField(parts, FIELD_ZONE_1);
                 string z2Check = GetField(parts, FIELD_ZONE_2);
                 if (!string.IsNullOrEmpty(z1Check) && !string.IsNullOrEmpty(z2Check))
@@ -174,6 +221,17 @@ namespace Olden_Era___Template_Editor.Services
                         connections.Add(conn);
                 }
             }
+
+            // ── Normalize connections ──
+            // H3T files may present connections in several structural layouts (embedded in each
+            // zone row, and/or a trailing standalone block, sometimes duplicated). Collapse them
+            // to a canonical, de-duplicated edge set so the imported graph is correct regardless
+            // of which layout the file uses. The logic is purely structural — it never depends
+            // on specific file names or zone names.
+            connections = NormalizeConnections(connections);
+
+            // ── Assign sequential Player spawn across all human-start (spawn) zones ──
+            AssignSequentialSpawns(zones);
 
             // ── Auto-generate roads in zones from connections with Road=true ──
             AutoGenerateRoadsFromConnections(zones, connections);
@@ -458,14 +516,17 @@ namespace Olden_Era___Template_Editor.Services
                     : null,
             };
 
-            // human_start → Spawn main object with ownership (0→Player1, 1→Player2, ...)
+            // human_start → Spawn main object. The sequential Player assignment
+            // (Player1..PlayerN across all spawn zones) is applied later in a
+            // post-processing pass (AssignSequentialSpawns) once every zone is known.
             if (isHumanStart)
             {
                 zone.MainObjects.Add(new MainObject
                 {
                     Type = "Spawn",
-                    Spawn = $"Player{ownership + 1}",
+                    Spawn = "Player1",
                     RemoveGuardIfHasOwner = true,
+                    Placement = "Uniform",
                     GuardChance = 1.0,
                     GuardValue = 5000,
                     GuardWeeklyIncrement = 0.20,
@@ -483,8 +544,9 @@ namespace Olden_Era___Template_Editor.Services
             // (field[74]='x' → match to town). Mirrors the editor's Add MainObject → City defaults.
             int.TryParse(GetField(parts, 40), out int playerTowns);
             int.TryParse(GetField(parts, 43), out int neutralTowns);
+            int.TryParse(GetField(parts, 44), out int extraTowns);
             int playerCities = isHumanStart ? Math.Max(0, playerTowns - 1) : playerTowns;
-            int totalCities = playerCities + neutralTowns;
+            int totalCities = playerCities + neutralTowns + extraTowns;
             for (int c = 0; c < totalCities; c++)
             {
                 var city = new MainObject
@@ -585,6 +647,97 @@ namespace Olden_Era___Template_Editor.Services
             };
         }
 
+        /// <summary>
+        /// Collapses a raw list of parsed H3T connections into a canonical, de-duplicated
+        /// edge set. H3T files may lay connections out in several structural variants
+        /// within a single file — embedded on each zone row, and/or in a standalone
+        /// trailing block, and that block may itself be duplicated. The normalization is
+        /// purely structural and never depends on specific file or zone names:
+        ///   • self-loops (From == To) are dropped;
+        ///   • an edge is identified by its unordered zone pair {min, max}, so A↔B and
+        ///     B↔A are the same connection and reverse-order duplicates are merged;
+        ///   • when several occurrences share a pair, the most-specific one wins
+        ///     (Road == true, else a non-Default ConnectionType, else the first seen),
+        ///     so duplicated trailing blocks do not discard road/portal information.
+        /// </summary>
+        private static List<Connection> NormalizeConnections(List<Connection> raw)
+        {
+            var best = new Dictionary<string, Connection>(StringComparer.Ordinal);
+            foreach (var c in raw)
+            {
+                if (string.IsNullOrEmpty(c.From) || string.IsNullOrEmpty(c.To))
+                    continue;
+                if (string.Equals(c.From, c.To, StringComparison.Ordinal))
+                    continue; // self-loop
+
+                // Unordered pair key so A↔B and B↔A merge.
+                int cmp = string.CompareOrdinal(c.From, c.To);
+                string a = cmp <= 0 ? c.From : c.To;
+                string b = cmp <= 0 ? c.To : c.From;
+                string key = $"{a}|{b}";
+
+                if (best.TryGetValue(key, out var existing))
+                {
+                    if (IsMoreSpecific(c, existing))
+                        best[key] = c;
+                }
+                else
+                {
+                    best[key] = c;
+                }
+            }
+            return best.Values
+                .OrderBy(c => c.From, StringComparer.Ordinal)
+                .ThenBy(c => c.To, StringComparer.Ordinal)
+                .ToList();
+        }
+
+        /// <summary>
+        /// True when <paramref name="candidate"/> carries strictly more connection
+        /// information than <paramref name="current"/>. Specificity precedence:
+        /// a road beats no road; otherwise a non-Default connection type beats Default.
+        /// </summary>
+        private static bool IsMoreSpecific(Connection candidate, Connection current)
+        {
+            bool candRoad = candidate.Road == true;
+            bool curRoad = current.Road == true;
+            if (candRoad != curRoad)
+                return candRoad;
+
+            bool candTyped = !string.Equals(candidate.ConnectionType, "Default", StringComparison.Ordinal);
+            bool curTyped = !string.Equals(current.ConnectionType, "Default", StringComparison.Ordinal);
+            if (candTyped != curTyped)
+                return candTyped;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Re-assigns the Spawn MainObject of every human-start (zone_layout_spawn) zone so that
+        /// each spawn zone gets a unique sequential player: the first spawn zone → Player1,
+        /// the second → Player2, and so on. This guarantees Player1..PlayerN are filled in order
+        /// regardless of the ownership field encoded in the source H3T.
+        /// </summary>
+        private static void AssignSequentialSpawns(List<Zone> zones)
+        {
+            int playerIndex = 0;
+            foreach (var zone in zones)
+            {
+                if (zone.Layout != "zone_layout_spawn")
+                    continue;
+
+                var spawn = zone.MainObjects?
+                    .FirstOrDefault(m => m.Type == "Spawn");
+                if (spawn == null)
+                    continue;
+
+                playerIndex++;
+                spawn.Spawn = $"Player{playerIndex}";
+                spawn.RemoveGuardIfHasOwner = true;
+                spawn.Placement = "Uniform";
+            }
+        }
+
         private static void AssignDefaultPools(Zone zone, string layout)
         {
             var pools = layout switch
@@ -602,9 +755,9 @@ namespace Olden_Era___Template_Editor.Services
                     mandatory: new[] { "mandatory_content_center" },
                     limits: new[] { "content_limits_center" }),
                 "zone_layout_sides" or "zone_layout_spawn" => (
-                    guarded: new[] { "content_pool_default_guarded" },
-                    unguarded: new[] { "content_pool_default_unguarded" },
-                    resources: new[] { "content_pool_default_resource" },
+                    guarded: new[] { "content_pool_guarded_objects_start_zone_jebus_cross" },
+                    unguarded: new[] { "content_pool_unguarded_objects_start_zone_jebus_cross" },
+                    resources: new[] { "content_pool_resources_start_zone_jebus_cross" },
                     mandatory: new[] { "mandatory_content_spawns" },
                     limits: new[] { "content_limits_spawns" }),
                 "zone_layout_player_spawn" or "zone_layout_ai_spawn" or "zone_layout_start_zone" => (
@@ -764,31 +917,30 @@ namespace Olden_Era___Template_Editor.Services
         }
 
         /// <summary>
-        /// Adds a road entry to a zone for a given connection.
-        /// Zone with castle (City/AbandonedOutpost): MainObject[0] → Connection
-        /// Castle-less zone: star pattern among road connections.
+        /// Adds road entries to a zone for a given connection.
+        /// Every MainObject (regardless of Placement — Uniform, Center, Connection, …)
+        /// gets a MainObject[i] → Connection[connectionName] road, so the road always
+        /// reaches the zone's main object(s). Castle-less zones additionally keep the
+        /// engine's Connection → Connection star pattern among road connections.
         /// </summary>
         private static void AddRoadToZone(Zone zone, string connectionName,
             List<Zone> zones, List<Connection> connections)
         {
             zone.Roads ??= [];
 
+            // Connect every MainObject to this road connection.
+            if (zone.MainObjects != null)
+            {
+                for (int i = 0; i < zone.MainObjects.Count; i++)
+                    AddRoadToZoneMainObject(zone, i, connectionName);
+            }
+
             int castleCount = zone.MainObjects?.Count(o =>
                 o.Type == "City" || o.Type == "AbandonedOutpost") ?? 0;
 
-            Road newRoad;
-            if (castleCount > 0)
+            // Castle-less zone: also keep the Connection → Connection star (engine inter-connection roads).
+            if (castleCount == 0)
             {
-                // Zone with castle: MainObject[0] → Connection
-                newRoad = new Road
-                {
-                    From = new RoadEndpoint { Type = "MainObject", Args = ["0"] },
-                    To = new RoadEndpoint { Type = "Connection", Args = [connectionName] }
-                };
-            }
-            else
-            {
-                // Castle-less zone: star among road connections
                 var incident = connections
                     .Where(c => c.Road == true
                             && (string.Equals(c.From, zone.Name, StringComparison.OrdinalIgnoreCase)
@@ -799,20 +951,38 @@ namespace Olden_Era___Template_Editor.Services
                     .OrderBy(n => n, StringComparer.Ordinal)
                     .ToList();
 
-                newRoad = BuildCastleLessRoad(connectionName, incident);
-                if (newRoad == null)
-                    return;
+                var star = BuildCastleLessRoad(connectionName, incident);
+                if (star != null && !RoadExists(zone, star))
+                    zone.Roads.Add(star);
             }
+        }
 
-            // Avoid duplicates
-            bool exists = zone.Roads.Any(r =>
-                r.From?.Type == newRoad.From?.Type &&
-                r.From?.Args?.FirstOrDefault() == newRoad.From?.Args?.FirstOrDefault() &&
-                r.To?.Type == newRoad.To?.Type &&
-                r.To?.Args?.FirstOrDefault() == newRoad.To?.Args?.FirstOrDefault());
+        /// <summary>
+        /// Adds MainObject[i] → Connection[connectionName] to the zone, skipping duplicates.
+        /// </summary>
+        private static void AddRoadToZoneMainObject(Zone zone, int index, string connectionName)
+        {
+            var road = new Road
+            {
+                Type = "Stone",
+                From = new RoadEndpoint { Type = "MainObject", Args = [index.ToString()] },
+                To = new RoadEndpoint { Type = "Connection", Args = [connectionName] }
+            };
+            if (!RoadExists(zone, road))
+                zone.Roads.Add(road);
+        }
 
-            if (!exists)
-                zone.Roads.Add(newRoad);
+        /// <summary>
+        /// True when the zone already contains an identical road (matching From/To type+arg).
+        /// </summary>
+        private static bool RoadExists(Zone zone, Road road)
+        {
+            if (zone.Roads == null) return false;
+            return zone.Roads.Any(r =>
+                r.From?.Type == road.From?.Type &&
+                r.From?.Args?.FirstOrDefault() == road.From?.Args?.FirstOrDefault() &&
+                r.To?.Type == road.To?.Type &&
+                r.To?.Args?.FirstOrDefault() == road.To?.Args?.FirstOrDefault());
         }
 
         /// <summary>
@@ -827,6 +997,7 @@ namespace Olden_Era___Template_Editor.Services
                 {
                     return new Road
                     {
+                        Type = "Stone",
                         From = new RoadEndpoint { Type = "Connection", Args = [connectionName] },
                         To = new RoadEndpoint { Type = "Connection", Args = [connectionName] }
                     };
@@ -841,6 +1012,7 @@ namespace Olden_Era___Template_Editor.Services
 
             return new Road
             {
+                Type = "Stone",
                 From = new RoadEndpoint { Type = "Connection", Args = [anchor] },
                 To = new RoadEndpoint { Type = "Connection", Args = [connectionName] }
             };

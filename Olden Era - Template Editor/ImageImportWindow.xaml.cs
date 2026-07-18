@@ -5,26 +5,55 @@ using System.Linq;
 using System.Text.Json;
 using System.Windows;
 using Microsoft.Win32;
+using Olden_Era___Template_Editor.Models;
 using Olden_Era___Template_Editor.Services;
+using Olden_Era___Template_Editor.Services.GameData;
 using OldenEraTemplateEditor.Models;
 
 namespace Olden_Era___Template_Editor
 {
-    /// <summary>
-    /// Window for importing templates — supports .rmg.json, H3T file, and visual (image) modes.
-    /// </summary>
     public partial class ImageImportWindow : Window
     {
         private RmgTemplate? _result;
         private enum Mode { Rmg, H3T, Visual }
         private Mode _mode = Mode.Rmg;
 
-        /// <summary>The template produced by the last successful import.</summary>
         public RmgTemplate? Result => _result;
+
+        private ImportLayoutAlgorithm _layout = ImportLayoutAlgorithm.Force;
+
+        private static readonly Dictionary<ImportLayoutAlgorithm, string> LayoutKeys = new()
+        {
+            [ImportLayoutAlgorithm.Force]       = "S.EI.Layout.Force",
+            [ImportLayoutAlgorithm.Spectral]    = "S.EI.Layout.Spectral",
+            [ImportLayoutAlgorithm.Mds]         = "S.EI.Layout.Mds",
+            [ImportLayoutAlgorithm.Hierarchical]= "S.EI.Layout.Hierarchical",
+            [ImportLayoutAlgorithm.Centrality] = "S.EI.Layout.Centrality",
+            [ImportLayoutAlgorithm.Network]    = "S.EI.Layout.Network",
+        };
 
         public ImageImportWindow() => InitializeComponent();
 
-        // ── Mode switching ────────────────────────────────────────────────
+        private void ImageImportWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Restore the last-used algorithm choice (persisted in AppSettings).
+            _layout = ParseLayout(AppSettings.Current.ImportLayout, ImportLayoutAlgorithm.Force);
+
+            // Populate the layout-algorithm selector (default = Force, the historical behaviour).
+            CmbLayout.Items.Clear();
+            foreach (ImportLayoutAlgorithm algo in Enum.GetValues<ImportLayoutAlgorithm>())
+                CmbLayout.Items.Add(L(LayoutKeys[algo]));
+            CmbLayout.SelectedItem = L(LayoutKeys[_layout]);
+        }
+
+        private static ImportLayoutAlgorithm ParseLayout(string? value, ImportLayoutAlgorithm fallback)
+            => Enum.TryParse<ImportLayoutAlgorithm>(value, ignoreCase: true, out var algo)
+                && Enum.IsDefined(algo)
+                ? algo : fallback;
+
+        private void SaveLayoutChoice()
+            => AppSettings.Current.ImportLayout = _layout.ToString();
+
 
         private void ModeRmg_Click(object sender, RoutedEventArgs e) => SwitchTo(Mode.Rmg);
         private void ModeH3T_Click(object sender, RoutedEventArgs e) => SwitchTo(Mode.H3T);
@@ -52,13 +81,11 @@ namespace Olden_Era___Template_Editor
             PlaceholderText.Visibility = Visibility.Visible;
             PreviewImage.Source = null;
             ZonesList.Items.Clear();
-            RmgFileInfo.Text = "Выберите .rmg.json файл шаблона";
+            RmgFileInfo.Text = L("S.EI.SelectRmg");
             RmgInfoText.Text = "—";
             H3TZonesList.Text = "—";
             H3TConnsList.Text = "—";
         }
-
-        // ── .rmg.json mode ───────────────────────────────────────────────
 
         private void BtnSelectRmg_Click(object sender, RoutedEventArgs e)
         {
@@ -71,31 +98,29 @@ namespace Olden_Era___Template_Editor
 
             try
             {
-                StatusText.Text = "Чтение .rmg.json файла...";
+                StatusText.Text = L("S.EI.ReadingRmg");
                 BtnImport.IsEnabled = false;
                 var json = File.ReadAllText(dlg.FileName);
                 var loaded = JsonSerializer.Deserialize<RmgTemplate>(json, TemplateEditorWindow.JsonOptions);
-                if (loaded is null) { StatusText.Text = "Не удалось распознать файл"; return; }
+                if (loaded is null) { StatusText.Text = L("S.EI.ParseFail"); return; }
 
                 _result = loaded;
                 var fileInfo = new FileInfo(dlg.FileName);
                 var zones = loaded.Variants?.FirstOrDefault()?.Zones ?? [];
                 var conns = loaded.Variants?.FirstOrDefault()?.Connections ?? [];
-                RmgFileInfo.Text = $"Файл: {fileInfo.Name}\nРазмер: {fileInfo.Length / 1024} KB\nШаблон: {loaded.Name}";
-                RmgInfoText.Text = $"Зон: {zones.Count}\nСвязей: {conns.Count}\n" +
+                RmgFileInfo.Text = string.Format(L("S.EI.FileInfo"), fileInfo.Name, fileInfo.Length / 1024, loaded.Name);
+                RmgInfoText.Text = string.Format(L("S.EI.RmgSummary"), zones.Count, conns.Count) + "\n" +
                     string.Join("\n", zones.Take(40).Select(z => $"• {z.Name}"));
-                StatusText.Text = $"Загружено: {zones.Count} зон, {conns.Count} связей";
+                StatusText.Text = string.Format(L("S.EI.RmgLoaded"), zones.Count, conns.Count);
                 BtnImport.IsEnabled = true;
             }
             catch (Exception ex)
             {
                 StatusText.Text = L("S.EI.Error", ex.Message);
                 _result = null;
-                RmgFileInfo.Text = $"Ошибка: {ex.Message}";
+                RmgFileInfo.Text = L("S.EI.Error", ex.Message);
             }
         }
-
-        // ── Visual mode ──────────────────────────────────────────────────
 
         private void BtnSelect_Click(object sender, RoutedEventArgs e)
         {
@@ -142,27 +167,24 @@ namespace Olden_Era___Template_Editor
             }
         }
 
-        // ── H3T mode ─────────────────────────────────────────────────────
-
         private void BtnSelectH3T_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new OpenFileDialog
             {
                 Filter = "HotA templates|*.h3t|All files|*.*",
-                Title = "Выберите .h3t файл шаблона",
+                Title = L("S.EI.SelectH3T"),
             };
 
             if (dlg.ShowDialog() != true) return;
 
             try
             {
-                StatusText.Text = "Парсинг .h3t файла...";
+                StatusText.Text = L("S.EI.Parsing");
                 BtnImport.IsEnabled = false;
 
                 var template = H3TParser.Parse(dlg.FileName);
                 _result = template;
 
-                // Build zones text
                 var zones = template.Variants?.FirstOrDefault()?.Zones ?? [];
                 var zonesLines = new List<string>();
                 foreach (var z in zones)
@@ -193,7 +215,6 @@ namespace Olden_Era___Template_Editor
                 }
                 H3TZonesList.Text = string.Join("\n", zonesLines);
 
-                // Build connections text
                 var conns = template.Variants?.FirstOrDefault()?.Connections ?? [];
                 var connsLines = new List<string>();
                 foreach (var c in conns)
@@ -209,7 +230,7 @@ namespace Olden_Era___Template_Editor
                 }
                 H3TConnsList.Text = string.Join("\n", connsLines);
 
-                StatusText.Text = $"Найдено: {zones.Count} зон, {conns.Count} связей";
+                StatusText.Text = string.Format(L("S.EI.H3TParsed"), zones.Count, conns.Count);
                 BtnImport.IsEnabled = true;
             }
             catch (Exception ex)
@@ -219,13 +240,40 @@ namespace Olden_Era___Template_Editor
             }
         }
 
-        // ── Import / Close ───────────────────────────────────────────────
-
         private void BtnImport_Click(object sender, RoutedEventArgs e)
         {
             if (_result == null) return;
+            // Persist the chosen algorithm so the next import re-opens with it.
+            SaveLayoutChoice();
+            // Stamp the chosen placement onto the imported template so the editor can
+            // reproduce exactly this layout via the existing GeneratorPosition pipeline.
+            ApplyLayoutToResult(_result, _layout);
             DialogResult = true;
             Close();
+        }
+
+        private void CmbLayout_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (CmbLayout.SelectedItem is not string label) return;
+            foreach (var kv in LayoutKeys)
+                if (L(kv.Value) == label) { _layout = kv.Key; SaveLayoutChoice(); break; }
+        }
+
+        /// <summary>
+        /// Computes the chosen algorithm's canvas layout and writes it back as normalized
+        /// [0,1]² <see cref="Zone.GeneratorPosition"/> hints on every zone, so the
+        /// downstream preview/editor renders the same geometry regardless of topology.
+        /// </summary>
+        private static void ApplyLayoutToResult(RmgTemplate template, ImportLayoutAlgorithm algorithm)
+        {
+            var variant = template.Variants?.FirstOrDefault();
+            if (variant?.Zones is not { Count: > 0 } zones) return;
+
+            var pixel = TemplatePreviewPngWriter.ComputeLayout(template, MapTopology.Default, algorithm);
+            const double w = 700.0, h = 700.0;
+            foreach (var z in zones)
+                if (pixel.TryGetValue(z.Name, out var p))
+                    z.GeneratorPosition = (p.X / w, 1.0 - p.Y / h); // flip Y → unit-square (Y up)
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
@@ -234,9 +282,7 @@ namespace Olden_Era___Template_Editor
             Close();
         }
 
-        // ── Localisation helper ─────────────────────────────────────────
-
         private static string L(string key, params object[] args)
-            => string.Format(Olden_Era___Template_Editor.Services.Localization.LocalizationManager.T(key), args);
+            => Olden_Era___Template_Editor.Services.Localization.LocalizationManager.T(key, args);
     }
 }

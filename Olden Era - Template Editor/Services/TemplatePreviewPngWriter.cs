@@ -119,10 +119,14 @@ namespace Olden_Era___Template_Editor.Services
 
         /// <summary>Renders the preview to a <see cref="BitmapSource"/> without writing any files.</summary>
         public static BitmapSource Render(RmgTemplate template, MapTopology topology = MapTopology.Default)
+            => Render(template, topology, ImportLayoutAlgorithm.Force);
+
+        /// <summary>Renders the preview, choosing the zone-placement algorithm.</summary>
+        public static BitmapSource Render(RmgTemplate template, MapTopology topology, ImportLayoutAlgorithm algorithm)
         {
             var visual = new DrawingVisual();
             using (DrawingContext dc = visual.RenderOpen())
-                DrawPreview(dc, template, topology);
+                DrawPreview(dc, template, topology, algorithm);
 
             var bitmap = new RenderTargetBitmap(Width, Height, 96, 96, PixelFormats.Pbgra32);
             bitmap.Render(visual);
@@ -135,12 +139,20 @@ namespace Olden_Era___Template_Editor.Services
         /// <paramref name="template"/>, keyed by zone name.
         /// </summary>
         public static Dictionary<string, Point> ComputeLayout(RmgTemplate template, MapTopology topology = MapTopology.Default)
+            => ComputeLayout(template, topology, ImportLayoutAlgorithm.Force);
+
+        /// <summary>
+        /// Returns the canvas positions that would be used for each zone when rendering
+        /// <paramref name="template"/>, keyed by zone name. <paramref name="algorithm"/>
+        /// selects which import-time placement strategy produces the geometry.
+        /// </summary>
+        public static Dictionary<string, Point> ComputeLayout(RmgTemplate template, MapTopology topology, ImportLayoutAlgorithm algorithm)
         {
             Variant? variant = template.Variants?.FirstOrDefault();
             List<Zone> zones = variant?.Zones ?? [];
             if (zones.Count == 0) return [];
             var orderedZones = OrderZones(zones, variant?.Orientation?.ZeroAngleZone);
-            return LayoutZones(orderedZones, variant?.Connections ?? [], topology);
+            return LayoutZones(orderedZones, variant?.Connections ?? [], topology, algorithm);
         }
 
         /// <summary>
@@ -152,6 +164,9 @@ namespace Olden_Era___Template_Editor.Services
         // ── Main draw ────────────────────────────────────────────────────────────
 
         private static void DrawPreview(DrawingContext dc, RmgTemplate template, MapTopology topology)
+            => DrawPreview(dc, template, topology, ImportLayoutAlgorithm.Force);
+
+        private static void DrawPreview(DrawingContext dc, RmgTemplate template, MapTopology topology, ImportLayoutAlgorithm algorithm)
         {
             dc.DrawRectangle(new SolidColorBrush(BackgroundColor), null, new Rect(0, 0, Width, Height));
             dc.DrawRoundedRectangle(null,
@@ -218,7 +233,7 @@ namespace Olden_Era___Template_Editor.Services
                 }
             }
 
-            var positions    = LayoutZones(orderedZones, connections, topology);
+            var positions    = LayoutZones(orderedZones, connections, topology, algorithm);
 
             // Draw connections first (below zones)
             DrawConnections(dc, connections, positions, _zoneRadius);
@@ -244,17 +259,47 @@ namespace Olden_Era___Template_Editor.Services
         }
 
         private static Dictionary<string, Point> LayoutZones(List<Zone> zones, List<Connection> connections, MapTopology topology)
+            => LayoutZones(zones, connections, topology, ImportLayoutAlgorithm.Force);
+
+        private static Dictionary<string, Point> LayoutZones(List<Zone> zones, List<Connection> connections, MapTopology topology, ImportLayoutAlgorithm algorithm)
+        {
+            // Lanes keep their dedicated radial layout regardless of the chosen algorithm,
+            // since the parallel-corridors structure must read at a glance.
+            if (topology == MapTopology.Lanes)
+                return LayoutZonesLanes(zones, connections);
+
+            // Random/Balanced rely on generator-stamped GeneratorPosition (ring-snap /
+            // Kamada-Kawai). The import-time algorithms below only replace the
+            // connection-aware embedding used for Default/HubAndSpoke/Chain/SharedWeb,
+            // but we honour the user's choice whenever an algorithm is explicitly given.
+            if (topology == MapTopology.Random || topology == MapTopology.Balanced)
+            {
+                if (algorithm == ImportLayoutAlgorithm.Force)
+                    return LayoutZonesFromGenerator(zones, connections, topology);
+                // Fall through: even for Random/Balanced, honour an explicit non-default
+                // algorithm by ignoring the stamps and computing a fresh embedding.
+            }
+
+            return algorithm switch
+            {
+                ImportLayoutAlgorithm.Spectral    => LayoutZonesSpectral(zones, connections),
+                ImportLayoutAlgorithm.Mds         => LayoutZonesMds(zones, connections),
+                ImportLayoutAlgorithm.Hierarchical=> LayoutZonesHierarchical(zones, connections),
+                ImportLayoutAlgorithm.Centrality => LayoutZonesCentrality(zones, connections),
+                ImportLayoutAlgorithm.Network    => LayoutZonesNetwork(zones, connections),
+                _                                 => LayoutZonesForceDirected(zones, connections),
+            };
+        }
+
+        // Wrapper over the existing Random/Balanced GeneratorPosition logic so the
+        // Force default still behaves exactly as before for those topologies.
+        private static Dictionary<string, Point> LayoutZonesFromGenerator(List<Zone> zones, List<Connection> connections, MapTopology topology)
         {
             // Default, HubAndSpoke, Chain and SharedWeb use a connection-aware
             // force-directed layout (LayoutZonesForceDirected) so connected zones sit
             // close together and crossing edges are minimised.
             // Random and Balanced topologies use GeneratorPosition stamps; Balanced
             // uses the ring-snap pass while Random falls back to the Kamada-Kawai solver.
-            // Lanes get a dedicated radial layout (arena at the centre, each lane a tiered spoke) so
-            // the parallel-corridors structure reads at a glance in the preview and the editor.
-            if (topology == MapTopology.Lanes)
-                return LayoutZonesLanes(zones, connections);
-
             if (topology != MapTopology.Random && topology != MapTopology.Balanced)
                 return LayoutZonesForceDirected(zones, connections);
 
@@ -784,7 +829,13 @@ namespace Olden_Era___Template_Editor.Services
                             double dx = gPx[i] - gPx[j], dy = gPy[i] - gPy[j];
                             double d  = Math.Sqrt(dx * dx + dy * dy);
                             if (d >= gMinDist) continue;
-                            if (d < 0.001) { dx = 1; dy = 0; d = 0.001; }
+                            if (d < 0.001)
+                            {
+                                // Coincident points: deterministic, pair-unique direction so
+                                // stacked points fan out instead of drifting together.
+                                double ang = (i * 928371.0 + j * 123893.0) % (2.0 * Math.PI);
+                                dx = Math.Cos(ang); dy = Math.Sin(ang); d = 0.001;
+                            }
                             double push = (gMinDist - d) / 2.0;
                             gPx[i] += dx / d * push; gPy[i] += dy / d * push;
                             gPx[j] -= dx / d * push; gPy[j] -= dy / d * push;
@@ -1042,7 +1093,13 @@ namespace Olden_Era___Template_Editor.Services
                             double dx = lpx[i] - lpx[j], dy = lpy[i] - lpy[j];
                             double d  = Math.Sqrt(dx * dx + dy * dy);
                             if (d >= minDist) continue;
-                            if (d < 0.001) { dx = 1; dy = 0; d = 0.001; }
+                            if (d < 0.001)
+                            {
+                                // Coincident points: deterministic, pair-unique direction so
+                                // stacked points fan out instead of drifting together.
+                                double ang = (i * 928371.0 + j * 123893.0) % (2.0 * Math.PI);
+                                dx = Math.Cos(ang); dy = Math.Sin(ang); d = 0.001;
+                            }
                             double push = (minDist - d) / 2.0;
                             lpx[i] += dx / d * push;  lpy[i] += dy / d * push;
                             lpx[j] -= dx / d * push;  lpy[j] -= dy / d * push;
@@ -1171,7 +1228,13 @@ namespace Olden_Era___Template_Editor.Services
                             double dx = lpx[i] - lpx[j], dy = lpy[i] - lpy[j];
                             double d  = Math.Sqrt(dx * dx + dy * dy);
                             if (d >= minDist) continue;
-                            if (d < 0.001) { dx = 1; dy = 0; d = 0.001; }
+                            if (d < 0.001)
+                            {
+                                // Coincident points: deterministic, pair-unique direction so
+                                // stacked points fan out instead of drifting together.
+                                double ang = (i * 928371.0 + j * 123893.0) % (2.0 * Math.PI);
+                                dx = Math.Cos(ang); dy = Math.Sin(ang); d = 0.001;
+                            }
                             double push = (minDist - d) / 2.0;
                             lpx[i] += dx / d * push;  lpy[i] += dy / d * push;
                             lpx[j] -= dx / d * push;  lpy[j] -= dy / d * push;
@@ -1432,6 +1495,685 @@ namespace Olden_Era___Template_Editor.Services
             return positions;
         }
 
+        // ── Graph adjacency builder (Direct connections only) ──────────────────────
+        /// <summary>
+        /// Builds the undirected adjacency (Direct connections only — Proximity/Portal are
+        /// ignored) shared by the spectral / MDS / hierarchical algorithms. Returns the index
+        /// map, neighbour lists and unit weights (or 1/edge-length weight for shortest paths).
+        /// </summary>
+        private static (Dictionary<string, int> idx, List<int>[] adj, List<double>[] w)
+            BuildDirectAdjacency(List<Zone> zones, List<Connection> connections)
+        {
+            int n = zones.Count;
+            var idx = new Dictionary<string, int>(StringComparer.Ordinal);
+            for (int i = 0; i < n; i++) idx[zones[i].Name] = i;
+
+            var adj = new List<int>[n];
+            var w   = new List<double>[n];
+            for (int i = 0; i < n; i++) { adj[i] = new List<int>(); w[i] = new List<double>(); }
+
+            foreach (var conn in connections)
+            {
+                if (string.Equals(conn.ConnectionType, "Proximity", StringComparison.Ordinal)) continue;
+                if (string.Equals(conn.ConnectionType, "Portal",    StringComparison.Ordinal)) continue;
+                if (!idx.TryGetValue(conn.From, out int a)) continue;
+                if (!idx.TryGetValue(conn.To,   out int b)) continue;
+                adj[a].Add(b); adj[b].Add(a);
+                w[a].Add(1.0);   w[b].Add(1.0);
+            }
+            return (idx, adj, w);
+        }
+
+        /// <summary>
+        /// Maps unit-square coordinates (0..1) to centred, fitted canvas pixel positions,
+        /// then runs the shared overlap/fit pass. Sets <see cref="_zoneRadius"/>.
+        /// </summary>
+        private static Dictionary<string, Point> FitUnitToCanvas(List<Zone> zones, double[] ux, double[] uy, List<Connection> connections)
+        {
+            int n = zones.Count;
+            double minX = ux.Min(), maxX = ux.Max();
+            double minY = uy.Min(), maxY = uy.Max();
+            double spanX = maxX - minX, spanY = maxY - minY;
+
+            // Safety net: if the embedding produced any non-finite coordinate or a fully
+            // degenerate (zero-span) layout, fall back to the deterministic force-directed
+            // placement so the renderer never receives NaN/Infinity (which would crash WPF).
+            bool anyNonFinite = false;
+            for (int i = 0; i < n; i++)
+                if (!double.IsFinite(ux[i]) || !double.IsFinite(uy[i])) { anyNonFinite = true; break; }
+            if (anyNonFinite || (n > 1 && spanX < 1e-9 && spanY < 1e-9))
+                return LayoutZonesForceDirected(zones, connections);
+            if (spanX < 1e-9) spanX = 1.0;
+            if (spanY < 1e-9) spanY = 1.0;
+
+            double margin = 18, minGap = 6;
+            double ringRadius0 = Width / 2.0 - margin;
+            double chord0 = 2.0 * ringRadius0 * Math.Sin(Math.PI / Math.Max(n, 2));
+            double zoneRadius = Math.Min(ZoneRadiusMax, (chord0 - minGap) / 2.0);
+            zoneRadius = Math.Max(zoneRadius, 8.0);
+
+            const double fit = 0.92;
+            double drawW = (Width  - 2 * margin) * fit;
+            double drawH = (Height - 2 * margin) * fit;
+            double scale = Math.Min(drawW / spanX, drawH / spanY);
+            double cx = (minX + maxX) / 2.0, cy = (minY + maxY) / 2.0;
+
+            var px = new double[n]; var py = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                px[i] = Width  / 2.0 + (ux[i] - cx) * scale;
+                py[i] = Height / 2.0 + (uy[i] - cy) * scale;
+            }
+
+            // The fit scale shrinks the raw embedding; we still want the overlap pass to
+            // enforce a real minimum clearance, so we floor the correction radius at a sane
+            // value (independent of how spread the raw embedding happened to be). After the
+            // pass we re-derive the final radius from the achieved minimum so drawing matches.
+            double effectiveRadius = Math.Max(zoneRadius, 8.0);
+
+            var (_, adjList, _) = BuildDirectAdjacency(zones, connections);
+            var adj = adjList.Select(l => new HashSet<int>(l)).ToArray();
+            CorrectOverlapsAndFit(px, py, adj, effectiveRadius, Width, Height, effectiveRadius + margin);
+
+            // Derive the actual radius from the minimum centre-to-centre distance achieved.
+            double minPair = double.MaxValue;
+            for (int i = 0; i < n; i++)
+                for (int j = i + 1; j < n; j++)
+                {
+                    double d = Math.Sqrt((px[i] - px[j]) * (px[i] - px[j]) + (py[i] - py[j]) * (py[i] - py[j]));
+                    if (d < minPair) minPair = d;
+                }
+            _zoneRadius = minPair < double.MaxValue ? Math.Max(minPair / 2.0 - 1.0, 6.0) : effectiveRadius;
+
+            var positions = new Dictionary<string, Point>(StringComparer.Ordinal);
+            for (int i = 0; i < n; i++) positions[zones[i].Name] = new Point(px[i], py[i]);
+            return positions;
+        }
+
+        /// <summary>
+        /// Returns true if the two coordinate arrays are (numerically) parallel
+        /// over the given node indices — i.e. the 2D embedding would be collinear.
+        /// </summary>
+        private static bool AreParallel(double[] ax, double[] ay, List<int> nodes)
+        {
+            int m = nodes.Count;
+            if (m < 2) return false;
+            double refX = ax[nodes[1]] - ax[nodes[0]];
+            double refY = ay[nodes[1]] - ay[nodes[0]];
+            double refLen = Math.Sqrt(refX * refX + refY * refY);
+            if (refLen < 1e-9) return false;
+            for (int i = 2; i < m; i++)
+            {
+                double dx = ax[nodes[i]] - ax[nodes[0]];
+                double dy = ay[nodes[i]] - ay[nodes[0]];
+                double cross = refX * dy - refY * dx;
+                if (Math.Abs(cross) > 1e-6 * refLen * (Math.Sqrt(dx * dx + dy * dy) + 1e-9))
+                    return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Spectral embedding: uses the two eigenvectors of the graph Laplacian
+        /// (corresponding to the smallest non-zero eigenvalues) as (x, y) coordinates.
+        /// Connected components are embedded independently so disconnected graphs still lay out.
+        /// </summary>
+        private static Dictionary<string, Point> LayoutZonesSpectral(List<Zone> zones, List<Connection> connections)
+        {
+            int n = zones.Count;
+            if (n == 0) { _zoneRadius = ZoneRadiusMax; return []; }
+            if (n == 1) { _zoneRadius = ZoneRadiusMax; return new(StringComparer.Ordinal) { [zones[0].Name] = new Point(Width / 2.0, Height / 2.0) }; }
+
+            var (idx, adj, _) = BuildDirectAdjacency(zones, connections);
+
+            var comp = new int[n]; Array.Fill(comp, -1);
+            var comps = new List<List<int>>();
+            for (int s = 0; s < n; s++)
+            {
+                if (comp[s] >= 0) continue;
+                var c = new List<int>(); var q = new Queue<int>(); q.Enqueue(s); comp[s] = comps.Count;
+                while (q.Count > 0)
+                {
+                    int u = q.Dequeue(); c.Add(u);
+                    foreach (int v in adj[u]) if (comp[v] < 0) { comp[v] = comps.Count; q.Enqueue(v); }
+                }
+                comps.Add(c);
+            }
+
+            var ux = new double[n]; var uy = new double[n];
+
+            foreach (var c in comps)
+            {
+                int m = c.Count;
+                if (m == 1) { ux[c[0]] = 0.5; uy[c[0]] = 0.5; continue; }
+
+                // Degree + adjacency submatrices for this component.
+                var local = new int[n];
+                for (int i = 0; i < m; i++) local[c[i]] = i;
+
+                var L = new double[m][];
+                for (int i = 0; i < m; i++) L[i] = new double[m];
+                for (int a = 0; a < m; a++)
+                {
+                    int gi = c[a];
+                    int deg = adj[gi].Count;
+                    L[a][a] = deg;
+                    foreach (int gj in adj[gi])
+                    {
+                        int b = local[gj];
+                        if (b > a) L[a][b] = L[b][a] = -1.0;
+                    }
+                }
+
+                var eig = LinearAlgebra.JacobiEigen(L, out var vecs);
+                // vecs[eigenRank][node] holds eigenvector #eigenRank at node index.
+                // Skip the first (trivial, constant) eigenvector; use ranks #1 and #2
+                // as the (x, y) embedding axes.
+                int xRank = Math.Min(1, m - 1);
+                int yRank = Math.Min(2, m - 1);
+                if (xRank == yRank) yRank = 0;
+                for (int a = 0; a < m; a++)
+                {
+                    int gi = c[a];
+                    ux[gi] = vecs[xRank][a];
+                    uy[gi] = vecs[yRank][a];
+                }
+
+                // Degenerate axes: if the two chosen eigenvectors are parallel (or only one
+                // non-trivial axis exists, e.g. a 2-node component), synthesize a
+                // perpendicular second axis so the component is never collapsed to a line.
+                bool degenerate =
+                    !double.IsFinite(ux[c[0]]) || !double.IsFinite(uy[c[0]]) ||
+                    (m >= 2 && AreParallel(ux, uy, c));
+                if (degenerate)
+                {
+                    for (int a = 0; a < m; a++)
+                    {
+                        int gi = c[a];
+                        // First axis = first finite eigen-coordinate (or a seed), second = perpendicular.
+                        double ax = double.IsFinite(ux[gi]) ? ux[gi] : (double)a / m;
+                        ux[gi] = ax;
+                        uy[gi] = -uy[gi]; // perpendicular to (x, y) is (-y, x); reuse for 2nd axis
+                        if (!double.IsFinite(uy[gi])) uy[gi] = (double)a / m;
+                    }
+                }
+            }
+            return FitUnitToCanvas(zones, ux, uy, connections);
+        }
+
+        /// <summary>
+        /// Classical multidimensional scaling: builds the all-pairs shortest-path distance
+        /// matrix, double-centres it, and projects onto the two leading eigenvectors of the
+        /// centred inner-product matrix. Preserves graph-theoretic distances as faithfully as
+        /// possible in 2D.
+        /// </summary>
+        private static Dictionary<string, Point> LayoutZonesMds(List<Zone> zones, List<Connection> connections)
+        {
+            int n = zones.Count;
+            if (n == 0) { _zoneRadius = ZoneRadiusMax; return []; }
+            if (n == 1) { _zoneRadius = ZoneRadiusMax; return new(StringComparer.Ordinal) { [zones[0].Name] = new Point(Width / 2.0, Height / 2.0) }; }
+
+            var (idx, adj, w) = BuildDirectAdjacency(zones, connections);
+            var dist = LinearAlgebra.AllPairsShortest(n, adj.ToArray(), w.ToArray());
+
+            // Replace infinity (disconnected) with the max finite distance + 1 so MDS
+            // still embeds disconnected components into a coherent spread.
+            double maxFinite = 0.0;
+            for (int i = 0; i < n; i++)
+                for (int j = 0; j < n; j++)
+                    if (dist[i][j] < double.PositiveInfinity)
+                        maxFinite = Math.Max(maxFinite, dist[i][j]);
+            double infill = maxFinite + 1.0;
+            for (int i = 0; i < n; i++)
+                for (int j = 0; j < n; j++)
+                    if (dist[i][j] >= double.PositiveInfinity)
+                        dist[i][j] = infill;
+
+            // Double-centre: B = -0.5 * H * D² * H, H = I - (1/n)J.
+            var B = new double[n][];
+            for (int i = 0; i < n; i++) B[i] = new double[n];
+            double grand = 0.0;
+            for (int a = 0; a < n; a++)
+                for (int b = 0; b < n; b++) grand += dist[a][b] * dist[a][b];
+            grand /= (n * n);
+            for (int i = 0; i < n; i++)
+                for (int j = 0; j < n; j++)
+                {
+                    double d2 = dist[i][j] * dist[i][j];
+                    double rowMean = 0, colMean = 0;
+                    for (int k = 0; k < n; k++) { rowMean += dist[i][k] * dist[i][k]; colMean += dist[k][j] * dist[k][j]; }
+                    rowMean /= n; colMean /= n;
+                    B[i][j] = -0.5 * (d2 - rowMean - colMean + grand);
+                }
+
+            var eig = LinearAlgebra.JacobiEigen(B, out var vecs);
+            // Take the two eigenvectors with the largest (most positive) eigenvalues.
+            var order = Enumerable.Range(0, n).OrderByDescending(k => eig[k]).ToArray();
+            int xCol = order[0], yCol = order[Math.Min(1, n - 1)];
+            if (xCol == yCol) yCol = order[Math.Min(1, n - 1)];
+
+            var ux = new double[n]; var uy = new double[n];
+            for (int i = 0; i < n; i++) { ux[i] = vecs[i][xCol]; uy[i] = vecs[i][yCol]; }
+            return FitUnitToCanvas(zones, ux, uy, connections);
+        }
+
+        /// <summary>
+        /// Hierarchical (radial tree) layout: builds a minimum spanning tree over the
+        /// connection graph (weights = shortest-path distance), then places the tree radially
+        /// — the MST root at the centre, children fanned out in angular wedges by depth.
+        /// Disconnected components are laid out as separate radial trees around the canvas.
+        /// </summary>
+        private static Dictionary<string, Point> LayoutZonesHierarchical(List<Zone> zones, List<Connection> connections)
+        {
+            int n = zones.Count;
+            if (n == 0) { _zoneRadius = ZoneRadiusMax; return []; }
+            if (n == 1) { _zoneRadius = ZoneRadiusMax; return new(StringComparer.Ordinal) { [zones[0].Name] = new Point(Width / 2.0, Height / 2.0) }; }
+
+            var (idx, adj, w) = BuildDirectAdjacency(zones, connections);
+            var dist = LinearAlgebra.AllPairsShortest(n, adj.ToArray(), w.ToArray());
+
+            // Connected components.
+            var comp = new int[n]; Array.Fill(comp, -1);
+            var comps = new List<List<int>>();
+            for (int s = 0; s < n; s++)
+            {
+                if (comp[s] >= 0) continue;
+                var c = new List<int>(); var q = new Queue<int>(); q.Enqueue(s); comp[s] = comps.Count;
+                while (q.Count > 0)
+                {
+                    int u = q.Dequeue(); c.Add(u);
+                    foreach (int v in adj[u]) if (comp[v] < 0) { comp[v] = comps.Count; q.Enqueue(v); }
+                }
+                comps.Add(c);
+            }
+
+            var ux = new double[n]; var uy = new double[n];
+
+            // Position each component's radial tree around a slot on a meta-circle.
+            double compAngle = -Math.PI / 2.0;
+            double compStep = 2.0 * Math.PI / comps.Count;
+            double compRing = comps.Count == 1 ? 0.0 : 0.32; // unit offset for multi-component
+
+            foreach (var c in comps)
+            {
+                int m = c.Count;
+                double compCx = 0.5 + compRing * Math.Cos(compAngle);
+                double compCy = 0.5 + compRing * Math.Sin(compAngle);
+                compAngle += compStep;
+
+                // Pick the highest-degree node of this component as the MST root.
+                int root = c[0];
+                int bestDeg = -1;
+                foreach (int gi in c)
+                {
+                    int deg = adj[gi].Count;
+                    // Prefer nodes that are well-connected AND central (min avg distance).
+                    double avg = 0; int cnt = 0;
+                    foreach (int gj in c) { if (dist[gi][gj] < double.PositiveInfinity) { avg += dist[gi][gj]; cnt++; } }
+                    avg = cnt > 0 ? avg / cnt : double.MaxValue;
+                    int score = deg * 1000 - (int)(avg * 10);
+                    if (score > bestDeg) { bestDeg = score; root = gi; }
+                }
+
+                // Prim's MST over this component.
+                var inTree = new HashSet<int>();
+                var parent = new Dictionary<int, int>();
+                var mstAdj = new List<int>[n];
+                for (int i = 0; i < n; i++) mstAdj[i] = new List<int>();
+                var pq = new List<int> { root };
+                inTree.Add(root);
+                while (pq.Count > 0)
+                {
+                    // Extract min-dist node (simple linear scan; graphs are small).
+                    int bi = 0; double bd = double.PositiveInfinity;
+                    for (int k = 0; k < pq.Count; k++)
+                    {
+                        double dmin = double.PositiveInfinity;
+                        foreach (int gj in c)
+                            if (!inTree.Contains(gj) && dist[pq[k]][gj] < dmin) dmin = dist[pq[k]][gj];
+                        if (dmin < bd) { bd = dmin; bi = k; }
+                    }
+                    int u = pq[bi]; pq.RemoveAt(bi);
+                    foreach (int gj in c)
+                    {
+                        if (inTree.Contains(gj)) continue;
+                        if (dist[u][gj] >= double.PositiveInfinity) continue;
+                        pq.Add(gj); inTree.Add(gj);
+                        parent[gj] = u;
+                        mstAdj[u].Add(gj); mstAdj[gj].Add(u);
+                    }
+                }
+
+                // BFS to assign depth + angular slots (radial tree).
+                var depth = new Dictionary<int, int>();
+                var order2 = new List<int>();
+                var q2 = new Queue<int>(); q2.Enqueue(root); depth[root] = 0;
+                while (q2.Count > 0)
+                {
+                    int u = q2.Dequeue(); order2.Add(u);
+                    foreach (int v in mstAdj[u]) if (!depth.ContainsKey(v)) { depth[v] = depth[u] + 1; q2.Enqueue(v); }
+                }
+
+                int maxDepth = depth.Values.DefaultIfEmpty(0).Max();
+                double maxR = 0.40;
+                // Roots of multi-component share the inner circle; single component uses full.
+                double baseR = comps.Count == 1 ? maxR : maxR * 0.7;
+
+                // Assign angular wedges per BFS level.
+                var placed = new HashSet<int>();
+                ux[root] = compCx; uy[root] = compCy; placed.Add(root);
+
+                // Process level by level; each node's children share its angular sector.
+                var childAngles = new Dictionary<int, (double start, double end)>();
+                childAngles[root] = (-Math.PI, Math.PI);
+                for (int d = 0; d <= maxDepth; d++)
+                {
+                    var level = order2.Where(v => depth[v] == d).ToList();
+                    foreach (int u in level)
+                    {
+                        var (aStart, aEnd) = childAngles[u];
+                        var children = mstAdj[u].Where(v => depth[v] == d + 1).ToList();
+                        int kc = children.Count;
+                        if (kc == 0) continue;
+                        double step = (aEnd - aStart) / kc;
+                        for (int ci = 0; ci < kc; ci++)
+                        {
+                            int v = children[ci];
+                            double sectorStart = aStart + step * ci;
+                            double sectorEnd   = aStart + step * (ci + 1);
+                            childAngles[v] = (sectorStart, sectorEnd);
+                            double mid = (sectorStart + sectorEnd) / 2.0;
+                            double r = baseR * ((double)(d + 1) / Math.Max(maxDepth, 1));
+                            ux[v] = compCx + Math.Cos(mid) * r;
+                            uy[v] = compCy + Math.Sin(mid) * r;
+                            placed.Add(v);
+                        }
+                    }
+                }
+                // Any unplaced (shouldn't happen) → fallback scatter.
+                foreach (int gi in c) if (!placed.Contains(gi)) { ux[gi] = compCx; uy[gi] = compCy; }
+            }
+
+            return FitUnitToCanvas(zones, ux, uy, connections);
+        }
+
+        /// <summary>
+        /// Network-logic layout: each zone's combined PageRank + Betweenness centrality
+        /// decides its ring — the most central zones sit at the centre, the most
+        /// peripheral on the outer ring. Angular position within a ring follows node degree.
+        /// </summary>
+        private static Dictionary<string, Point> LayoutZonesCentrality(List<Zone> zones, List<Connection> connections)
+        {
+            int n = zones.Count;
+            if (n == 0) { _zoneRadius = ZoneRadiusMax; return []; }
+            if (n == 1) { _zoneRadius = ZoneRadiusMax; return new(StringComparer.Ordinal) { [zones[0].Name] = new Point(Width / 2.0, Height / 2.0) }; }
+
+            var (idx, adj, _) = BuildDirectAdjacency(zones, connections);
+
+            // ── PageRank (power iteration with teleport) ──────────────────────────
+            double[] pr = new double[n];
+            for (int i = 0; i < n; i++) pr[i] = 1.0 / n;
+            const double damping = 0.85;
+            double teleport = (1.0 - damping) / n;
+            for (int iter = 0; iter < 200; iter++)
+            {
+                var next = new double[n];
+                for (int i = 0; i < n; i++) next[i] = teleport;
+                for (int i = 0; i < n; i++)
+                {
+                    int deg = adj[i].Count;
+                    if (deg == 0) { for (int j = 0; j < n; j++) next[j] += damping * pr[i] / n; }
+                    else foreach (int j in adj[i]) next[j] += damping * pr[i] / deg;
+                }
+                double s = next.Sum();
+                if (s > 0) for (int i = 0; i < n; i++) next[i] /= s;
+                pr = next;
+            }
+
+            // ── Betweenness centrality (Brandes) ────────────────────────────────
+            double[] bc = new double[n];
+            for (int s = 0; s < n; s++)
+            {
+                var stack = new Stack<int>();
+                var pred = new List<int>[n];
+                for (int i = 0; i < n; i++) pred[i] = new List<int>();
+                var dist = new int[n];   for (int i = 0; i < n; i++) dist[i] = -1;
+                var sigma = new double[n]; for (int i = 0; i < n; i++) sigma[i] = 0;
+                var delta = new double[n]; for (int i = 0; i < n; i++) delta[i] = 0;
+                dist[s] = 0; sigma[s] = 1;
+                var q = new Queue<int>(); q.Enqueue(s);
+                while (q.Count > 0)
+                {
+                    int v = q.Dequeue(); stack.Push(v);
+                    foreach (int w in adj[v])
+                    {
+                        if (dist[w] < 0)
+                        {
+                            dist[w] = dist[v] + 1;
+                            q.Enqueue(w);
+                        }
+                        if (dist[w] == dist[v] + 1)
+                        {
+                            sigma[w] += sigma[v];
+                            pred[w].Add(v);
+                        }
+                    }
+                }
+                while (stack.Count > 0)
+                {
+                    int w = stack.Pop();
+                    foreach (int v in pred[w])
+                        delta[v] += (sigma[v] / sigma[w]) * (1.0 + delta[w]);
+                    if (w != s) bc[w] += delta[w];
+                }
+            }
+            // Undirected: each pair counted twice → halve.
+            for (int i = 0; i < n; i++) bc[i] /= 2.0;
+
+            // ── Normalise + combine ───────────────────────────────────────────────
+            double prMax = pr.Max(), bcMax = bc.Max();
+            double[] centr = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                double np = prMax > 0 ? pr[i] / prMax : 0;
+                double nb = bcMax > 0 ? bc[i] / bcMax : 0;
+                centr[i] = np + nb;
+            }
+
+            // Single node or fully tied → fall back to force-directed (avoids divide-by-zero).
+            double cMax = centr.Max(), cMin = centr.Min();
+            if (cMax - cMin < 1e-9)
+                return LayoutZonesForceDirected(zones, connections);
+
+            var ux = new double[n]; var uy = new double[n];
+            // Order zones by centrality (ascending) so the most central gets ring 0.
+            var order = Enumerable.Range(0, n).OrderBy(i => centr[i]).ToArray();
+
+            // Bucket into concentric rings by centrality tiers.
+            int ringCount = Math.Min(Math.Max((int)Math.Ceiling(Math.Sqrt(n)), 2), n);
+            var ringOf = new int[n];
+            for (int r = 0; r < ringCount; r++)
+            {
+                int lo = (int)((long)r * n / ringCount);
+                int hi = (int)((long)(r + 1) * n / ringCount);
+                for (int k = lo; k < hi; k++) ringOf[order[k]] = r;
+            }
+
+            // Ring radii: inner ring small (central hubs), outer ring near the rim.
+            double margin = 18, minGap = 6;
+            double ringRadius0 = Width / 2.0 - margin;
+            double chord0 = 2.0 * ringRadius0 * Math.Sin(Math.PI / Math.Max(n, 2));
+            double zoneRadius = Math.Min(ZoneRadiusMax, (chord0 - minGap) / 2.0);
+            zoneRadius = Math.Max(zoneRadius, 8.0);
+
+            double[] ringRadii = new double[ringCount];
+            for (int r = 0; r < ringCount; r++)
+            {
+                double t = ringCount == 1 ? 0 : (double)r / (ringCount - 1);
+                ringRadii[r] = 1.0 + t * (ringRadius0 / Math.Max(zoneRadius, 1.0) - 1.0);
+                ringRadii[r] = Math.Min(ringRadii[r], ringRadius0);
+            }
+
+            // Place each ring's nodes evenly by angle; break ties by degree for stability.
+            var placed = new bool[n];
+            for (int r = 0; r < ringCount; r++)
+            {
+                var members = order.Where(i => ringOf[i] == r).ToList();
+                int cnt = members.Count;
+                double radius = ringRadii[r];
+                if (cnt == 1 && r == 0)
+                {
+                    ux[members[0]] = 0.5; uy[members[0]] = 0.5;
+                    placed[members[0]] = true;
+                    continue;
+                }
+                var sorted = members
+                    .OrderBy(i => -adj[i].Count)
+                    .ThenBy(i => i)
+                    .ToList();
+                double first = cnt > 0 ? -Math.PI / 2.0 : 0;
+                for (int k = 0; k < cnt; k++)
+                {
+                    double ang = first + 2.0 * Math.PI * k / cnt;
+                    ux[sorted[k]] = 0.5 + Math.Cos(ang) * (radius / (Width / 2.0));
+                    uy[sorted[k]] = 0.5 + Math.Sin(ang) * (radius / (Height / 2.0));
+                    placed[sorted[k]] = true;
+                }
+            }
+            foreach (int i in order) if (!placed[i]) { ux[i] = 0.5; uy[i] = 0.5; }
+
+            return FitUnitToCanvas(zones, ux, uy, connections);
+        }
+
+        /// <summary>
+        /// Network-logic layout: a layered radial flow. The most-connected hub is the
+        /// centre; BFS layers (direct neighbours, then their neighbours, …) become
+        /// concentric rings. Within a ring, nodes are sorted by local cluster strength
+        /// (sum of neighbours' degrees) so tightly-coupled sub-networks stay grouped,
+        /// and cliques are pulled toward the ring centre. The result reads like a
+        /// network diagram: a dense core with peripheral chains fanning outward.
+        /// </summary>
+        private static Dictionary<string, Point> LayoutZonesNetwork(List<Zone> zones, List<Connection> connections)
+        {
+            int n = zones.Count;
+            if (n == 0) { _zoneRadius = ZoneRadiusMax; return []; }
+            if (n == 1) { _zoneRadius = ZoneRadiusMax; return new(StringComparer.Ordinal) { [zones[0].Name] = new Point(Width / 2.0, Height / 2.0) }; }
+
+            var (idx, adj, _) = BuildDirectAdjacency(zones, connections);
+
+            // Connected components (each becomes its own concentric cluster).
+            var comp = new int[n]; Array.Fill(comp, -1);
+            var comps = new List<List<int>>();
+            for (int s = 0; s < n; s++)
+            {
+                if (comp[s] >= 0) continue;
+                var c = new List<int>(); var q = new Queue<int>(); q.Enqueue(s); comp[s] = comps.Count;
+                while (q.Count > 0)
+                {
+                    int u = q.Dequeue(); c.Add(u);
+                    foreach (int v in adj[u]) if (comp[v] < 0) { comp[v] = comps.Count; q.Enqueue(v); }
+                }
+                comps.Add(c);
+            }
+
+            var ux = new double[n]; var uy = new double[n];
+
+            // Place each component around a meta-slot so multiple clusters don't overlap.
+            double compAngle = -Math.PI / 2.0;
+            double compStep = 2.0 * Math.PI / comps.Count;
+            double compRing = comps.Count == 1 ? 0.0 : 0.30;
+
+            foreach (var c in comps)
+            {
+                int m = c.Count;
+                double compCx = 0.5 + compRing * Math.Cos(compAngle);
+                double compCy = 0.5 + compRing * Math.Sin(compAngle);
+                compAngle += compStep;
+
+                // Hub = highest-degree node (ties broken by neighbours' degrees).
+                int hub = c[0];
+                int bestScore = -1;
+                foreach (int gi in c)
+                {
+                    int score = adj[gi].Count * 1000;
+                    foreach (int gj in adj[gi]) score += adj[gj].Count;
+                    if (score > bestScore) { bestScore = score; hub = gi; }
+                }
+
+                // BFS layering from the hub.
+                var layerOf = new int[m];
+                Array.Fill(layerOf, -1);
+                var layerLists = new List<List<int>>();
+                var bq = new Queue<int>(); bq.Enqueue(hub); layerOf[c.IndexOf(hub)] = 0;
+                var curLayer = new List<int> { hub };
+                while (bq.Count > 0)
+                {
+                    var next = new List<int>();
+                    while (bq.Count > 0)
+                    {
+                        int u = bq.Dequeue();
+                        foreach (int v in adj[u])
+                        {
+                            int vi = c.IndexOf(v);
+                            if (vi >= 0 && layerOf[vi] < 0)
+                            {
+                                layerOf[vi] = layerOf[c.IndexOf(u)] + 1;
+                                next.Add(v);
+                                bq.Enqueue(v);
+                            }
+                        }
+                    }
+                    if (next.Count > 0) layerLists.Add(next);
+                }
+                // Any leftover (disconnected within component — shouldn't happen, but safe)
+                foreach (int gi in c) if (layerOf[c.IndexOf(gi)] < 0) { layerOf[c.IndexOf(gi)] = layerLists.Count; layerLists.Add(new List<int> { gi }); }
+
+                int layerCount = layerLists.Count;
+
+                // Local-cluster strength for ordering within a ring.
+                int ClusterStrength(int gi)
+                {
+                    int s = 0;
+                    foreach (int gj in adj[gi]) if (c.Contains(gj)) s += adj[gj].Count;
+                    return s;
+                }
+
+                for (int li = 0; li < layerCount; li++)
+                {
+                    var members = layerLists[li];
+                    // Layer 0 is the hub (centre); outer layers are rings.
+                    double radiusUnit; // fraction of half-canvas
+                    if (li == 0) radiusUnit = 0.0;
+                    else radiusUnit = layerCount == 1 ? 0.0 : (double)li / (layerCount - 1) * 0.42;
+
+                    var sorted = members
+                        .OrderBy(i => -ClusterStrength(i))
+                        .ThenBy(i => -adj[i].Count)
+                        .ThenBy(i => i)
+                        .ToList();
+                    int cnt = sorted.Count;
+                    if (li == 0 && cnt == 1)
+                    {
+                        ux[sorted[0]] = compCx; uy[sorted[0]] = compCy;
+                        continue;
+                    }
+                    // Pull tight clusters (high internal degree) toward the centre of the ring arc.
+                    double first = -Math.PI / 2.0;
+                    for (int k = 0; k < cnt; k++)
+                    {
+                        double ang = first + 2.0 * Math.PI * k / cnt;
+                        ux[sorted[k]] = compCx + Math.Cos(ang) * radiusUnit;
+                        uy[sorted[k]] = compCy + Math.Sin(ang) * radiusUnit;
+                    }
+                }
+            }
+
+            // Any unassigned (shouldn't happen) → centre.
+            for (int i = 0; i < n; i++) if (double.IsNaN(ux[i]) || double.IsNaN(uy[i])) { ux[i] = 0.5; uy[i] = 0.5; }
+
+            return FitUnitToCanvas(zones, ux, uy, connections);
+        }
+
         /// <summary>
         /// Shared overlap + edge-clearance correction and final fit-to-canvas pass used by
         /// the force-directed layouts. Mutates <paramref name="px"/>/<paramref name="py"/> in place.
@@ -1526,6 +2268,32 @@ namespace Olden_Era___Template_Editor.Services
                     py[i] = height / 2.0 + (py[i] - height / 2.0) * shrink;
                 }
                 _zoneRadius = Math.Max(zoneRadius * shrink, 8.0);
+            }
+
+            // Re-enforce the minimum separation AFTER any fit-shrink so the shrink
+            // can't crush zones back on top of each other.
+            double finalRadius = shrink < 1.0 ? Math.Max(zoneRadius * shrink, 8.0) : zoneRadius;
+            double finalMin = finalRadius * 3.8;
+            for (int pass = 0; pass < 200; pass++)
+            {
+                bool any = false;
+                for (int i = 0; i < n; i++)
+                    for (int j = i + 1; j < n; j++)
+                    {
+                        double dx = px[i] - px[j], dy = py[i] - py[j];
+                        double d  = Math.Sqrt(dx * dx + dy * dy);
+                        if (d >= finalMin) continue;
+                        if (d < 0.001)
+                        {
+                            double ang = (i * 928371.0 + j * 123893.0) % (2.0 * Math.PI);
+                            dx = Math.Cos(ang); dy = Math.Sin(ang); d = 0.001;
+                        }
+                        double push = (finalMin - d) / 2.0;
+                        px[i] += dx / d * push; py[i] += dy / d * push;
+                        px[j] -= dx / d * push; py[j] -= dy / d * push;
+                        any = true;
+                    }
+                if (!any) break;
             }
         }
 

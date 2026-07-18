@@ -11,10 +11,10 @@ using System.Windows;
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
-[assembly: AssemblyVersion("2.0.0.0")]
-[assembly: AssemblyFileVersion("2.0.0.0")]
+[assembly: AssemblyVersion("3.0.0.0")]
+[assembly: AssemblyFileVersion("3.0.0.0")]
 
-[assembly: InternalsVisibleTo("Olden Era - Template Editor.Tests")]
+[assembly: InternalsVisibleTo("OldenEraTemplateEditor.Tests")]
 
 [assembly: ThemeInfo(
     ResourceDictionaryLocation.None,

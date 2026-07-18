@@ -102,7 +102,8 @@ namespace Olden_Era___Template_Editor
         private bool   _connectMode;
         private Zone?  _connectFrom;
         private bool   _gridSnap = true; // Grid snap enabled by default
-        private const double GridSize = 50.0; // Grid cell size in pixels
+        private double  _gridSize = 50.0; // Grid cell size in pixels (adjustable via toolbar)
+        private const double GridSizeMin = 20.0, GridSizeMax = 200.0, GridSizeStep = 10.0;
 
         // Mirror creation mode (vertical left/right split)
         private bool _mirrorMode;
@@ -124,6 +125,10 @@ namespace Olden_Era___Template_Editor
         private Connection? _copiedConnection; // Connection properties for copy/paste
         private Dictionary<string, string> _hotkeys = new(); // Action → "Ctrl+Key"
 
+        /// <summary>Raised after a template is imported via the "загрузить .rmg.json" button, so the
+        /// host (main window) can re-import it in edit mode with the same restriction logic.</summary>
+        public event Action<RmgTemplate>? TemplateImported;
+
         public TemplateEditorWindow(RmgTemplate? template = null, MapTopology topology = MapTopology.Default)
         {
             InitializeComponent();
@@ -133,6 +138,9 @@ namespace Olden_Era___Template_Editor
             // Override with saved values
             foreach (var kv in AppSettings.Current.Hotkeys)
                 _hotkeys[kv.Key] = kv.Value;
+            // Override with config.json hotkeys (user-editable file next to the exe)
+            foreach (var kv in Services.ConfigJson.Current.Hotkeys)
+                _hotkeys[kv.Key] = kv.Value;
 
             // Add hotkey labels under toolbar buttons
             Loaded += (_, _) =>
@@ -140,8 +148,13 @@ namespace Olden_Era___Template_Editor
                 AddHotkeyLabelsToToolbar();
                 ComputePositions();
                 RebuildGraph();
+                BtnGridSnap.Background = _gridSnap
+                    ? new SolidColorBrush(Color.FromRgb(40, 60, 40))
+                    : null;
+                UpdateGridSizeLabel();
                 FitToView();
                 UpdateTitle();
+                UpdateCanvasHintVisibility();
                 UpdateStatus(L("S.EC.Status0", Zones.Count, Connections.Count));
             };
         }
@@ -199,8 +212,8 @@ namespace Olden_Era___Template_Editor
             {
                 var p = _positions[key];
                 _positions[key] = new Point(
-                    Math.Round(p.X / GridSize) * GridSize,
-                    Math.Round(p.Y / GridSize) * GridSize);
+                    Math.Round(p.X / _gridSize) * _gridSize,
+                    Math.Round(p.Y / _gridSize) * _gridSize);
             }
         }
 
@@ -371,18 +384,20 @@ namespace Olden_Era___Template_Editor
             if (_mirrorMode) DrawMirrorDivider();
         }
 
-        /// <summary>Draws a subtle 50px reference grid that pans/zooms with the graph.</summary>
+        /// <summary>Draws a subtle reference grid (cell size = <see cref="_gridSize"/>) that
+        /// pans/zooms with the graph. The cell size is adjustable from the toolbar.</summary>
         private void DrawGrid()
         {
-            var cell = new GeometryDrawing
+            double cell = _gridSize;
+            var drawing = new GeometryDrawing
             {
-                Geometry = new RectangleGeometry(new Rect(0, 0, 50, 50)),
+                Geometry = new RectangleGeometry(new Rect(0, 0, cell, cell)),
                 Pen = new Pen(new SolidColorBrush(GridLine), 1),
             };
             var brush = new DrawingBrush
             {
-                Drawing = cell, TileMode = TileMode.Tile, Stretch = Stretch.None,
-                Viewport = new Rect(0, 0, 50, 50), ViewportUnits = BrushMappingMode.Absolute,
+                Drawing = drawing, TileMode = TileMode.Tile, Stretch = Stretch.None,
+                Viewport = new Rect(0, 0, cell, cell), ViewportUnits = BrushMappingMode.Absolute,
             };
             brush.Freeze();
             GraphCanvas.Children.Add(new System.Windows.Shapes.Rectangle
@@ -684,15 +699,6 @@ namespace Olden_Era___Template_Editor
             {
                 TxtInspectorHint.Text = L("S.EC.Zone");
                 var mainPanel = InspectorFieldsMain;
-                // "Same owner" flag — when on, every main object in this zone gets the Owner of the first main object
-                AddCheckField(L("S.EC.SameOwner"), z.SyncOwners,
-                    v =>
-                    {
-                        z.SyncOwners = v;
-                        if (v) SyncOwnersInZone(z);
-                        MirrorMarkDirty(z);
-                        BuildInspector();
-                    }, mainPanel);
                 var mainSection = AddExpanderSection(L("S.EC.Name"), mainPanel);
                 AddTextField(L("S.EC.Name"), z.Name, v => { RenameZone(z, v); }, mainSection);
                 AddTextField(L("S.EC.Size"), (z.Size ?? 1.0).ToString(CultureInfo.InvariantCulture),
@@ -812,24 +818,34 @@ namespace Olden_Era___Template_Editor
                 {
                     var creator = new ContentPoolCreatorWindow();
                     creator.Owner = this;
-                    creator.PoolCreated += (poolName, poolLists) =>
+                    creator.PoolCreated += (poolName, poolItems) =>
                     {
                         try
                         {
                             // Add custom_ prefix for filtering
                             var fullName = poolName.StartsWith("custom_") ? poolName : "custom_" + poolName;
 
+                            // One group per selected list; the weight written for that list at
+                            // creation time becomes the group's weight, and the list name goes
+                            // into includeLists (matching the real GameData pool schema).
+                            var groups = new List<PoolGroup>();
+                            foreach (var kv in poolItems)
+                                groups.Add(new PoolGroup
+                                {
+                                    Weight = kv.Value,
+                                    IncludeLists = new List<string> { kv.Key },
+                                });
+
                             var newPool = new GamePool
                             {
                                 Name = fullName,
-                                Groups = new List<PoolGroup>
+                                // Hardcoded value distribution (matches the reference pool format).
+                                ValueDistribution = new ValueDistribution
                                 {
-                                    new PoolGroup
-                                    {
-                                        Weight = 1,
-                                        IncludeLists = poolLists
-                                    }
-                                }
+                                    PriceBounds = new List<int> { 3999, 6999, 12999, 15999 },
+                                    Weights     = new List<int> { 6, 8, 10, 6, 0 },
+                                },
+                                Groups = groups,
                             };
 
                             GamePoolDataLoader.AddPool(newPool);
@@ -1431,7 +1447,6 @@ namespace Olden_Era___Template_Editor
 
                 var btnCopy = new Button
                 {
-                    Content = "📋 Копировать свойства связи",
                     Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x4A, 0x70, 0x40)),
                     Foreground = System.Windows.Media.Brushes.LightGray,
                     BorderThickness = new Thickness(0),
@@ -1441,33 +1456,11 @@ namespace Olden_Era___Template_Editor
                     HorizontalAlignment = HorizontalAlignment.Left,
                     Margin = new Thickness(0, 0, 0, 4),
                 };
-                btnCopy.Click += (_, _) =>
-                {
-                    _copiedConnection = new Connection
-                    {
-                        ConnectionType = cc.ConnectionType,
-                        GuardValue = cc.GuardValue,
-                        GuardEscape = cc.GuardEscape,
-                        SimTurnSquad = cc.SimTurnSquad,
-                        GuardWeeklyIncrement = cc.GuardWeeklyIncrement,
-                        GuardMatchGroup = cc.GuardMatchGroup,
-                        Road = cc.Road,
-                        GatePlacement = cc.GatePlacement,
-                        GatePlacementArgs = cc.GatePlacementArgs != null ? [.. cc.GatePlacementArgs] : null,
-                        GuardRandomization = cc.GuardRandomization,
-                        Length = cc.Length,
-                        PortalPlacementRulesFrom = cc.PortalPlacementRulesFrom != null
-                            ? [.. cc.PortalPlacementRulesFrom] : null,
-                        PortalPlacementRulesTo = cc.PortalPlacementRulesTo != null
-                            ? [.. cc.PortalPlacementRulesTo] : null,
-                    };
-                    UpdateStatus($"Скопированы свойства связи '{cc.Name}'");
-                };
-                copyPastePanel.Children.Add(btnCopy);
+                btnCopy.Content = MakeHotkeyButtonContent("📋 Копировать свойства связи", "CopyConnectionProps");
+                btnCopy.Click += (_, _) => CopyConnectionProps();
 
                 var btnPaste = new Button
                 {
-                    Content = "📋 Вставить свойства",
                     Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x4A, 0x70, 0x40)),
                     Foreground = System.Windows.Media.Brushes.LightGray,
                     BorderThickness = new Thickness(0),
@@ -1477,49 +1470,8 @@ namespace Olden_Era___Template_Editor
                     HorizontalAlignment = HorizontalAlignment.Left,
                     IsEnabled = _copiedConnection != null,
                 };
-                btnPaste.Click += (_, _) =>
-                {
-                    if (_copiedConnection is null) return;
-                    cc.ConnectionType = _copiedConnection.ConnectionType;
-                    cc.GuardValue = _copiedConnection.GuardValue;
-                    cc.GuardEscape = _copiedConnection.GuardEscape;
-                    cc.SimTurnSquad = _copiedConnection.SimTurnSquad;
-                    cc.GuardWeeklyIncrement = _copiedConnection.GuardWeeklyIncrement;
-                    cc.GuardMatchGroup = _copiedConnection.GuardMatchGroup;
-                    cc.GatePlacement = _copiedConnection.GatePlacement;
-                    cc.GatePlacementArgs = _copiedConnection.GatePlacementArgs != null
-                        ? [.. _copiedConnection.GatePlacementArgs] : null;
-                    cc.GuardRandomization = _copiedConnection.GuardRandomization;
-                    cc.Length = _copiedConnection.Length;
-                    cc.PortalPlacementRulesFrom = _copiedConnection.PortalPlacementRulesFrom != null
-                        ? [.. _copiedConnection.PortalPlacementRulesFrom] : null;
-                    cc.PortalPlacementRulesTo = _copiedConnection.PortalPlacementRulesTo != null
-                        ? [.. _copiedConnection.PortalPlacementRulesTo] : null;
-
-                    // Road: apply and recalculate
-                    bool hadRoad = cc.Road == true;
-                    cc.Road = _copiedConnection.Road;
-                    if (cc.Road == true && !hadRoad)
-                        AutoGenerateRoadsForConnection(cc);
-                    else if (cc.Road != true && hadRoad)
-                    {
-                        string connName = cc.Name ?? $"{cc.From}-{cc.To}";
-                        RemoveConnectionRoads(Zones.FirstOrDefault(z => z.Name == cc.From), connName);
-                        RemoveConnectionRoads(Zones.FirstOrDefault(z => z.Name == cc.To), connName);
-                        RebuildCastleLessStar(Zones.FirstOrDefault(z => z.Name == cc.From));
-                        RebuildCastleLessStar(Zones.FirstOrDefault(z => z.Name == cc.To));
-                    }
-
-                    // Auto-rename
-                    cc.Name = $"{cc.From.ToUpperInvariant()}-{cc.To.ToUpperInvariant()}";
-
-                    MarkDirty();
-                    MirrorConnectionMarkDirty(cc);
-                    RebuildGraph();
-                    BuildInspector();
-                    UpdateStatus($"Свойства вставлены в '{cc.Name}'");
-                };
-                copyPastePanel.Children.Add(btnPaste);
+                btnPaste.Content = MakeHotkeyButtonContent("📋 Вставить свойства", "PasteConnectionProps");
+                btnPaste.Click += (_, _) => PasteConnectionProps();
 
                 InspectorFieldsMain?.Children.Add(copyPastePanel);
             }
@@ -1595,8 +1547,7 @@ namespace Olden_Era___Template_Editor
             ComboBox? ownerCombo = null;
             ComboBox? playerCombo = null;
 
-            // Object type selector
-            AddSectionLabel(L("S.EC.MoType"), panel);
+            // Object type selector (label + combo are added below the "remove guard if owned" flag)
             var typeCombo = new ComboBox { IsEditable = false, Margin = new Thickness(0, 0, 0, 8), MaxDropDownHeight = 200 };
             foreach (var t in KnownValues.MainObjectTypes) typeCombo.Items.Add(t);
             typeCombo.SelectedItem = mo.Type;
@@ -1705,15 +1656,6 @@ namespace Olden_Era___Template_Editor
 
                 mo.Owner = hasOwner ? newOwner : null;
 
-                // "Same owner" flag: propagate the first main object's owner to every main object
-                if (z.SyncOwners && isFirstMainObject)
-                {
-                    SyncOwnersInZone(z);
-                    MirrorMarkDirty(z);
-                    BuildInspector();
-                    return;
-                }
-
                 if (hasOwner)
                 {
                     mo.RemoveGuardIfHasOwner = true;
@@ -1748,6 +1690,10 @@ namespace Olden_Era___Template_Editor
             panel.Children.Add(ownerPanel);
             panel.Children.Add(removeGuardCheck);
 
+            // Object type label + selector — placed BELOW the "remove guard if owned" flag (per UI spec).
+            AddSectionLabel(L("S.EC.MoType"), panel);
+            panel.Children.Add(typeCombo);
+
             // Spawn field panel (only for Spawn type, placed after removeGuardCheck so the handler can reference it)
             var spawnPanel = new StackPanel { Visibility = mo.Type == "Spawn" ? Visibility.Visible : Visibility.Collapsed };
             AddSectionLabel(L("S.EC.Spawn"), spawnPanel);
@@ -1778,13 +1724,6 @@ namespace Olden_Era___Template_Editor
                     }
                     EnsureUniqueSpawns(Zones);
                     SyncZoneLayoutForSpawn(z, mo.Spawn);
-                    if (z.SyncOwners && isFirstMainObject)
-                    {
-                        SyncOwnersInZone(z);
-                        MirrorMarkDirty(z);
-                        BuildInspector();
-                        return;
-                    }
                     if (playerCombo != null) playerCombo.SelectedItem = mo.Spawn ?? "";
                     if (ownerCombo != null) ownerCombo.SelectedItem = mo.Owner ?? "";
                     UpdateGuardFieldsVisibility();
@@ -1839,9 +1778,8 @@ namespace Olden_Era___Template_Editor
             nearZonePanel.Children.Add(nearZoneCombo);
 
             // Show/hide args based on placement selection
-            placeCombo.SelectionChanged += (_, _) =>
+            void UpdatePlacementVisibility(string? sel)
             {
-                var sel = placeCombo.SelectedItem as string;
                 placeArgsPanel.Visibility = sel == "Center" || sel == "NearZone" || sel == "Connection" ? Visibility.Collapsed : Visibility.Visible;
                 connArgsPanel.Visibility = sel == "Connection" ? Visibility.Visible : Visibility.Collapsed;
                 nearZonePanel.Visibility = sel == "NearZone" ? Visibility.Visible : Visibility.Collapsed;
@@ -1854,6 +1792,16 @@ namespace Olden_Era___Template_Editor
                         mo.PlacementArgs = new List<string> { auto };
                         connArgsCombo.SelectedItem = auto;
                     }
+                }
+            }
+
+            placeCombo.SelectionChanged += (_, _) =>
+            {
+                if (placeCombo.SelectedItem is string s)
+                {
+                    mo.Placement = s;
+                    MirrorMarkDirty(z);
+                    UpdatePlacementVisibility(s);
                 }
             };
 
@@ -1881,7 +1829,11 @@ namespace Olden_Era___Template_Editor
 
                 UpdateGuardFieldsVisibility();
                 foreach (var field in factionFields) field.Visibility = showFaction ? Visibility.Visible : Visibility.Collapsed;
-                foreach (var field in placementFields) field.Visibility = showPlacement ? Visibility.Visible : Visibility.Collapsed;
+                // The placement section group (Placement combo) follows the type; the
+                // Connection / NearZone / PlacementArgs sub-panels are gated purely
+                // on the current Placement value via UpdatePlacementVisibility.
+                placePanel.Visibility = showPlacement ? Visibility.Visible : Visibility.Collapsed;
+                UpdatePlacementVisibility(mo.Placement);
 
                 spawnPanel.Visibility = type == "Spawn" ? Visibility.Visible : Visibility.Collapsed;
 
@@ -1940,8 +1892,7 @@ namespace Olden_Era___Template_Editor
                 }
             };
 
-            // Add all controls to panel in order
-            panel.Children.Add(typeCombo);
+            // Add all controls to panel in order (typeCombo + its label already added above the spawn panel)
             panel.Children.Add(spawnPanel);
             foreach (var field in guardFields) panel.Children.Add(field);
             foreach (var field in factionFields) panel.Children.Add(field);
@@ -2339,9 +2290,8 @@ namespace Olden_Era___Template_Editor
                 nearZonePanel.Children.Add(nearZoneCombo);
 
                 // Show/hide args based on placement selection
-                placeCombo.SelectionChanged += (_, _) =>
+                void UpdatePlacementVisibility(string? sel)
                 {
-                    var sel = placeCombo.SelectedItem as string;
                     placeArgsPanel.Visibility = sel == "Center" || sel == "NearZone" || sel == "Connection" ? Visibility.Collapsed : Visibility.Visible;
                     connArgsPanel.Visibility = sel == "Connection" ? Visibility.Visible : Visibility.Collapsed;
                     nearZonePanel.Visibility = sel == "NearZone" ? Visibility.Visible : Visibility.Collapsed;
@@ -2354,6 +2304,16 @@ namespace Olden_Era___Template_Editor
                             mo.PlacementArgs = new List<string> { auto };
                             connArgsCombo.SelectedItem = auto;
                         }
+                    }
+                }
+
+                placeCombo.SelectionChanged += (_, _) =>
+                {
+                    if (placeCombo.SelectedItem is string s)
+                    {
+                        mo.Placement = s;
+                        MirrorMarkDirty(z);
+                        UpdatePlacementVisibility(s);
                     }
                 };
 
@@ -2375,7 +2335,14 @@ namespace Olden_Era___Template_Editor
 
                     foreach (var field in guardFields) field.Visibility = showGuard ? Visibility.Visible : Visibility.Collapsed;
                     foreach (var field in factionFields) field.Visibility = showFaction ? Visibility.Visible : Visibility.Collapsed;
-                    foreach (var field in placementFields) field.Visibility = showPlacement ? Visibility.Visible : Visibility.Collapsed;
+                    // Gate the placement section via the placementFields list (indices:
+                    // 0 = Placement combo, 1 = PlacementArgs, 2 = Connection, 3 = NearZone)
+                    // so we don't capture panels declared later in this method.
+                    var sel = mo.Placement;
+                    placementFields[0].Visibility = showPlacement ? Visibility.Visible : Visibility.Collapsed;
+                    placementFields[1].Visibility = sel == "Center" || sel == "NearZone" || sel == "Connection" ? Visibility.Collapsed : Visibility.Visible;
+                    placementFields[2].Visibility = sel == "Connection" ? Visibility.Visible : Visibility.Collapsed;
+                    placementFields[3].Visibility = sel == "NearZone" ? Visibility.Visible : Visibility.Collapsed;
                     ownerPanel.Visibility = showOwner ? Visibility.Visible : Visibility.Collapsed;
 
                     // Hide faction args when type changes (will be shown by facTypeCombo handler if needed)
@@ -3208,7 +3175,7 @@ namespace Olden_Era___Template_Editor
         {
             foreach (var zone in Zones)
             {
-                if (zone.MainObjects == null || zone.MainObjects.Count <= 1) continue;
+                if (zone.MainObjects == null || zone.MainObjects.Count == 0) continue;
                 zone.Roads ??= [];
 
                 // Part C: Center-placed MO → roads to all road connections involving this zone
@@ -3220,6 +3187,24 @@ namespace Olden_Era___Template_Editor
                             && (string.Equals(conn.From, zone.Name, StringComparison.OrdinalIgnoreCase)
                              || string.Equals(conn.To, zone.Name, StringComparison.OrdinalIgnoreCase)))
                             AddUniqueRoad(zone, "MainObject", ["0"], "Connection", [conn.Name]);
+                    }
+                }
+
+                // Part C2: every MainObject (Uniform/Default/Center/…) → road connection that
+                // touches this zone. Mirrors H3TParser.AddRoadToZone so a Uniform MO gets a
+                // road reaching it (not just Connection- or Center-placed MOs). Connection-placed
+                // MOs are handled by the per-MO loop below, so skip them here.
+                foreach (var conn in Connections)
+                {
+                    if (conn.Road != true || conn.Name == null) continue;
+                    if (!string.Equals(conn.From, zone.Name, StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(conn.To, zone.Name, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    for (int i = 0; i < zone.MainObjects.Count; i++)
+                    {
+                        var mo = zone.MainObjects[i];
+                        if (mo.Placement == "Connection") continue;
+                        AddUniqueRoad(zone, "MainObject", [i.ToString()], "Connection", [conn.Name]);
                     }
                 }
 
@@ -3380,6 +3365,7 @@ namespace Olden_Era___Template_Editor
                 {
                     return new Road
                     {
+                        Type = "Stone",
                         From = new RoadEndpoint { Type = "Connection", Args = [connectionName] },
                         To = new RoadEndpoint { Type = "Connection", Args = [connectionName] }
                     };
@@ -3394,6 +3380,7 @@ namespace Olden_Era___Template_Editor
 
             return new Road
             {
+                Type = "Stone",
                 From = new RoadEndpoint { Type = "Connection", Args = [anchor] },
                 To = new RoadEndpoint { Type = "Connection", Args = [connectionName] }
             };
@@ -3548,18 +3535,6 @@ namespace Olden_Era___Template_Editor
                     isFirst = false;
                 }
             }
-        }
-
-        /// <summary>
-        /// Sets the <c>Owner</c> of every main object in the zone to the <c>Owner</c> of the first
-        /// main object (used by the per-zone "Same owner" flag).
-        /// </summary>
-        private void SyncOwnersInZone(Zone z)
-        {
-            if (z.MainObjects == null || z.MainObjects.Count == 0) return;
-            var firstOwner = z.MainObjects[0].Owner;
-            foreach (var mo in z.MainObjects)
-                mo.Owner = firstOwner;
         }
 
         /// <summary>
@@ -3839,6 +3814,26 @@ namespace Olden_Era___Template_Editor
                 ? new SolidColorBrush(Color.FromRgb(40, 60, 40))
                 : null;
             UpdateStatus(_gridSnap ? L("S.EC.GridSnapOn") : L("S.EC.GridSnapOff"));
+        }
+
+        private void BtnGridBigger_Click(object sender, RoutedEventArgs e)
+            => ChangeGridSize(+GridSizeStep);
+
+        private void BtnGridSmaller_Click(object sender, RoutedEventArgs e)
+            => ChangeGridSize(-GridSizeStep);
+
+        private void ChangeGridSize(double delta)
+        {
+            double next = Math.Clamp(_gridSize + delta, GridSizeMin, GridSizeMax);
+            if (next == _gridSize) return;
+            _gridSize = next;
+            UpdateGridSizeLabel();
+            RebuildGraph(); // redraw the grid at the new cell size
+        }
+
+        private void UpdateGridSizeLabel()
+        {
+            // grid size indicator removed
         }
 
         // ── Mirror creation mode (vertical left/right split) ───────────────────────
@@ -4175,8 +4170,8 @@ namespace Olden_Era___Template_Editor
         {
             if (!_gridSnap) return p;
             return new Point(
-                Math.Round(p.X / GridSize) * GridSize,
-                Math.Round(p.Y / GridSize) * GridSize
+                Math.Round(p.X / _gridSize) * _gridSize,
+                Math.Round(p.Y / _gridSize) * _gridSize
             );
         }
 
@@ -4309,7 +4304,15 @@ namespace Olden_Era___Template_Editor
                 case "LoadTemplate":   BtnLoad_Click(this, new RoutedEventArgs()); e.Handled = true; return;
                 case "AddZone":        AddZoneAt(_mousePosOnCanvas); e.Handled = true; return;
                 case "CopyConnections":BtnCopyConnections_Click(this, new RoutedEventArgs()); e.Handled = true; return;
+                case "CopyConnectionProps": CopyConnectionProps(); e.Handled = true; return;
+                case "PasteConnectionProps": PasteConnectionProps(); e.Handled = true; return;
                 case "ConnManager":    BtnConnectionManager_Click(this, new RoutedEventArgs()); e.Handled = true; return;
+                case "Orientation":    BtnOrientation_Click(this, new RoutedEventArgs()); e.Handled = true; return;
+                case "JsonPreview":    BtnJsonPreview_Click(this, new RoutedEventArgs()); e.Handled = true; return;
+                case "GridSnap":       BtnGridSnap_Click(this, new RoutedEventArgs()); e.Handled = true; return;
+                case "ZoomIn":         BtnZoomIn_Click(this, new RoutedEventArgs()); e.Handled = true; return;
+                case "ZoomOut":        BtnZoomOut_Click(this, new RoutedEventArgs()); e.Handled = true; return;
+                case "ZoomReset":      BtnZoomReset_Click(this, new RoutedEventArgs()); e.Handled = true; return;
             }
 
             // Built-in fallbacks (always active)
@@ -4346,6 +4349,12 @@ namespace Olden_Era___Template_Editor
                 _hotkeys = dlg.GetHotkeys();
                 UpdateHotkeyLabels();
                 UpdateStatus("Горячие клавиши обновлены");
+
+                // Сохраняем в config.json
+                var cfg = Services.ConfigJson.Current;
+                foreach (var kv in _hotkeys)
+                    cfg.Hotkeys[kv.Key] = kv.Value;
+                cfg.Save();
             }
         }
 
@@ -4358,50 +4367,48 @@ namespace Olden_Era___Template_Editor
                 (BtnLoad, "LoadTemplate"), (BtnAddZone, "AddZone"),
                 (BtnCopyZone, "CopyZone"), (BtnPasteZone, "PasteZone"),
                 (BtnConnectMode, "ConnectMode"), (BtnDelete, "Delete"),
-                (BtnValidate, "Validate"), (BtnSave, "Save"),
-                (BtnExportPng, "ExportPng"), (BtnRelayout, "Relayout"),
+                (BtnSave, "Save"), (BtnExportPng, "ExportPng"),
+                (BtnOrientation, "Orientation"), (BtnMirror, "Mirror"),
+                (BtnConnectionManager, "ConnManager"),
+                (BtnValidate, "Validate"), (BtnJsonPreview, "JsonPreview"),
+                (BtnGridSnap, "GridSnap"), (BtnRelayout, "Relayout"),
             };
             foreach (var (btn, action) in map)
             {
-                if (btn.Parent is not DockPanel dp) continue;
                 string key = _hotkeys.TryGetValue(action, out var v) ? v : "";
                 if (string.IsNullOrEmpty(key)) continue;
 
-                var lbl = new TextBlock
+                // Inject hotkey label INSIDE the button at the bottom edge
+                var originalContent = (btn.Content as string) ?? "";
+                var innerStack = new StackPanel
+                {
+                    Orientation = System.Windows.Controls.Orientation.Vertical,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                innerStack.Children.Add(new TextBlock
+                {
+                    Text = originalContent,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, -2),
+                });
+                innerStack.Children.Add(new TextBlock
                 {
                     Text = key,
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x66, 0x66, 0x66)),
+                    Foreground = new SolidColorBrush(Color.FromRgb(0xAA, 0xAA, 0xAA)),
                     FontSize = 8,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Margin = new Thickness(0, -2, 0, 0),
-                };
-                // Wrap button + label in a StackPanel (vertical: button on top, label below)
-                int idx = dp.Children.IndexOf(btn);
-                var sp = new StackPanel { Orientation = System.Windows.Controls.Orientation.Vertical,
-                                         HorizontalAlignment = HorizontalAlignment.Center };
-                dp.Children.Remove(btn);
-                sp.Children.Add(btn);
-                sp.Children.Add(lbl);
-                dp.Children.Insert(idx, sp);
-                _hotkeyLabels[btn] = lbl;
+                });
+                btn.Content = innerStack;
             }
         }
 
         private void UpdateHotkeyLabels()
         {
-            var map = new (Button btn, string action)[]
-            {
-                (BtnLoad, "LoadTemplate"), (BtnAddZone, "AddZone"),
-                (BtnCopyZone, "CopyZone"), (BtnPasteZone, "PasteZone"),
-                (BtnConnectMode, "ConnectMode"), (BtnDelete, "Delete"),
-                (BtnValidate, "Validate"), (BtnSave, "Save"),
-                (BtnExportPng, "ExportPng"), (BtnRelayout, "Relayout"),
-            };
-            foreach (var (btn, action) in map)
-            {
-                if (_hotkeyLabels.TryGetValue(btn, out var lbl))
-                    lbl.Text = _hotkeys.TryGetValue(action, out var v) ? v : "";
-            }
+            foreach (var (btn, lbl) in _hotkeyLabels)
+                lbl.Text = "";
+            // Re-apply all by calling Add again
+            AddHotkeyLabelsToToolbar();
         }
 
         private static Dictionary<string, string> GetDefaultHotkeys() => new()
@@ -4409,16 +4416,24 @@ namespace Olden_Era___Template_Editor
             ["CopyZone"] = "Ctrl+C",
             ["PasteZone"] = "Ctrl+V",
             ["Delete"] = "Delete",
-            ["ConnectMode"] = "Ctrl+L",
+            ["ConnectMode"] = "Z",
             ["Validate"] = "Ctrl+Shift+V",
             ["Save"] = "Ctrl+S",
             ["Relayout"] = "Ctrl+R",
             ["ExportPng"] = "Ctrl+E",
             ["Mirror"] = "Ctrl+M",
-            ["LoadTemplate"] = "Ctrl+O",
-            ["AddZone"] = "Ctrl+Z",
+            ["LoadTemplate"] = "Ctrl+D",
+            ["AddZone"] = "A",
             ["CopyConnections"] = "",
+            ["CopyConnectionProps"] = "Ctrl+Shift+Z",
+            ["PasteConnectionProps"] = "Ctrl+Z",
             ["ConnManager"] = "Ctrl+Shift+M",
+            ["Orientation"] = "Ctrl+O",
+            ["JsonPreview"] = "Ctrl+J",
+            ["GridSnap"] = "G",
+            ["ZoomIn"] = "Ctrl+=",
+            ["ZoomOut"] = "Ctrl+-",
+            ["ZoomReset"] = "Ctrl+0",
         };
 
         /// <summary>Experimental: export the zone graph (at natural scale, with grid + labels) to a PNG.</summary>
@@ -4665,6 +4680,104 @@ namespace Olden_Era___Template_Editor
 
         private void BtnPasteZone_Click(object sender, RoutedEventArgs e) => PasteCopiedZone();
 
+        // ── Copy / paste connection properties ──────────────────────────────
+
+        /// <summary>Build a vertical button content (label + hotkey hint on the bottom edge).</summary>
+        private System.Windows.FrameworkElement MakeHotkeyButtonContent(string label, string action)
+        {
+            string key = _hotkeys.TryGetValue(action, out var v) ? v
+                       : Services.ConfigJson.Current.Hotkeys.TryGetValue(action, out var c) ? c : "";
+            var inner = new StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Vertical,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            inner.Children.Add(new TextBlock
+            {
+                Text = label,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, -2),
+            });
+            if (!string.IsNullOrEmpty(key))
+                inner.Children.Add(new TextBlock
+                {
+                    Text = key,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0xAA, 0xAA, 0xAA)),
+                    FontSize = 8,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, -2, 0, 0),
+                });
+            return inner;
+        }
+
+        private void CopyConnectionProps()
+        {
+            if (_selected is not Connection cc) { UpdateStatus(L("S.EC.SelectConnFirst")); return; }
+            _copiedConnection = new Connection
+            {
+                ConnectionType = cc.ConnectionType,
+                GuardValue = cc.GuardValue,
+                GuardEscape = cc.GuardEscape,
+                SimTurnSquad = cc.SimTurnSquad,
+                GuardWeeklyIncrement = cc.GuardWeeklyIncrement,
+                GuardMatchGroup = cc.GuardMatchGroup,
+                Road = cc.Road,
+                GatePlacement = cc.GatePlacement,
+                GatePlacementArgs = cc.GatePlacementArgs != null ? [.. cc.GatePlacementArgs] : null,
+                GuardRandomization = cc.GuardRandomization,
+                Length = cc.Length,
+                PortalPlacementRulesFrom = cc.PortalPlacementRulesFrom != null
+                    ? [.. cc.PortalPlacementRulesFrom] : null,
+                PortalPlacementRulesTo = cc.PortalPlacementRulesTo != null
+                    ? [.. cc.PortalPlacementRulesTo] : null,
+            };
+            UpdateStatus($"Скопированы свойства связи '{cc.Name}'");
+            BuildInspector();
+        }
+
+        private void PasteConnectionProps()
+        {
+            if (_selected is not Connection cc) { UpdateStatus(L("S.EC.SelectConnFirst")); return; }
+            if (_copiedConnection is null) { UpdateStatus(L("S.EC.NothingCopied")); return; }
+
+            cc.ConnectionType = _copiedConnection.ConnectionType;
+            cc.GuardValue = _copiedConnection.GuardValue;
+            cc.GuardEscape = _copiedConnection.GuardEscape;
+            cc.SimTurnSquad = _copiedConnection.SimTurnSquad;
+            cc.GuardWeeklyIncrement = _copiedConnection.GuardWeeklyIncrement;
+            cc.GuardMatchGroup = _copiedConnection.GuardMatchGroup;
+            cc.GatePlacement = _copiedConnection.GatePlacement;
+            cc.GatePlacementArgs = _copiedConnection.GatePlacementArgs != null
+                ? [.. _copiedConnection.GatePlacementArgs] : null;
+            cc.GuardRandomization = _copiedConnection.GuardRandomization;
+            cc.Length = _copiedConnection.Length;
+            cc.PortalPlacementRulesFrom = _copiedConnection.PortalPlacementRulesFrom != null
+                ? [.. _copiedConnection.PortalPlacementRulesFrom] : null;
+            cc.PortalPlacementRulesTo = _copiedConnection.PortalPlacementRulesTo != null
+                ? [.. _copiedConnection.PortalPlacementRulesTo] : null;
+
+            bool hadRoad = cc.Road == true;
+            cc.Road = _copiedConnection.Road;
+            if (cc.Road == true && !hadRoad)
+                AutoGenerateRoadsForConnection(cc);
+            else if (cc.Road != true && hadRoad)
+            {
+                string connName = cc.Name ?? $"{cc.From}-{cc.To}";
+                RemoveConnectionRoads(Zones.FirstOrDefault(z => z.Name == cc.From), connName);
+                RemoveConnectionRoads(Zones.FirstOrDefault(z => z.Name == cc.To), connName);
+                RebuildCastleLessStar(Zones.FirstOrDefault(z => z.Name == cc.From));
+                RebuildCastleLessStar(Zones.FirstOrDefault(z => z.Name == cc.To));
+            }
+
+            cc.Name = $"{cc.From.ToUpperInvariant()}-{cc.To.ToUpperInvariant()}";
+
+            MarkDirty();
+            MirrorConnectionMarkDirty(cc);
+            RebuildGraph();
+            BuildInspector();
+            UpdateStatus($"Свойства вставлены в '{cc.Name}'");
+        }
+
         private void BtnJsonPreview_Click(object sender, RoutedEventArgs e)
         {
             Keyboard.ClearFocus();
@@ -4687,8 +4800,17 @@ namespace Olden_Era___Template_Editor
         private void BtnHelp_Click(object sender, RoutedEventArgs e)
         {
             Keyboard.ClearFocus();
-            var dlg = new EditorHelpWindow();
-            dlg.Show();
+            try
+            {
+                var dlg = new EditorHelpWindow();
+                dlg.Show();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Ошибка открытия справки:\n{ex.GetType().Name}: {ex.Message}\n\n{ex.StackTrace}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void BtnValidate_Click(object sender, RoutedEventArgs e)
@@ -4762,6 +4884,9 @@ namespace Olden_Era___Template_Editor
                 RebuildGraph();
                 FitToView();
                 UpdateStatus(L("S.EC.Loaded", dlg.Result.Name, Zones.Count, Connections.Count));
+                // Notify the host (main window) so it re-imports in edit mode with the same
+                // restriction logic that applies to a direct main-window import.
+                TemplateImported?.Invoke(dlg.Result);
             }
         }
 
@@ -4783,7 +4908,16 @@ namespace Olden_Era___Template_Editor
             // All road syncing handled by RebuildGraph with proper pre-auto snapshot
             RebuildGraph();
             FitToView();
+            UpdateCanvasHintVisibility();
             BuildInspector();
+        }
+
+        /// <summary>Shows the canvas controls hint only for a fresh, empty template; once zones exist
+        /// (e.g. after importing/loading a .rmg.json) the hint is hidden to avoid clutter.</summary>
+        private void UpdateCanvasHintVisibility()
+        {
+            if (TxtCanvasHint != null)
+                TxtCanvasHint.Visibility = Zones.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
         /// <summary>
@@ -4838,6 +4972,14 @@ namespace Olden_Era___Template_Editor
 
             try
             {
+                // If name still default ("Свой шаблон" / "Custom template"), replace with filename
+                string defaultName = L("S.M.014");
+                if (string.Equals(_template.Name, defaultName, StringComparison.OrdinalIgnoreCase) ||
+                    string.IsNullOrEmpty(_template.Name))
+                {
+                    _template.Name = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
+                }
+
                 // Pre-save cleanup: remove ContentSidLimit entries with empty sid
                 if (_template.ContentCountLimits != null)
                 {
@@ -4867,7 +5009,12 @@ namespace Olden_Era___Template_Editor
                 if (_template.SizeX > 0) _template.SizeX = KnownValues.NearestMapSize(_template.SizeX);
                 if (_template.SizeZ > 0) _template.SizeZ = KnownValues.NearestMapSize(_template.SizeZ);
 
-                File.WriteAllText(dlg.FileName, JsonSerializer.Serialize(_template, JsonOptions));
+                File.WriteAllText(dlg.FileName, TemplateGenerator.StripAndNormalizeForSave(_template, JsonOptions));
+
+                // Always emit a PNG preview sidecar next to the .rmg.json with the same base name.
+                try { TemplatePreviewPngWriter.Save(_template, TemplatePreviewPngWriter.GetSidecarPath(dlg.FileName), _topology); }
+                catch { /* preview sidecar is best-effort */ }
+
                 _currentPath = dlg.FileName;
                 _dirty = false;
                 UpdateTitle();

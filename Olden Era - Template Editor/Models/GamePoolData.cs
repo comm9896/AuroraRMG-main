@@ -17,6 +17,12 @@ namespace OldenEraTemplateEditor.Models
         public List<PoolContentItem>? Content { get; set; }
     }
 
+    public class ValueDistribution
+    {
+        public List<int> PriceBounds { get; set; } = new();
+        public List<int> Weights { get; set; } = new();
+    }
+
     public class PoolContentItem
     {
         public string Sid { get; set; } = "";
@@ -32,6 +38,7 @@ namespace OldenEraTemplateEditor.Models
     public class GamePool
     {
         public string Name { get; set; } = "";
+        public ValueDistribution? ValueDistribution { get; set; }
         public List<PoolGroup> Groups { get; set; } = new();
         public List<PoolBanEntry>? Bans { get; set; }
         /// <summary>Optional viewer tag used to group synthetic/template pools into viewer categories
@@ -198,7 +205,13 @@ namespace OldenEraTemplateEditor.Models
         {
             try
             {
-                var options = new JsonSerializerOptions { WriteIndented = true };
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    // Match the real GameData pool schema (camelCase: name, groups,
+                    // includeLists, valueDistribution, priceBounds, weights).
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                };
                 var json = JsonSerializer.Serialize(_customPools, options);
                 File.WriteAllText(_customPoolsPath, json);
             }

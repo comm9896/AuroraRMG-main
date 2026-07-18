@@ -5,6 +5,7 @@ using OldenEraTemplateEditor.Models.Generated;
 using OldenEraTemplateEditor.Services.ContentManagement;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 
 namespace Olden_Era___Template_Editor.Services
 {
@@ -400,9 +401,20 @@ namespace Olden_Era___Template_Editor.Services
 
         // ── Game rules ───────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Builds the <see cref="GameRules"/> block from generator settings without generating
+        /// the rest of the template. Exposed so callers (e.g. the main window "Edit Basic Settings"
+        /// flow) can patch only the rules of an existing template.
+        /// </summary>
+        public static GameRules BuildGameRules(GeneratorSettings settings)
+        {
+            string effective = settings.GameEndConditions?.VictoryCondition ?? "win_condition_1";
+            return BuildGameRules(settings, effective);
+        }
+
         private static GameRules BuildGameRules(GeneratorSettings settings, string effectiveVictoryCondition) => new()
         {
-            HeroCountMin = settings.SingleHeroMode ? 1 : settings.HeroSettings.HeroCountMin - settings.HeroSettings.HeroCountIncrement,
+            HeroCountMin = settings.SingleHeroMode ? 1 : settings.HeroSettings.HeroCountMin,
             HeroCountMax = settings.SingleHeroMode ? 1 : settings.HeroSettings.HeroCountMax,
             HeroCountIncrement = settings.SingleHeroMode ? 1 : settings.HeroSettings.HeroCountIncrement,
             HeroHireBan = settings.SingleHeroMode || settings.HeroSettings.HeroHireBan,
@@ -425,10 +437,11 @@ namespace Olden_Era___Template_Editor.Services
         }
 
         /// <summary>
-        /// Parses newline-separated "sid=guardValue" lines into a ValueOverride list.
+        /// Parses newline-separated "sid=guardValue" or "sid=guardValue,value" lines into a
+        /// ValueOverride list. A leading comma ("sid=,value") carries only the object value.
         /// Lines that are blank or unparseable are silently skipped.
         /// </summary>
-        private static List<ValueOverride>? BuildValueOverrides(string raw)
+        public static List<ValueOverride>? BuildValueOverrides(string raw)
         {
             if (string.IsNullOrWhiteSpace(raw)) return null;
             var list = new List<ValueOverride>();
@@ -440,17 +453,39 @@ namespace Olden_Era___Template_Editor.Services
                 if (eq <= 0) continue;
                 var sid = trimmed[..eq].Trim();
                 if (string.IsNullOrEmpty(sid)) continue;
-                if (!int.TryParse(trimmed[(eq + 1)..].Trim(), out int gv)) continue;
-                list.Add(new ValueOverride { Sid = sid, Variant = -1, GuardValue = gv });
+                var rhs = trimmed[(eq + 1)..].Trim();
+                int? guard = null, value = null;
+                var comma = rhs.IndexOf(',');
+                var gPart = comma < 0 ? rhs : rhs[..comma].Trim();
+                var vPart = comma < 0 ? "" : rhs[(comma + 1)..].Trim();
+                if (gPart.Length > 0 && int.TryParse(gPart, out int gv)) guard = gv;
+                if (vPart.Length > 0 && int.TryParse(vPart, out int vv)) value = vv;
+                if (!guard.HasValue && !value.HasValue) continue;
+                list.Add(new ValueOverride { Sid = sid, Variant = -1, GuardValue = guard, Value = value });
             }
             return list.Count > 0 ? list : null;
+        }
+
+        /// <summary>
+        /// Serializes a ValueOverride list back to the newline "sid=guardValue,value" text form.
+        /// A leading comma is used when only the object value is set.
+        /// </summary>
+        public static string ValueOverridesToText(List<ValueOverride>? overrides)
+        {
+            if (overrides is null or { Count: 0 }) return "";
+            return string.Join("\n", overrides.Select(o =>
+            {
+                var g = o.GuardValue.HasValue ? o.GuardValue.Value.ToString() : "";
+                var v = o.Value.HasValue ? o.Value.Value.ToString() : "";
+                return $"{o.Sid}={g},{v}";
+            }));
         }
 
         /// <summary>
         /// Builds a GlobalBans object from newline-separated item, magic and hero ID strings.
         /// Returns null when all are empty.
         /// </summary>
-        private static GlobalBans? BuildGlobalBans(string rawItems, string rawMagics, string rawHeroes)
+        public static GlobalBans? BuildGlobalBans(string rawItems, string rawMagics, string rawHeroes)
         {
             static List<string>? ParseLines(string raw)
             {
@@ -3442,6 +3477,143 @@ namespace Olden_Era___Template_Editor.Services
                     GroupSizeWeights = groupSizeWeights.ToList()
                 }
             };
+
+        /// <summary>Produces a safe default <see cref="ZoneLayout"/> for a referenced layout name
+        /// when no pre-existing definition is available (e.g. an H3T import). Mirrors the generic
+        /// fallback used by <see cref="BuildZoneLayouts"/>.</summary>
+        public static ZoneLayout DefaultZoneLayout(string name) =>
+            BuildZoneLayout(name, 0.36, 0.50, 0.25, 16, 0.128, 128, -0.30, 0.3, [20, 2, 1]);
+
+        // ── Export normalization (import path) ──────────────────────────────────
+
+        /// <summary>
+        /// Repairs a template's top-level definition blocks so the serialized <c>.rmg.json</c> is
+        /// self-contained and loads in the game. The engine does NOT resolve
+        /// <c>mandatory_content_*</c> / <c>content_limits_*</c> / <c>zone_layout_*</c> pools on its
+        /// own, so their real data MUST be present in the file. The generate path already writes them
+        /// via <see cref="BuildAllMandatoryContent"/> / <see cref="ZoneContentManager.BuildAllContentCountLimits"/>
+        /// / <see cref="BuildZoneLayouts"/>; this method makes the import path (and any hand-edited
+        /// template) do the same, additive so it never clobbers blocks the generator already built.
+        ///
+        /// For every pool name a zone references, the real definition is resolved from the bundled
+        /// <see cref="GameContentCatalog"/> (the game's own templates). Missing pools become empty
+        /// stubs so the reference still resolves. <c>displayWinCondition</c> defaults to
+        /// <c>win_condition_1</c> when empty, and the editor-only <c>contentPools</c>/<c>contentLists</c>
+        /// are emitted empty.
+        ///
+        /// Call this immediately before serialization. Callers remain responsible for stripping the
+        /// editor-only <c>AuroraRMG</c> block (it is intentionally kept in memory for the editor).
+        /// </summary>
+        public static void NormalizeForExport(RmgTemplate template)
+        {
+            if (template?.Variants == null) return;
+
+            var mcNames = new HashSet<string>(StringComparer.Ordinal);
+            var clNames = new HashSet<string>(StringComparer.Ordinal);
+            var layoutNames = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var variant in template.Variants)
+            {
+                if (variant.Zones == null) continue;
+                foreach (var zone in variant.Zones)
+                {
+                    if (zone.MandatoryContent != null)
+                        foreach (var n in zone.MandatoryContent)
+                            if (!string.IsNullOrWhiteSpace(n)) mcNames.Add(n);
+                    if (zone.ContentCountLimits != null)
+                        foreach (var n in zone.ContentCountLimits)
+                            if (!string.IsNullOrWhiteSpace(n)) clNames.Add(n);
+                    if (!string.IsNullOrWhiteSpace(zone.Layout))
+                        layoutNames.Add(zone.Layout!);
+
+                    // Safety net: the H3T importer used to emit engine-unresolvable
+                    // "content_pool_default_*" SIDs into spawn/side zones. The game's DB
+                    // does not contain them and map generation aborts with a
+                    // NullReferenceException ("Couldn't find content pool
+                    // 'content_pool_default_resource'"). Rewrite any such SID to the
+                    // valid jebus_cross object pools so already-saved (broken)
+                    // templates are repaired on next save.
+                    RewriteInvalidContentPools(zone);
+                }
+            }
+
+            template.MandatoryContent ??= new List<MandatoryContentGroup>();
+            foreach (var name in mcNames)
+            {
+                if (template.MandatoryContent.Any(g => string.Equals(g.Name, name, StringComparison.Ordinal)))
+                    continue;
+                if (CatalogContent.TryGetMcByName(name, out var g) && g != null)
+                    template.MandatoryContent.Add(g);
+                else
+                    template.MandatoryContent.Add(new MandatoryContentGroup { Name = name, Content = [] });
+            }
+
+            template.ContentCountLimits ??= new List<ContentCountLimit>();
+            foreach (var name in clNames)
+            {
+                if (template.ContentCountLimits.Any(g => string.Equals(g.Name, name, StringComparison.Ordinal)))
+                    continue;
+                if (CatalogContent.TryGetClByName(name, out var g) && g != null)
+                    template.ContentCountLimits.Add(g);
+                else
+                    template.ContentCountLimits.Add(new ContentCountLimit { Name = name, Limits = [] });
+            }
+
+            template.ZoneLayouts ??= new List<ZoneLayout>();
+            foreach (var name in layoutNames)
+            {
+                if (template.ZoneLayouts.Any(l => string.Equals(l.Name, name, StringComparison.Ordinal)))
+                    continue;
+                template.ZoneLayouts.Add(DefaultZoneLayout(name));
+            }
+
+            template.ContentPools ??= new List<object>();
+            template.ContentLists ??= new List<object>();
+
+            if (string.IsNullOrWhiteSpace(template.DisplayWinCondition))
+                template.DisplayWinCondition = "win_condition_1";
+        }
+
+        // Maps the engine-unresolvable "content_pool_default_*" SIDs (emitted by an
+        // older H3T-import path) to valid jebus_cross object pools. Keyed by the
+        // exact broken SID; any other (valid) pool name passes through unchanged.
+        private static readonly Dictionary<string, string> InvalidPoolFix = new(StringComparer.Ordinal)
+        {
+            ["content_pool_default_guarded"]   = "content_pool_guarded_objects_start_zone_jebus_cross",
+            ["content_pool_default_unguarded"] = "content_pool_unguarded_objects_start_zone_jebus_cross",
+            ["content_pool_default_resource"]  = "content_pool_resources_start_zone_jebus_cross",
+        };
+
+        private static void RewriteInvalidContentPools(Zone zone)
+        {
+            static void Fix(List<string>? pool)
+            {
+                if (pool == null) return;
+                for (int i = 0; i < pool.Count; i++)
+                    if (InvalidPoolFix.TryGetValue(pool[i], out var replacement))
+                        pool[i] = replacement;
+            }
+
+            Fix(zone.GuardedContentPool);
+            Fix(zone.UnguardedContentPool);
+            Fix(zone.ResourcesContentPool);
+        }
+
+        /// <summary>
+        /// Serializes a template for saving: strips the editor-only <c>AuroraRMG</c> block (kept in
+        /// memory for the editor) and runs <see cref="NormalizeForExport"/>. The <c>AuroraRMG</c>
+        /// block is restored afterwards, so the in-memory template is untouched. Returns the final
+        /// JSON so the caller never serializes the (already-restored) object with the editor block.
+        /// </summary>
+        public static string StripAndNormalizeForSave(RmgTemplate template, JsonSerializerOptions options)
+        {
+            var saved = template.AuroraRmg;
+            template.AuroraRmg = null;
+            NormalizeForExport(template);
+            var json = JsonSerializer.Serialize(template, options);
+            template.AuroraRmg = saved;
+            return json;
+        }
 
         // ── Mandatory content ────────────────────────────────────────────────────
 

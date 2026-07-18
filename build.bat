@@ -36,6 +36,15 @@ if errorlevel 1 goto ERR_BUILD
 echo OK.
 echo.
 
+echo [2.5/5] Force close running instance...
+taskkill /f /im OldenEraTemplateGenerator.exe >nul 2>&1
+if errorlevel 1 (
+    echo   (not running — OK)
+) else (
+    echo   Closed.
+)
+echo.
+
 echo [3/4] Publish single-file exe...
 echo ^> dotnet publish %PROJ_FILE% -c Release -r win-x64 --verbosity normal -p:PublishSingleFile=true -p:SelfContained=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o "%OUT_DIR%"
 dotnet publish %PROJ_FILE% -c Release -r win-x64 --verbosity normal -p:PublishSingleFile=true -p:SelfContained=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o "%OUT_DIR%"

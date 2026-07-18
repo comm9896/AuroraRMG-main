@@ -592,6 +592,14 @@
         </Setter>
     </Style>
 
+    <!-- ── DataGrid cell text (used by content-pool lists) ────────────────── -->
+    <Style x:Key="DataGridCellStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource BrushText}"/>
+        <Setter Property="FontSize"   Value="11"/>
+        <Setter Property="Padding"    Value="4,2"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
     <!-- ── Toolbar button (New / Open / Save …) ─────────────────────────── -->
     <Style x:Key="ToolbarButton" TargetType="Button">
         <Setter Property="Foreground" Value="{StaticResource BrushText}"/>

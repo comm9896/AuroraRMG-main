@@ -9,12 +9,12 @@ namespace Olden_Era___Template_Editor
     public partial class ContentPoolCreatorWindow : Window
     {
         private readonly List<ContentListInfo> _allLists = new();
-        private readonly List<ContentListInfo> _selectedLists = new();
+        private readonly List<SelectedListEntry> _selectedEntries = new();
 
          public string? CreatedPoolName { get; private set; }
-         public List<string>? CreatedPoolLists { get; private set; }
+         public Dictionary<string, int>? CreatedPoolItems { get; private set; }
 
-         public event Action<string, List<string>>? PoolCreated;
+         public event Action<string, Dictionary<string, int>>? PoolCreated;
 
         public ContentPoolCreatorWindow()
         {
@@ -26,7 +26,19 @@ namespace Olden_Era___Template_Editor
 
         protected virtual void OnPoolCreated()
         {
-            PoolCreated?.Invoke(CreatedPoolName!, CreatedPoolLists!);
+            PoolCreated?.Invoke(CreatedPoolName!, CreatedPoolItems!);
+        }
+
+        private class SelectedListEntry
+        {
+            public string Name { get; set; } = "";
+            public int Weight { get; set; } = 1;
+        }
+
+        private void RefreshSelectedGrid()
+        {
+            SelectedLists.ItemsSource = null;
+            SelectedLists.ItemsSource = _selectedEntries;
         }
 
         private void LoadContentLists()
@@ -47,50 +59,41 @@ namespace Olden_Era___Template_Editor
             }
         }
 
-        private void AddList_Click(object sender, RoutedEventArgs e)
+        private void AddSelected_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is string listName)
+            foreach (var item in AvailableLists.SelectedItems)
             {
-                var list = _allLists.FirstOrDefault(l => l.Name == listName);
-                if (list != null && !_selectedLists.Any(s => s.Name == listName))
+                if (item is ContentListInfo list)
                 {
-                    _selectedLists.Add(list);
-                    SelectedLists.ItemsSource = null;
-                    SelectedLists.ItemsSource = _selectedLists;
+                    if (!_selectedEntries.Any(s => s.Name == list.Name))
+                        _selectedEntries.Add(new SelectedListEntry { Name = list.Name, Weight = 1 });
                 }
             }
-        }
-
-        private void RemoveList_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is string listName)
-            {
-                var list = _selectedLists.FirstOrDefault(l => l.Name == listName);
-                if (list != null)
-                {
-                    _selectedLists.Remove(list);
-                    SelectedLists.ItemsSource = null;
-                    SelectedLists.ItemsSource = _selectedLists;
-                }
-            }
+            RefreshSelectedGrid();
         }
 
         private void AddAll_Click(object sender, RoutedEventArgs e)
         {
             foreach (var list in _allLists)
             {
-                if (!_selectedLists.Any(s => s.Name == list.Name))
-                    _selectedLists.Add(list);
+                if (!_selectedEntries.Any(s => s.Name == list.Name))
+                    _selectedEntries.Add(new SelectedListEntry { Name = list.Name, Weight = 1 });
             }
-            SelectedLists.ItemsSource = null;
-            SelectedLists.ItemsSource = _selectedLists;
+            RefreshSelectedGrid();
+        }
+
+        private void RemoveSelected_Click(object sender, RoutedEventArgs e)
+        {
+            var toRemove = SelectedLists.SelectedItems.Cast<SelectedListEntry>().ToList();
+            foreach (var entry in toRemove)
+                _selectedEntries.Remove(entry);
+            RefreshSelectedGrid();
         }
 
         private void RemoveAll_Click(object sender, RoutedEventArgs e)
         {
-            _selectedLists.Clear();
-            SelectedLists.ItemsSource = null;
-            SelectedLists.ItemsSource = _selectedLists;
+            _selectedEntries.Clear();
+            RefreshSelectedGrid();
         }
 
         private void CreatePool_Click(object sender, RoutedEventArgs e)
@@ -101,21 +104,22 @@ namespace Olden_Era___Template_Editor
                 return;
             }
 
-            if (_selectedLists.Count == 0)
+            if (_selectedEntries.Count == 0)
             {
                 MessageBox.Show(this, "Добавьте хотя бы один список контента", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             CreatedPoolName = PoolNameBox.Text.Trim();
-            CreatedPoolLists = _selectedLists.Select(l => l.Name).ToList();
+            CreatedPoolItems = _selectedEntries.ToDictionary(e => e.Name, e => e.Weight);
             OnPoolCreated();
             Close();
         }
         // ── Localisation helper ──
         private static string L(string key, params object[] args)
-            => string.Format(Olden_Era___Template_Editor.Services.Localization.LocalizationManager.T(key), args);
+            => Olden_Era___Template_Editor.Services.Localization.LocalizationManager.T(key, args);
     }
+
 
     public class ContentListInfo
     {
@@ -224,6 +228,6 @@ namespace Olden_Era___Template_Editor
 
         // ── Localisation helper ──
         private static string L(string key, params object[] args)
-            => string.Format(Olden_Era___Template_Editor.Services.Localization.LocalizationManager.T(key), args);
+            => Olden_Era___Template_Editor.Services.Localization.LocalizationManager.T(key, args);
     }
 }

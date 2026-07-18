@@ -1,153 +1,552 @@
 <Window x:Class="Olden_Era___Template_Editor.EditorHelpWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Визуальный редактор зон — справка" Height="560" Width="640"
+        Title="Визуальный редактор зон — справка" Height="650" Width="680"
         WindowStartupLocation="CenterOwner"
         Background="#1E1A2B" UseLayoutRounding="True"
         ResizeMode="CanResize">
+    <Window.Resources>
+        <Style TargetType="Expander" x:Key="HelpExpander">
+            <Setter Property="Background" Value="#252036"/>
+            <Setter Property="Foreground" Value="#D0D0D0"/>
+            <Setter Property="BorderBrush" Value="#3A3050"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="ExpandDirection" Value="Down"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style TargetType="Expander" x:Key="SubExpander">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#C0C0C0"/>
+            <Setter Property="BorderBrush" Value="#3A3050"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Margin" Value="12,0,0,0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="ExpandDirection" Value="Down"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style TargetType="ToggleButton" x:Key="ExpanderHeader">
+            <Setter Property="Background" Value="#2A2440"/>
+            <Setter Property="Foreground" Value="#C8A857"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="▶" Foreground="#C8A857"
+                                           FontSize="10" VerticalAlignment="Center" Margin="0,0,6,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Value="True">
+                                                    <Setter Property="Text" Value="▼"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <ContentPresenter Grid.Column="1" ContentSource="Content"
+                                                  HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ToggleButton" x:Key="SubExpanderHeader">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#A09070"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="▸" Foreground="#A09070"
+                                           FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Value="True">
+                                                    <Setter Property="Text" Value="▾"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <ContentPresenter Grid.Column="1" ContentSource="Content"
+                                                  HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="SectionBody">
+            <Setter Property="Foreground" Value="#D0D0D0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="LineHeight" Value="20"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="8,4,8,8"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="TitleBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="Foreground" Value="#E8C860"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+    </Window.Resources>
+
     <Grid Margin="14">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
-            <TextBlock Foreground="#D0D0D0" FontSize="12" LineHeight="20" TextWrapping="Wrap">
-                <Run FontWeight="Bold" FontSize="16" Foreground="#C8A857" Text="Визуальный редактор зон"/>
-                <LineBreak/>
-                <Run Text="Графовый редактор шаблонов RMG для Heroes of Might and Magic: Olden Era."/>
-                <LineBreak/><LineBreak/>
 
-                <Run FontWeight="SemiBold" Foreground="#C8A857" Text="Холст и навигация"/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Перетаскивание зон:"/> <Run Text="зоны можно перетаскивать мышью для наглядной компоновки. Позиции зон сохраняются только в окне редактора (в .rmg.json не записываются — генератор располагает зоны автоматически)."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Масштабирование:"/> <Run Text="колёсико мыши, кнопки +/−, сброс масштаба (100 %)."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Перекомпоновка:"/> <Run Text="кнопка «Relayout» пересчитывает позиции зон по алгоритму."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Привязка к сетке:"/> <Run Text="включает выравнивание зон по сетке при перетаскивании."/>
-                <LineBreak/><LineBreak/>
+        <!-- Блоки ## — всегда видны, внутри ### — скрыты до клика -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
 
-                <Run FontWeight="SemiBold" Foreground="#C8A857" Text="Работа с зонами и связями"/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Добавление зоны:"/> <Run Text="кнопка «Добавить зону» — новая зона появляется в центре холста со случайным именем."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Связывание зон:"/> <Run Text="нажмите «Режим связей», затем выберите две зоны последовательно. Между ними создаётся связь типа Default."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Удаление:"/> <Run Text="выберите зону или связь и нажмите «Удалить», либо клавишу Delete."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Копировать / Вставить зону:"/> <Run Text="копирует зону со всеми настройками (кроме связей). Работает в пределах сессии."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Менеджер связей:"/> <Run Text="отдельное окно для массового редактирования всех связей между зонами."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Валидация:"/> <Run Text="проверяет граф зон на ошибки: зоны без имени, дубликаты имён, ссылки на несуществующие зоны, самопетли, изолированные зоны."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Экспорт PNG:"/> <Run Text="сохраняет изображение графа зон в PNG."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Загрузка / Сохранение:"/> <Run Text="открывает и сохраняет .rmg.json файлы. При сохранении проводится повторная валидация."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Предпросмотр JSON:"/> <Run Text="показывает текущий шаблон в виде JSON в отдельном окне с возможностью редактирования."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Макет и границы:"/> <Run Text="отдельное окно для настройки orientation (mode, углы) и border (радиус, ширина препятствий, вода)."/>
-                <LineBreak/><LineBreak/>
+                <!-- ══════════ ## Панель инструментов ══════════ -->
+                <Expander Style="{StaticResource HelpExpander}">
+                    <Expander.Header>
+                        <ToggleButton Style="{StaticResource ExpanderHeader}" Content="▓ Панель инструментов" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                    </Expander.Header>
+                    <TextBlock Style="{StaticResource SectionBody}">
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="💾 Сохранить"/><Run Text=" — сохранить шаблон в .rmg.json."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="📁 Открыть"/><Run Text=" — загрузить существующий шаблон."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="➕ Добавить зону"/><Run Text=" — создать новую зону на холсте."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="❌ Удалить"/><Run Text=" — удалить выбранную зону или связь."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="🔗 Создать связь"/><Run Text=" — создать связь между двумя зонами."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="📋 Менеджер связей"/><Run Text=" — открыть таблицу всех связей."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="🔄 Макет и границы"/><Run Text=" — настройка Orientation (mode, углы) и Border (радиус, ширина препятствий, вода)."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="📄 JSON"/><Run Text=" — просмотр/редактирование JSON шаблона."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="🪞 Зеркало"/><Run Text=" — включить режим зеркального создания."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="© Копировать"/><Run Text=" — скопировать выбранную зону (Ctrl+C)."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="📌 Вставить"/><Run Text=" — вставить скопированную зону (Ctrl+V)."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="❓ Справка"/><Run Text=" — открыть эту справку."/>
+                    </TextBlock>
+                </Expander>
 
-                <Run FontWeight="SemiBold" Foreground="#C8A857" Text="Инспектор — вкладка «Основные» (TabMain)"/>
-                <LineBreak/>
-                <Run Text="Отображается при выборе зоны или связи. Основные параметры объекта."/>
-                <LineBreak/>
-                <Run Text="• Для зоны:"/> <Run Text="имя, относительный размер, раскладка (layout), модификатор дипломатии, множитель охраны."/>
-                <LineBreak/>
-                <Run Text="• Для связи:"/> <Run Text="имя связи, тип (Direct/Default/Portal/Proximity/GladiatorArena), сила охраны, флаг дороги (Road)."/>
-                <LineBreak/>
-                <Run Text="• Главный объект (MO):"/> <Run Text="тип (Placement), владелец (Owner), фракция, шанс/сила охраны, флаг убрать охрану при владении, условие победы (удержание города), здание, аргументы размещения."/>
-                <LineBreak/>
-                <Run Text="• Дополнительные MO:"/> <Run Text="для зон с Placement=Connection можно добавлять несколько главных объектов. Каждый имеет свой тип, владельца, PlacementArgs."/>
-                <LineBreak/>
-                <Run Text="• Дороги (Roads):"/> <Run Text="для зон с MO типа Connection настраиваются дороги: тип дороги, начальная и конечная точка (MainObject/Connection/Zone), мин./макс. расстояние."/>
-                <LineBreak/><LineBreak/>
+                <!-- ══════════ ## Работа с зонами ══════════ -->
+                <Expander Style="{StaticResource HelpExpander}">
+                    <Expander.Header>
+                        <ToggleButton Style="{StaticResource ExpanderHeader}" Content="▓ Работа с зонами" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                    </Expander.Header>
+                    <TextBlock Style="{StaticResource SectionBody}">
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Перетаскивание:"/><Run Text=" зоны можно перетаскивать мышью для наглядной компоновки."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Выбор:"/><Run Text=" кликните на зону — её свойства откроются в инспекторе справа."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Создание:"/><Run Text=" нажмите «Добавить зону» и укажите позицию на холсте."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Копирование / вставка:"/><Run Text=" Ctrl+C / Ctrl+V (с проверкой конфликтов владельцев). Работает в пределах сессии."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Масштабирование:"/><Run Text=" колёсико мыши, кнопки +/−, сброс масштаба (100 %)."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Привязка к сетке:"/><Run Text=" включает выравнивание зон по сетке при перетаскивании."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Экспорт PNG:"/><Run Text=" сохраняет изображение графа зон в PNG."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Валидация графа:"/><Run Text=" проверяет зоны на ошибки: пустые имена, дубликаты, висячие связи, самопетли, изолированные зоны."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Загрузка / Сохранение:"/><Run Text=" открывает и сохраняет .rmg.json файлы. При сохранении — повторная валидация."/>
+                    </TextBlock>
+                </Expander>
 
-                <Run FontWeight="SemiBold" Foreground="#C8A857" Text="Инспектор — вкладка «Охрана» (TabGuard)"/>
-                <LineBreak/>
-                <Run Text="Настройки охраны зоны и её объектов."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Порог охраны (GuardianCutoff):"/> <Run Text="максимальная сила охраны для случайных объектов в зоне."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Рандомизация охраны (GuardRandomizer):"/> <Run Text="разброс силы охраны."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Еженедельный прирост охраны (WeeklyGrowth):"/> <Run Text="насколько увеличивается охрана каждую неделю."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Распределение реакции охраны (GuardReactionDistribution):"/> <Run Text="как охрана распределяется по области."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Настройки дыр в столкновениях (EncounterHoles):"/> <Run Text="шанс пустых клеток у точек интереса и двойных пустых клеток."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Guard escape, Simultaneous turn squad, Gate placement:"/> <Run Text="дополнительные параметры поведения охраны."/>
-                <LineBreak/><LineBreak/>
+                <!-- ══════════ ## Инспектор свойств зоны ══════════ -->
+                <Expander Style="{StaticResource HelpExpander}">
+                    <Expander.Header>
+                        <ToggleButton Style="{StaticResource ExpanderHeader}" Content="▓ Инспектор свойств зоны" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                    </Expander.Header>
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionBody}" Text="При выборе зоны справа открывается панель свойств, разделённая на вкладки:"/>
 
-                <Run FontWeight="SemiBold" Foreground="#C8A857" Text="Инспектор — вкладка «Пулы» (TabPools)"/>
-                <LineBreak/>
-                <Run Text="Управление пулами контента зоны."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Гарантированный пул (GuardedPool):"/> <Run Text="объекты, которые гарантированно появляются под охраной."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Негарантированный пул (UnguardedPool):"/> <Run Text="объекты без гарантии появления."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Пул ресурсов (ResourcesPool):"/> <Run Text="объекты ресурсов в зоне."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Обязательный контент (MandatoryContent):"/> <Run Text="объекты, которые обязаны появиться."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Лимиты количества контента (ContentCountLimits):"/> <Run Text="ограничения на количество контента каждого типа."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Ценность (Value) / на область (PerArea):"/> <Run Text="для guarded, unguarded и resources отдельно."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Кнопки действий:"/> <Run Text="«Добавить объекты контента» — выбор из пулов; для каждого объекта — количество, под охраной или у главного объекта, мин./макс. расстояние до дороги."/>
-                <LineBreak/><LineBreak/>
+                        <!-- ### Основные -->
+                        <Expander Style="{StaticResource SubExpander}">
+                            <Expander.Header>
+                                <ToggleButton Style="{StaticResource SubExpanderHeader}" Content="Основные (TabMain)" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                            </Expander.Header>
+                            <TextBlock Style="{StaticResource SectionBody}">
+                                <Run Text="Для зоны:"/><Run Text=" имя, относительный размер, раскладка (layout), модификатор дипломатии, множитель охраны."/>
+                                <LineBreak/>
+                                <Run Text="Для связи:"/><Run Text=" имя, тип (Direct/Default/Portal/Proximity/GladiatorArena), сила охраны, флаг дороги (Road)."/>
+                                <LineBreak/>
+                                <Run Text="Главный объект (MO):"/><Run Text=" тип (Placement), владелец (Owner), фракция, шанс/сила охраны, флаг убрать охрану при владении, здание, аргументы размещения."/>
+                                <LineBreak/>
+                                <Run Text="Дополнительные MO:"/><Run Text=" для зон с Placement=Connection можно добавлять несколько главных объектов. Каждый имеет свой тип, владельца, PlacementArgs."/>
+                                <LineBreak/>
+                                <Run Text="Дороги (Roads):"/><Run Text=" для зон с MO типа Connection настраиваются дороги: тип, начальная и конечная точка, мин./макс. расстояние."/>
+                            </TextBlock>
+                        </Expander>
 
-                <Run FontWeight="SemiBold" Foreground="#C8A857" Text="Инспектор — вкладка «Наполнение» (TabContent)"/>
-                <LineBreak/>
-                <Run Text="Детальная настройка типов контента, появляющихся в зоне."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Список объектов контента:"/> <Run Text="отображает все добавленные объекты с их параметрами."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Для каждого объекта:"/> <Run Text="имя, количество, флаг охраны, привязка к главному объекту, мин./макс. расстояние до дороги."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Удаление объекта:"/> <Run Text="кнопка «Удалить» напротив каждого объекта."/>
-                <LineBreak/><LineBreak/>
+                        <!-- ### Охрана -->
+                        <Expander Style="{StaticResource SubExpander}">
+                            <Expander.Header>
+                                <ToggleButton Style="{StaticResource SubExpanderHeader}" Content="Охрана (TabGuard)" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                            </Expander.Header>
+                            <TextBlock Style="{StaticResource SectionBody}">
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Порог охраны (GuardianCutoff):"/><Run Text=" максимальная сила охраны для случайных объектов в зоне."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Рандомизация (GuardRandomizer):"/><Run Text=" разброс силы охраны."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Еженедельный прирост (WeeklyGrowth):"/><Run Text=" насколько увеличивается охрана каждую неделю."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Распределение реакции (GuardReactionDistribution):"/><Run Text=" как охрана распределяется по области."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="EncounterHoles:"/><Run Text=" шанс пустых клеток у точек интереса."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Guard escape, Sim Turn Squad, Gate placement:"/><Run Text=" дополнительные параметры."/>
+                            </TextBlock>
+                        </Expander>
 
-                <Run FontWeight="SemiBold" Foreground="#C8A857" Text="Инспектор — вкладка «Биом» (TabBiome)"/>
-                <LineBreak/>
-                <Run Text="Настройка биома зоны и контента."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Биом зоны (ZoneBiome):"/> <Run Text="основной биом для всей зоны."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Биом контента (ContentBiome):"/> <Run Text="биом для объектов контента в зоне."/>
-                <LineBreak/><LineBreak/>
+                        <!-- ### Пулы -->
+                        <Expander Style="{StaticResource SubExpander}">
+                            <Expander.Header>
+                                <ToggleButton Style="{StaticResource SubExpanderHeader}" Content="Пулы (TabPools)" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                            </Expander.Header>
+                            <TextBlock Style="{StaticResource SectionBody}">
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="GuardedPool:"/><Run Text=" объекты, гарантированно появляющиеся под охраной."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="UnguardedPool:"/><Run Text=" объекты без гарантии появления."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="ResourcesPool:"/><Run Text=" объекты ресурсов в зоне."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="MandatoryContent:"/><Run Text=" объекты, обязательные к появлению."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="ContentCountLimits:"/><Run Text=" ограничения на количество контента каждого типа."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Ценность (Value / PerArea):"/><Run Text=" для guarded, unguarded и resources отдельно."/>
+                            </TextBlock>
+                        </Expander>
 
-                <Run FontWeight="SemiBold" Foreground="#C8A857" Text="Инспектор — вкладка «Объекты» (TabObjects)"/>
-                <LineBreak/>
-                <Run Text="Управление дополнительными настройками объектов зоны."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Список дополнительных объектов зоны:"/> <Run Text="объекты, добавленные через пулы контента."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Параметры каждого объекта:"/> <Run Text="тип, количество, охрана, позиция относительно главного объекта."/>
-                <LineBreak/>
-                <Run Text="• "/><Run FontWeight="SemiBold" Text="Возможность быстрого удаления:"/> <Run Text="кнопка «Удалить» для каждого объекта."/>
-                <LineBreak/><LineBreak/>
+                        <!-- ### Наполнение -->
+                        <Expander Style="{StaticResource SubExpander}">
+                            <Expander.Header>
+                                <ToggleButton Style="{StaticResource SubExpanderHeader}" Content="Наполнение (TabContent)" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                            </Expander.Header>
+                            <TextBlock Style="{StaticResource SectionBody}">
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Список объектов:"/><Run Text=" отображает все добавленные объекты с параметрами."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Параметры объекта:"/><Run Text=" имя, количество, флаг охраны, привязка к MO, мин./макс. расстояние до дороги."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Удаление:"/><Run Text=" кнопка «Удалить» напротив каждого объекта."/>
+                            </TextBlock>
+                        </Expander>
 
-                <Run FontWeight="SemiBold" Foreground="#C8A857" Text="Управление пулами контента (глобально)"/>
-                <LineBreak/>
-                <Run Text="Кнопка «📋 Просмотр содержимого пулов» на вкладке «Пулы» открывает ContentPoolViewerWindow — окно для просмотра, поиска и отладки всех доступных пулов контента. Кнопка «➕ Создать новый пул» открывает ContentPoolCreatorWindow для создания собственных пулов."/>
-                <LineBreak/><LineBreak/>
+                        <!-- ### Биом -->
+                        <Expander Style="{StaticResource SubExpander}">
+                            <Expander.Header>
+                                <ToggleButton Style="{StaticResource SubExpanderHeader}" Content="Биом (TabBiome)" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                            </Expander.Header>
+                            <TextBlock Style="{StaticResource SectionBody}">
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="ZoneBiome:"/><Run Text=" основной биом для всей зоны."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="ContentBiome:"/><Run Text=" биом для объектов контента в зоне."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="MetaObjectsBiome:"/><Run Text=" биом для мета-объектов."/>
+                            </TextBlock>
+                        </Expander>
 
-                <Run FontWeight="SemiBold" Foreground="#C8A857" Text="Цветовая легенда"/>
-                <LineBreak/>
-                <Run Text="Цвета зон соответствуют их типу раскладки (layout): зелёный — player_spawn, синий — Hub, голубой — ai_spawn, коричневый — sides, серый — treasure, золотой — center/supertreasure, фиолетовый — back и т.д."/>
-                <LineBreak/>
-                <Run Text="Толщина рамки зоны отражает количество связей: чем больше связей, тем толще рамка."/>
-                <LineBreak/>
-                <Run Text="Тип линии связи: сплошная жёлтая — Direct, серая — Default, голубая пунктирная — Portal, зелёная — Proximity, красная — GladiatorArena."/>
-            </TextBlock>
+                        <!-- ### Объекты -->
+                        <Expander Style="{StaticResource SubExpander}">
+                            <Expander.Header>
+                                <ToggleButton Style="{StaticResource SubExpanderHeader}" Content="Объекты (TabObjects)" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                            </Expander.Header>
+                            <TextBlock Style="{StaticResource SectionBody}">
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Список дополнительных объектов:"/><Run Text=" объекты, добавленные через пулы контента."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Параметры:"/><Run Text=" тип, количество, охрана, позиция относительно главного объекта."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Удаление:"/><Run Text=" кнопка «Удалить» для каждого объекта."/>
+                            </TextBlock>
+                        </Expander>
+                    </StackPanel>
+                </Expander>
+
+                <!-- ══════════ ## Типы зон (Layout) ══════════ -->
+                <Expander Style="{StaticResource HelpExpander}">
+                    <Expander.Header>
+                        <ToggleButton Style="{StaticResource ExpanderHeader}" Content="▓ Типы зон (Layout)" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                    </Expander.Header>
+                    <TextBlock Style="{StaticResource SectionBody}">
+                        <Run Text="Каждая зона имеет тип раскладки, определяющий её роль на карте:"/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Spawn (player / AI):"/><Run Text=" 🟢 зелёный — стартовая зона игрока или компьютера."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Sides (Bronze):"/><Run Text=" 🟤 коричневый — бронзовые/боковые зоны низкой сложности."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Treasure (Silver):"/><Run Text=" ⚪ серый — серебряные сокровищницы средней сложности."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Super Treasure / Center (Gold):"/><Run Text=" 🟡 золотой — золотые сокровищницы и центр."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Start / Back / Leaf Zone:"/><Run Text=" 🔵 синий / 🟣 фиолетовый / 🟢 зелёный — вспомогательные зоны."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Win Condition:"/><Run Text=" 🟠 оранжевый — зона условия победы."/>
+                        <LineBreak/>
+                        <Run Text="Толщина рамки зоны отражает количество связей: чем больше связей, тем толще рамка."/>
+                    </TextBlock>
+                </Expander>
+
+                <!-- ══════════ ## Работа со связями ══════════ -->
+                <Expander Style="{StaticResource HelpExpander}">
+                    <Expander.Header>
+                        <ToggleButton Style="{StaticResource ExpanderHeader}" Content="▓ Работа со связями" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                    </Expander.Header>
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionBody}" Margin="8,4,8,2">
+                            <Run Text="Создание связи:"/><Run Text=" выберите первую зону, нажмите «Создать связь», выберите вторую зону."/>
+                        </TextBlock>
+
+                        <!-- ### Типы связей -->
+                        <Expander Style="{StaticResource SubExpander}">
+                            <Expander.Header>
+                                <ToggleButton Style="{StaticResource SubExpanderHeader}" Content="Типы связей" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                            </Expander.Header>
+                            <TextBlock Style="{StaticResource SectionBody}">
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Direct:"/><Run Text=" золотая сплошная — прямое соединение, зоны сразу видны."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Proximity:"/><Run Text=" зелёная пунктирная — сближение, появляются при приближении."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Portal:"/><Run Text=" голубая штриховая — портал между зонами."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Gladiator:"/><Run Text=" красная штрих-пунктир — арена гладиаторов."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Road:"/><Run Text=" коричневая — флаг дороги (Road=true)."/>
+                            </TextBlock>
+                        </Expander>
+
+                        <!-- ### Настройка связи -->
+                        <Expander Style="{StaticResource SubExpander}">
+                            <Expander.Header>
+                                <ToggleButton Style="{StaticResource SubExpanderHeader}" Content="Настройка связи" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                            </Expander.Header>
+                            <TextBlock Style="{StaticResource SectionBody}">
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Имя:"/><Run Text=" уникальное имя связи."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Тип:"/><Run Text=" Direct, Proximity, Portal, Gladiator."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Guard Value:"/><Run Text=" сила охраны на связи."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Road:"/><Run Text=" флаг дороги."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Guard Match Group:"/><Run Text=" группа сопоставления охраны."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Sim Turn Squad:"/><Run Text=" отряд симуляции хода."/>
+                                <LineBreak/>
+                                <Run Text="• "/><Run FontWeight="SemiBold" Text="Length:"/><Run Text=" длина (только для Proximity)."/>
+                            </TextBlock>
+                        </Expander>
+
+                        <!-- ### Менеджер связей -->
+                        <Expander Style="{StaticResource SubExpander}">
+                            <Expander.Header>
+                                <ToggleButton Style="{StaticResource SubExpanderHeader}" Content="Менеджер связей (ConnectionManagerWindow)" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                            </Expander.Header>
+                            <TextBlock Style="{StaticResource SectionBody}">
+                                <Run Text="Открывается кнопкой «Менеджер связей» на панели инструментов."/>
+                                <LineBreak/>
+                                <Run Text="• Таблица всех связей: №, Имя, Тип, Зона-A, Зона-B, Guard, Road."/>
+                                <LineBreak/>
+                                <Run Text="• Двойной клик — открыть редактор связи."/>
+                                <LineBreak/>
+                                <Run Text="• Кнопка удаления связи."/>
+                                <LineBreak/>
+                                <Run Text="• Fan-out рёбер — линии не накладываются."/>
+                                <LineBreak/>
+                                <Run Text="• Не-модальное окно — работа одновременно с редактором."/>
+                                <LineBreak/>
+                                <Run Text="• Валидация уникальности имени связи."/>
+                            </TextBlock>
+                        </Expander>
+                    </StackPanel>
+                </Expander>
+
+                <!-- ══════════ ## Режим зеркального создания ══════════ -->
+                <Expander Style="{StaticResource HelpExpander}">
+                    <Expander.Header>
+                        <ToggleButton Style="{StaticResource ExpanderHeader}" Content="▓ Режим зеркального создания" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                    </Expander.Header>
+                    <TextBlock Style="{StaticResource SectionBody}">
+                        <Run Text="Позволяет создавать симметричные карты:"/>
+                        <LineBreak/>
+                        <Run Text="1. Нажмите кнопку «Зеркало» на панели инструментов."/>
+                        <LineBreak/>
+                        <Run Text="2. В диалоге включите зеркальный режим."/>
+                        <LineBreak/>
+                        <Run Text="3. Выберите опции:"/>
+                        <LineBreak/>
+                        <Run Text="   — «Отзеркаливание свойств» — изменения копируются на зеркальную зону."/>
+                        <LineBreak/>
+                        <Run Text="   — «Отзеркаливание соединений» — связи дублируются для зеркальных пар."/>
+                        <LineBreak/>
+                        <Run Text="4. Золотая линия разделяет холст пополам."/>
+                        <LineBreak/>
+                        <Run Text="5. Новые зоны создаются парами. Имена всегда уникальны (не отзеркаливаются)."/>
+                    </TextBlock>
+                </Expander>
+
+                <!-- ══════════ ## JSON Preview ══════════ -->
+                <Expander Style="{StaticResource HelpExpander}">
+                    <Expander.Header>
+                        <ToggleButton Style="{StaticResource ExpanderHeader}" Content="▓ JSON Preview" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                    </Expander.Header>
+                    <TextBlock Style="{StaticResource SectionBody}">
+                        <Run Text="Просмотр и редактирование шаблона напрямую в JSON:"/>
+                        <LineBreak/>
+                        <Run Text="1. Нажмите «📄 JSON» на панели инструментов."/>
+                        <LineBreak/>
+                        <Run Text="2. Редактируйте JSON в текстовом поле (Consolas, моноширинный)."/>
+                        <LineBreak/>
+                        <Run Text="3. Статус валидации: зелёный — OK, красный — ошибка."/>
+                        <LineBreak/>
+                        <Run Text="4. «Применить» — десериализация + перезагрузка шаблона."/>
+                        <LineBreak/>
+                        <Run Text="5. «Сбросить» — вернуть к текущему состоянию."/>
+                    </TextBlock>
+                </Expander>
+
+                <!-- ══════════ ## Цветовая легенда ══════════ -->
+                <Expander Style="{StaticResource HelpExpander}">
+                    <Expander.Header>
+                        <ToggleButton Style="{StaticResource ExpanderHeader}" Content="▓ Цветовая легенда" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                    </Expander.Header>
+                    <TextBlock Style="{StaticResource SectionBody}">
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Зоны:"/><Run Text=" зелёный — spawn, синий — Hub, коричневый — sides, серый — treasure, золотой — center/supertreasure, фиолетовый — back."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Рамка:"/><Run Text=" толщина отражает количество связей зоны."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Линии связей:"/><Run Text=" сплошная золотая — Direct, серая — Default, голубая штриховая — Portal, зелёная пунктирная — Proximity, красная — GladiatorArena, коричневая — Road."/>
+                    </TextBlock>
+                </Expander>
+
+                <!-- ══════════ ## Управление пулами контента ══════════ -->
+                <Expander Style="{StaticResource HelpExpander}">
+                    <Expander.Header>
+                        <ToggleButton Style="{StaticResource ExpanderHeader}" Content="▓ Управление пулами контента" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                    </Expander.Header>
+                    <TextBlock Style="{StaticResource SectionBody}">
+                        <Run Text="Кнопка «📋 Просмотр содержимого пулов» — ContentPoolViewerWindow: просмотр, поиск и отладка всех пулов контента."/>
+                        <LineBreak/>
+                        <Run Text="Кнопка «➕ Создать новый пул» — ContentPoolCreatorWindow для создания собственных пулов."/>
+                        <LineBreak/>
+                        <Run Text="• Выбор пула — таблица SID, категории, Tier, типа и описания."/>
+                        <LineBreak/>
+                        <Run Text="• Статистика: количество групп, объектов, общий вес."/>
+                        <LineBreak/>
+                        <Run Text="• Недостающие списки подсвечиваются красным."/>
+                    </TextBlock>
+                </Expander>
+
+                <!-- ══════════ ## Горячие клавиши ══════════ -->
+                <Expander Style="{StaticResource HelpExpander}">
+                    <Expander.Header>
+                        <ToggleButton Style="{StaticResource ExpanderHeader}" Content="▓ Горячие клавиши" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                    </Expander.Header>
+                    <TextBlock Style="{StaticResource SectionBody}">
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="A"/><Run Text=" — добавить зону."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Z"/><Run Text=" — режим связей."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Ctrl+Z"/><Run Text=" — скопировать связи."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Ctrl+C"/><Run Text=" — копировать зону."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Ctrl+V"/><Run Text=" — вставить зону."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Delete"/><Run Text=" — удалить зону/связь."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Ctrl+S"/><Run Text=" — сохранить шаблон."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Ctrl+D"/><Run Text=" — загрузить шаблон."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Ctrl+M"/><Run Text=" — зеркальный режим."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Ctrl+R"/><Run Text=" — перекомпоновка (Relayout)."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Ctrl+E"/><Run Text=" — экспорт PNG."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Ctrl+Shift+V"/><Run Text=" — валидация."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Ctrl+Shift+M"/><Run Text=" — менеджер связей."/>
+                        <LineBreak/>
+                        <Run Text="• "/><Run FontWeight="SemiBold" Text="Esc"/><Run Text=" — отменить режим связей / снять выделение."/>
+                    </TextBlock>
+                </Expander>
+
+                <!-- ══════════ ## Словарик полей .rmg.json ══════════ -->
+                <Expander Style="{StaticResource HelpExpander}">
+                    <Expander.Header>
+                        <ToggleButton Style="{StaticResource ExpanderHeader}" Content="▓ Словарик полей .rmg.json" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}, Mode=TwoWay}"/>
+                    </Expander.Header>
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionBody}" Text="Описания всех полей .rmг.json формата. Источник: oldeneramaps.com/reference"/>
+                        <ComboBox x:Name="DictFilterCombo" Margin="8,4,8,4" Width="200"
+                                  SelectionChanged="DictFilterCombo_SelectionChanged"/>
+                        <ScrollViewer MaxHeight="300" Margin="8,0,8,4"
+                                      HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                            <ListBox x:Name="DictList"
+                                     Background="Transparent" BorderBrush="#3A3050" BorderThickness="1">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,2">
+                                            <TextBlock FontWeight="Bold" Foreground="#C8A857" FontSize="12">
+                                                <Run Text="{Binding Field, Mode=OneWay}"/>
+                                                <Run Text=" — " FontSize="10" Foreground="#808090"/>
+                                                <Run Text="{Binding Category, Mode=OneWay}" FontSize="10" FontStyle="Italic" Foreground="#808090"/>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding DescRu, Mode=OneWay}" Foreground="#C0C0C0" FontSize="11"
+                                                       TextWrapping="Wrap" Margin="12,0,0,0"/>
+                                            <TextBlock Text="{Binding DescEn, Mode=OneWay}" Foreground="#808080" FontSize="10"
+                                                       TextWrapping="Wrap" Margin="12,0,0,0" FontStyle="Italic"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Expander>
+
+            </StackPanel>
         </ScrollViewer>
-        <Button Grid.Row="1" x:Name="BtnClose" Content="Закрыть" Width="100" Height="32"
+
+        <Button Grid.Row="2" x:Name="BtnClose" Content="Закрыть" Width="100" Height="32"
                 HorizontalAlignment="Right" Margin="0,8,0,0"
                 Background="#2A2A3C" Foreground="#D0D0D0"
                 BorderThickness="1" BorderBrush="#3A3A4C"

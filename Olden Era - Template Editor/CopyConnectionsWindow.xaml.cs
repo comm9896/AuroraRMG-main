@@ -42,7 +42,6 @@ namespace Olden_Era___Template_Editor
 
         private void SourceChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Filter CmbSource2: only zones connected to selected CmbSource1
             if (CmbSource1.SelectedItem is string a)
             {
                 var connected = _connections.Where(c => c.From == a || c.To == a)
@@ -79,7 +78,7 @@ namespace Olden_Era___Template_Editor
             _hasRoad = _sourceConns.Any(c => c.Road == true);
             var types = _sourceConns.Select(c => c.ConnectionType ?? "default").Distinct();
             BtnNext.IsEnabled = true;
-            TxtSourceInfo.Text = $"Найдено связей: {_sourceConns.Count}  |  Типы: {string.Join(", ", types)}" +
+            TxtSourceInfo.Text = string.Format(L("S.CC.FoundConns"), _sourceConns.Count, string.Join(", ", types)) +
                                  (_hasRoad ? "  |  🛤 Road" : "");
         }
 
@@ -92,9 +91,8 @@ namespace Olden_Era___Template_Editor
             BtnBack.Visibility = Visibility.Visible;
             BtnNext.Visibility = Visibility.Collapsed;
             BtnCopy.Visibility = Visibility.Visible;
-            TxtStep.Text = "Шаг 2: Выберите зоны-цели";
+            TxtStep.Text = L("S.CC.Step2");
 
-            // Exclude source zones from targets
             string src1 = CmbSource1.SelectedItem as string ?? "";
             string src2 = CmbSource2.SelectedItem as string ?? "";
             var targetNames = _zones.Select(z => z.Name)
@@ -103,8 +101,8 @@ namespace Olden_Era___Template_Editor
             CmbTarget1.ItemsSource = targetNames;
             CmbTarget2.ItemsSource = targetNames;
 
-            TxtTargetInfo.Text = $"Источники: {src1} ↔ {src2}  ({_sourceConns.Count} связей)" +
-                                 (_hasRoad ? "  |  🛤 Road будет пересчитан" : "");
+            TxtTargetInfo.Text = string.Format(L("S.CC.Sources"), src1, src2, _sourceConns.Count) +
+                                 (_hasRoad ? "  |  " + L("S.CC.RoadWillRecalc") : "");
         }
 
         private void BtnBack_Click(object sender, RoutedEventArgs e)
@@ -114,25 +112,35 @@ namespace Olden_Era___Template_Editor
             BtnBack.Visibility = Visibility.Collapsed;
             BtnNext.Visibility = Visibility.Visible;
             BtnCopy.Visibility = Visibility.Collapsed;
-            TxtStep.Text = "Шаг 1: Выберите зоны-источники";
+            TxtStep.Text = L("S.CC.Step1");
         }
 
         // ── Step 2: Target selection ──────────────────────────────────────
 
         private void TargetChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Filter CmbTarget2: only zones connected to selected CmbTarget1, excluding source zones
             if (CmbTarget1.SelectedItem is string a)
             {
                 string? s1 = CmbSource1.SelectedItem as string;
                 string? s2 = CmbSource2.SelectedItem as string;
-                var connected = _connections.Where(c => c.From == a || c.To == a)
+
+                // Все доступные зоны (кроме source-зон и самой себя)
+                var allZones = _zones.Select(z => z.Name)
+                    .Where(n => !string.IsNullOrEmpty(n) && n != s1 && n != s2 && n != a)
+                    .OrderBy(n => n).ToList();
+
+                // Зоны, уже соединённые с a
+                var alreadyConnected = _connections
+                    .Where(c => c.From == a || c.To == a)
                     .Select(c => c.From == a ? c.To : c.From)
-                    .Where(n => n != s1 && n != s2 && n != a)
-                    .Distinct().OrderBy(n => n).ToList();
+                    .ToHashSet();
+
+                // Показываем только те, между кем ещё нет связи
+                var available = allZones.Where(n => !alreadyConnected.Contains(n)).ToList();
+
                 string? prev = CmbTarget2.SelectedItem as string;
-                CmbTarget2.ItemsSource = connected;
-                if (connected.Contains(prev)) CmbTarget2.SelectedItem = prev;
+                CmbTarget2.ItemsSource = available;
+                if (available.Contains(prev)) CmbTarget2.SelectedItem = prev;
             }
 
             if (CmbTarget1.SelectedItem is not string tgt1 || CmbTarget2.SelectedItem is not string tgt2)
@@ -144,13 +152,9 @@ namespace Olden_Era___Template_Editor
             if (tgt1 == tgt2)
             {
                 BtnCopy.IsEnabled = false;
-                TxtPreview.Text = "Выберите 2 РАЗНЫЕ зоны";
+                TxtPreview.Text = L("S.CC.SameZone");
                 return;
             }
-
-            // Check if connection already exists
-            bool exists = _connections.Any(c =>
-                (c.From == tgt1 && c.To == tgt2) || (c.From == tgt2 && c.To == tgt1));
 
             string src1 = CmbSource1.SelectedItem as string ?? "";
             string src2 = CmbSource2.SelectedItem as string ?? "";
@@ -167,10 +171,9 @@ namespace Olden_Era___Template_Editor
                 preview.Add($"  {newName}  |  {type}{guard}{road}");
             }
 
-            BtnCopy.IsEnabled = !exists;
-            TxtPreview.Text = $"Будет создано связей: {_sourceConns.Count}\n" +
-                              $"Цель: {tgt1} ↔ {tgt2}\n" +
-                              (exists ? L("S.CC.AlreadyExists") + "\n" : "") +
+            BtnCopy.IsEnabled = true;
+            TxtPreview.Text = string.Format(L("S.CC.WillCreate"), _sourceConns.Count) + "\n" +
+                              string.Format(L("S.CC.Target"), tgt1, tgt2) + "\n" +
                               string.Join("\n", preview);
         }
 
@@ -185,14 +188,12 @@ namespace Olden_Era___Template_Editor
             string src1 = CmbSource1.SelectedItem as string ?? "";
             string src2 = CmbSource2.SelectedItem as string ?? "";
 
-            // Pre-check: which connections will be created and which already exist
             var toCreate = new List<(Connection source, string newFrom, string newTo)>();
             foreach (var sc in _sourceConns)
             {
                 string newFrom = sc.From == src1 ? tgt1 : sc.From == src2 ? tgt2 : sc.From;
                 string newTo = sc.To == src1 ? tgt1 : sc.To == src2 ? tgt2 : sc.To;
 
-                // Check against ORIGINAL connections (not ones we're about to add)
                 bool dup = _connections.Any(c =>
                     (c.From == newFrom && c.To == newTo) || (c.From == newTo && c.To == newFrom));
                 if (!dup)
@@ -228,15 +229,14 @@ namespace Olden_Era___Template_Editor
                 _connections.Add(conn);
                 copied++;
 
-                // Recalculate roads if needed
                 if (conn.Road == true)
                     _onRoadRecalc(conn);
             }
 
             Applied = true;
-            MessageBox.Show(this, $"Скопировано связей: {copied}" +
-                            (_hasRoad ? "\n🛤 Дороги пересчитаны" : ""),
-                            "Готово", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, string.Format(L("S.CC.Copied"), copied) +
+                            (_hasRoad ? "\n" + L("S.CC.RoadsRecalc") : ""),
+                            L("S.CC.Done"), MessageBoxButton.OK, MessageBoxImage.Information);
             DialogResult = true;
             Close();
         }
@@ -247,8 +247,7 @@ namespace Olden_Era___Template_Editor
             Close();
         }
 
-        // ── Localisation helper ──
         private static string L(string key, params object[] args)
-            => string.Format(Olden_Era___Template_Editor.Services.Localization.LocalizationManager.T(key), args);
+            => Olden_Era___Template_Editor.Services.Localization.LocalizationManager.T(key, args);
     }
 }

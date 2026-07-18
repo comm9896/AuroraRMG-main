@@ -1,5 +1,39 @@
 # Project Change Log
 
+## 2026-07-17 — Fix: heroCountMin записывался как (uiMin − increment) → получался 0
+
+### Root cause
+- `TemplateGenerator.BuildGameRules` (TemplateGenerator.cs:416) писал `HeroCountMin = HeroSettings.HeroCountMin - HeroSettings.HeroCountIncrement`. При совпадении min и increment (напр. 12/12/12) в файл попадал `heroCountMin: 0`.
+- Обратная пара в `ApplyTemplateToUi` (MainWindow.xaml.cs:2536) восстанавливала `uiMin = gr.HeroCountMin + gr.HeroCountIncrement`.
+- Несогласованность: путь SettingsFile (MainWindow.xaml.cs:2114) хранит `SldHeroMin` 1:1 без смещения, а GameRules — со смещением.
+
+### Fixed
+- `TemplateGenerator.cs:416`: `HeroCountMin = SingleHeroMode ? 1 : HeroSettings.HeroCountMin` (без вычитания increment). Теперь значение слайдера пишется в файл как есть.
+- `MainWindow.xaml.cs:2536`: `SldHeroMin.Value = gr.HeroCountMin ?? 1` (убран `+ increment`).
+- Тест `BuildGameRules_MapsSettingsToGameRules` (UnitTest1.cs:954): ожидание изменено с 2 на 3 (HeroCountMin=3, Increment=1).
+- H3T-импорт к hero-лимитам не относится (H3TParser не трогает hero-счётчики) — баг в формуле сериализации, независимо от источника шаблона.
+
+## 2026-07-17 — Fix: краш окна «Добавить бонус» (и других диалогов) при открытии
+
+### Root cause
+- Все диалоги (BonusPickerWindow, SpellPickerWindow, ItemPickerWindow, MirrorSettingsWindow, NamePromptWindow, UpdateProgressWindow, ValueOverridePickerWindow, MainWindow) ссылались на иконку через `Icon="pack://application:,,,/favicon.ico"` и `<Image Source="pack://application:,,,/favicon.ico">`.
+- Сборка — single-file publish (`PublishSingleFile=true`, `EnableCompressionInSingleFile=true`, `RuntimeIdentifier=win-x64`), и `favicon.ico` НЕ попадает в WPF-ресурсы сборки (в DLL только 2 manifest-ресурса, favicon отсутствует). `pack://application:,,,/favicon.ico` не разрешается → `XamlParseException` (IOException "Не удается найти ресурс favicon.ico") при `InitializeComponent` → окно крашится при открытии. Это и было падение по кнопке «Добавить бонусы».
+
+### Fixed
+- Удалены все `Icon="pack://application:,,,/favicon.ico"` из XAML окон (иконка процесса задаётся через `<ApplicationIcon>` в csproj — для таскбара достаточно).
+- Удалены `Source="pack://application:,,,/favicon.ico"` у `<Image>` в MainWindow.xaml и UpdateProgressWindow.xaml (оставлен пустой Image-элемент без Source, без краша).
+- Проверено репродьюсом: сборка окна больше не бросает XamlParseException по favicon.
+
+### Notes
+- `<Resource Include="favicon.ico" />` в csproj можно оставить (безвредно) или убрать — на разрешение `pack://` в single-file сборке это не влияет.
+
+## 2026-07-17 — Fix: «Изменить базовые настройки» не сохранял размер карты
+
+### Fixed
+- `PatchMetadataAndRules` (MainWindow.xaml.cs): теперь явно записывает `target.SizeX = settings.MapSize` и `target.SizeZ = settings.MapSize`. Ранее размер карты хранился только на топ-уровне шаблона (`RmgTemplate.SizeX/SizeZ`) и не прокидывался из `BuildSettings`, поэтому после правки размера в режиме редактирования и сохранения в файле оставался старый размер.
+- Сохранён legacy-флаг `GameRules.TournamentRules` (top-level bool): `BuildGameRules` его не выставлял, а `target.GameRules = gr` затирал импортированное значение. Добавлено `gr.TournamentRules = settings.TournamentRules.Enabled`.
+- Авто-сохранение файла не добавлено (сохраняется дизайн "только метаданные, без save"): кнопка меняет шаблон в памяти, пользователь сохраняет явно.
+
 ## 2026-07-11 — Visual editor: mirror creation mode (vertical split, dialog-driven options)
 
 ### Added
@@ -952,51 +986,51 @@ ame is valid UTF-8 (console garble was PowerShell ANSI misdecode, not mojibake);
 - dotnet test 64/64 pass. build.bat -> release/OldenEraTemplateGenerator.exe, 0 errors.
 
 
-## 2026-07-14 23:20 � User: "���� content_limits � mandatory_content ����� ������� �� ����������� �� �������, � ��������� �������� � ���������� ������� ���� ... ������� �� ������������� � ���������� ����� ... � ������� ����������� �� �������� � ��������������� ����������. ����� �� ���������� �����: � 1 � 2 ������: guarded, unguarded, random, specific-template, ���������; � ��� ��������: resources"
+## 2026-07-14 23:20 � User: "���� content_limits � mandatory_content ����� ������� �� ����������� �� �������, � ��������� �������� � ���������� ������� ���� ... ������� �� ������������� � ���������� ����� ... � ������� ����������� �� �������� � ��������������� ����������. ����� �� ���������� �����: � 1 � 2 ������: guarded, unguarded, random, specific-template, ���������; � ��� ��������: resources"
 
 ### Changed
-- Removed the per-template `������� ������ ����` ComboBox (and `TxtBaseTemplateHint`) from the Pools tab; removed `InitBaseTemplatePicker` / `CmbBaseTemplate_SelectionChanged` in TemplateEditorWindow.
+- Removed the per-template `������� ������ ����` ComboBox (and `TxtBaseTemplateHint`) from the Pools tab; removed `InitBaseTemplatePicker` / `CmbBaseTemplate_SelectionChanged` in TemplateEditorWindow.
 - Removed `CatalogContent.SelectedBaseTemplateKey` and `SelectBaseTemplate`; `TemplateGenerator.Generate` now auto-resolves the base template via `CatalogContent.ResolveBaseTemplate(TemplateName/null)` instead of a user-gated selection. MainWindow/MainWindow.Shoot `BaseTemplate` assignments drop the `?? SelectedBaseTemplateKey` part.
 - Added `GamePool.SourceTemplate` (catalog key of the originating game template) and `GamePoolDataLoader.GetAllPoolsWithTemplates(out Dictionary<GamePool,List<PoolItemInfo>>)` which returns the full universe: game pools + every one of the 69 game templates' `mandatoryContent` / `contentCountLimits` pools (built via `TemplatePoolBuilder.Build`, each tagged with its source template).
-- ContentPoolViewerWindow now loads that full universe by default (view mode) and gained a selection mode (`selectionMode`, `allowedCategories`, `SelectedPools`): categories include a new `Specific-template` (matches `SourceTemplate != null`); shows the source template under each pool; double-click / "�������� ��������� ���" adds to the selection; OK returns chosen pool names.
+- ContentPoolViewerWindow now loads that full universe by default (view mode) and gained a selection mode (`selectionMode`, `allowedCategories`, `SelectedPools`): categories include a new `Specific-template` (matches `SourceTemplate != null`); shows the source template under each pool; double-click / "�������� ��������� ���" adds to the selection; OK returns chosen pool names.
 - Pools-tab pickers (Guarded, Unguarded, Resources, MandatoryContent, ContentCountLimits) converted to category-based selection via new `AddCategoryPicker`, which opens the viewer in selection mode restricted to the requested categories: p1/p2 = guarded/unguarded/random/specific-template/created; p3 = resources; p4/p5 = specific-template/created.
 
 ### Verified
 - dotnet build (Debug) clean; dotnet test 64/64 pass; build.bat -> release/OldenEraTemplateGenerator.exe, 0 errors (includes catalog regen).
 
-## 2026-07-14 23:55 � User: "���������� ���� mandatory/content_limits � ��������� ��������� '������������ �������' � '������ ���������� ��������' (�� specific-template), �������� ��� ������� � �������� (������ UI); ������������� ������� '���'->'�������', '���������'->'������������ ����������', ���������� ' * ' ������ 'maxCount:*'; ������ specific-template �� ������� ��� ������������ �������/������"
+## 2026-07-14 23:55 � User: "���������� ���� mandatory/content_limits � ��������� ��������� '������������ �������' � '������ ���������� ��������' (�� specific-template), �������� ��� ������� � �������� (������ UI); ������������� ������� '���'->'�������', '���������'->'������������ ����������', ���������� ' * ' ������ 'maxCount:*'; ������ specific-template �� ������� ��� ������������ �������/������"
 
 ### Changed
-- `GamePool.ToString()` now appends "  �  <SourceTemplate>" for template-sourced pools (display only; stored/serialized value stays the bare `Name`).
-- `ContentPoolViewerWindow`: replaced the generic "Specific-template" category with two dedicated categories � "������������ �������" (tag=="mandatory") and "������ ���������� ��������" (tag=="content_limits"); removed the now-unused `Specific-template` option and `GetSourceTemplate` helper.
-- DataGrid column headers renamed: "���" -> "�������", "���������" -> "������������ ����������".
+- `GamePool.ToString()` now appends "  �  <SourceTemplate>" for template-sourced pools (display only; stored/serialized value stays the bare `Name`).
+- `ContentPoolViewerWindow`: replaced the generic "Specific-template" category with two dedicated categories � "������������ �������" (tag=="mandatory") and "������ ���������� ��������" (tag=="content_limits"); removed the now-unused `Specific-template` option and `GetSourceTemplate` helper.
+- DataGrid column headers renamed: "���" -> "�������", "���������" -> "������������ ����������".
 - `TemplatePoolBuilder.Build` now sets content-limit row `Detail` to " * " (display-only marker) instead of "maxCount: *"; the real `MaxCount` is still carried in `Weight` (and serialized from `ContentCountLimit.Limits`, untouched).
-- Pools-tab pickers: p1/p2 now use "Template-specific" (template_pool_ game pools) instead of the removed "Specific-template"; p4 (mandatory) uses ["������������ �������","���������"]; p5 (limits) uses ["������ ���������� ��������","���������"]. "specific-template" is no longer offered for the mandatory/limits pickers.
+- Pools-tab pickers: p1/p2 now use "Template-specific" (template_pool_ game pools) instead of the removed "Specific-template"; p4 (mandatory) uses ["������������ �������","���������"]; p5 (limits) uses ["������ ���������� ��������","���������"]. "specific-template" is no longer offered for the mandatory/limits pickers.
 
 ### Verified
 - dotnet test 64/64 pass (updated TemplatePoolBuilder_TagsMandatoryAndContentLimitPools assertion to the new " * " display). build.bat -> release/OldenEraTemplateGenerator.exe, 0 errors.
 
-## 2026-07-15 00:15 � User: "� 'maxCount:*' ������ ������ �������� ������ *; ��� mandatory_content ������������� ������� � '�������������', �������: ��� �������� -> �����, ������� -1 -> '-1'"
+## 2026-07-15 00:15 � User: "� 'maxCount:*' ������ ������ �������� ������ *; ��� mandatory_content ������������� ������� � '�������������', �������: ��� �������� -> �����, ������� -1 -> '-1'"
 
 ### Changed
-- `TemplatePoolBuilder.Build` content-limit rows now set `Detail` to the real max-count value (`sl.MaxCount.ToString()`) instead of a literal " * " � the " * " was a placeholder for that value.
-- `ContentPoolViewerWindow` DataGrid now binds to a display projection (`PoolRow`): "�������" (was "���") and "�������������/������������ ����������" (was "���������") columns use pre-formatted strings.
-  - For mandatory-content pools the "�������" column shows nothing when weight is 0 (no variant) and "-1" when weight is -1; the detail column header becomes "�������������".
-  - For content-limits pools the detail column header is "������������ ����������" and shows the max-count value.
-  - For all other pools the header stays "���������" and weight is shown as-is.
+- `TemplatePoolBuilder.Build` content-limit rows now set `Detail` to the real max-count value (`sl.MaxCount.ToString()`) instead of a literal " * " � the " * " was a placeholder for that value.
+- `ContentPoolViewerWindow` DataGrid now binds to a display projection (`PoolRow`): "�������" (was "���") and "�������������/������������ ����������" (was "���������") columns use pre-formatted strings.
+  - For mandatory-content pools the "�������" column shows nothing when weight is 0 (no variant) and "-1" when weight is -1; the detail column header becomes "�������������".
+  - For content-limits pools the detail column header is "������������ ����������" and shows the max-count value.
+  - For all other pools the header stays "���������" and weight is shown as-is.
 - Updated `TemplatePoolBuilder_TagsMandatoryAndContentLimitPools` assertion to the new `Detail == "1"` (the max-count value).
 
 ### Verified
 - dotnet test 64/64 pass. build.bat -> release/OldenEraTemplateGenerator.exe, 0 errors (stopped the locked running exe first so the single-file publish could overwrite).
 
-## 2026-07-14 00:00 � User: ��� includeLists / content_limit ����� (SID = ��� include-������, ������������ variant/maxCount)
+## 2026-07-14 00:00 � User: ��� includeLists / content_limit ����� (SID = ��� include-������, ������������ variant/maxCount)
 
 ### Fixed
 - PoolItemInfo: added Variant (int?) and MaxCount (int) fields.
 - TemplatePoolBuilder.Build:
   - Mandatory items: Sid falls back to joined IncludeLists when Sid is absent; Variant column = item.Variant (null -> empty, -1 -> -1).
   - Content-limit items: Sid resolves to sl.Sid -> joined IncludeLists -> first nested content Sid; Variant = sl.Variant (null -> empty); Extra = maxCount value, empty when maxCount is 0/absent.
-- ContentPoolViewerWindow.ShowPool: for mandatory/limits pools the ""�������"" column uses VariantText(int? v) (null -> "", -1 -> "-1"); for limits the Extra column shows MaxCount (empty when 0). Game pools keep raw Weight logic and still expand include-lists.
+- ContentPoolViewerWindow.ShowPool: for mandatory/limits pools the ""�������"" column uses VariantText(int? v) (null -> "", -1 -> "-1"); for limits the Extra column shows MaxCount (empty when 0). Game pools keep raw Weight logic and still expand include-lists.
 - Model unchanged (ContentSidLimit.MaxCount stays int) so serialization is unaffected; absent maxCount is treated as 0 -> empty cell.
 
 ### Added
@@ -1004,3 +1038,539 @@ ame is valid UTF-8 (console garble was PowerShell ANSI misdecode, not mojibake);
 
 ### Verified
 - dotnet test 65/65 pass. build.bat -> release/OldenEraTemplateGenerator.exe, 0 errors.
+
+## 2026-07-14 — User: "при импорте шаблона или создании шаблона нужно в главном окне оставлять возможность редактировать некоторые данные (название/режим игры/описание/условие победы/правила карты), но блокировать вкладку наполнение зон, вкладку доп. наполнение, игроков и вид карты"
+
+### Added — импорт шаблона + режим "Изменить базовые настройки" в главном окне
+- MainWindow.xaml: кнопка "Импортировать шаблон" на тулбаре; кнопка "Создать заново" (BtnRecreate) рядом с BtnEditor в StackPanel; x:Name для блокируемых элементов TabMapZones, TabExtraContent, LblPlayers, LblMapView; выявленный ComboBox режима игры (CmbGameModeEdit) рядом с названием; TextBox описания (TxtTemplateDescription); TextBox условия победы (TxtWinConditionDetail).
+
+### Changed
+- MainWindow.xaml.cs: состояние _editingTemplate / _editingTemplatePath / _editMode. BtnPreview_Click разделён на GenerateTemplate() (оригинальная генерация) и EditBasicSettings() (патч метаданных+правил, сохранение). После генерации автоматически EnterEditMode(), чтобы сразу можно было править базовые настройки.
+- BtnNew_Click вызывает ExitEditMode() (сброс UI к режиму создания).
+- BuildSettings переименован в BuildGameRulesFromUi; добавлен ApplyTemplateToUi(RmgTemplate) — обратный маппинг метаданных + правил в UI (Name, GameMode, Description, DisplayWinCondition/WinConditionDetail, sliders, чекбоксы, value overrides, bans, light/locked/obelisk чекбоксы, NeutralTowns).
+- SetEditModeUi(bool): скрывает TabMapZones/TabExtraContent/LblPlayers/LblMapView в режиме правки; BtnPreview меняет контент на "Изменить базовые настройки", BtnEditor/BtnRecreate — IsEnabled=false.
+- PatchMetadataAndRules(target, source) — чистый метод: патчит только Name/GameMode/Description/DisplayWinCondition/GameRules (включая Bonuses и ValueOverrides из target), остальное (zones/content/variants) не трогает.
+
+### Added — публичные билдеры правил
+- TemplateGenerator.BuildGameRules, BuildValueOverrides, BuildGlobalBans сделаны public (используются для пересборки правил при сохранении патча).
+
+### Added — тесты
+- TemplateGeneratorRulesTests: BuildGameRules (valueOverride HeroCountMax=4 + бан TownMilitia -> HeroCountMax/ValueOverrides/GlobalBans), BuildValueOverrides (true->"On", false->empty, число->строка), BuildGlobalBans (true->id, false->пропуск).
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet test: 67 pass, 1 fail — RuAndEnHaveSameKeys (RU=687, EN=683) падает из-за 4 ключей S.OR.* присутствующих в RU, но отсутствующих в EN (параллельный агент чинит локализацию, мои добавленные ключи сбалансированы 2х2). build.bat (release, single-file publish) 0 ошибок по основному проекту; единственный упавший тест — локализация (не моя зона ответственности).
+
+### Limitations
+- Бонусы не раунд-трипятся в UI при импорте (raw Bonus->BonusEntry неоднозначен), но сохраняются как есть в PatchMetadataAndRules (EditBasicSettings не теряет бонусы). Вид карты/зоны не рендерятся из импортированного шаблона (только из сгенерированного).
+
+## 2026-07-14 — User: "при нажатии на кнопку пересоздать шаблон состоянии генератора должно сбрасываться до состоянии как будто он только что был запущен"
+
+### Changed — кнопка "Создать заново" теперь сбрасывает генератор к старту
+- Добавлен `ResetGeneratorToDefaults()`: сбрасывает активный вид (Advanced -> ApplySettings(new SettingsFile()); Simple -> ResetSimpleToDefaults()), очищает _currentSettingsPath/_isDirty, а также сгенерированное состояние — _generatedTemplate=null, _generatedTopology=default, _templateOutdated=false, ImgPreview.Source=null, BtnSaveGenerated.Visibility=Collapsed, lblNoPreview.Content=null, UpdateBalanceReport() (очищает отчёт при null-шаблоне), UpdateOutdatedWarning(), ExitEditMode(), UpdateTitle().
+- BtnNew_Click теперь оставляет свой диалог подтверждения, но делегирует сброс в ResetGeneratorToDefaults() (заодно теперь очищает устаревший превью/анализ — консистентно со стартом).
+- BtnRecreate_Click ("Создать заново") вместо повторной генерации вызывает ResetGeneratorToDefaults() без подтверждения. Видимость кнопки не изменена — видна только в режиме правки (SetEditModeUi), после сброса возвращается в обычный режим и скрывается.
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet publish -c Release win-x64 single-file -> release/OldenEraTemplateGenerator.exe, 0 ошибок. dotnet test 68/68 pass (в т.ч. RuAndEnHaveSameKeys — параллельный агент починил локализацию).
+
+## 2026-07-14 — User: "при импорте rmg.json шаблона из главного окна не происходит построение канваса; импорт singlehero ставит лимит 2/1 вместо 1/0; при singlehero блокировать лимиты на 1/0/1 и авто-вкл 'режим одного героя' с запретом выключения; после создания/импорта прятать шанс перехода нейтралов, блокировать 'поражение при потере стартового города' и 'победа за удержание нейтр города', прятать весь блок 'окружение и встречи' и флаг разрешить обход охраны"
+
+### Fixed — канвас при импорте
+- EnterEditMode теперь после ApplyTemplateToUi выставляет _generatedTemplate=template, _generatedTopology=default и рендерит ImgPreview через TemplatePreviewPngWriter.Render (с default-топологией, т.к. реальная не хранится в .rmg.json) + UpdateBalanceReport(). EditBasicSettings уже перерисовывает.
+
+### Fixed — SingleHero импорт/выбор
+- ApplyTemplateToUi при GameMode=="SingleHero": вместо пересчёта лимитов вызывает ApplySingleHeroLock(true) (min=max=1, increment=0) и ChkSingleHeroMode.IsEnabled=false (нельзя выключить режим одного героя, пока шаблон SingleHero).
+- Извлечён ApplySingleHeroLock(bool): общая логика блокировки ( IsEnabled=false для SldHeroMin/Max/Increment + TxtHero*, ChkLostStartHero.IsChecked=true и IsEnabled=false, значения 1/1/0). Используется и в ChkSingleHeroMode_Changed, и в ApplyTemplateToUi, и в CmbGameModeEdit_SelectionChanged.
+- MainWindow.xaml: CmbGameModeEdit получил SelectionChanged="CmbGameModeEdit_SelectionChanged". При выборе "SingleHero" автоматически ChkSingleHeroMode.IsChecked=true + ApplySingleHeroLock(true) + ChkSingleHeroMode.IsEnabled=false; при другом режиме — IsEnabled=true и снимается блокировка.
+
+### Fixed — блокировка лишних настроек после создания/импорта
+- Добавлен SetLockedExtras(bool): скрывает PnlEnvironment (весь блок "Окружение и встречи", включая ChkEncounterHoles — обход охраны) и PnlDiplomacy (шанс перехода нейтралов, SldDiplomacy/S.M.038), а также ChkLostStartCity.IsEnabled=false и ChkCityHold.IsEnabled=false. Вызывается из SetEditModeUi(true), снимается в SetEditModeUi(false).
+- MainWindow.xaml: добавлены x:Name="PnlEnvironment" (StackPanel блока окружения/встреч) и x:Name="PnlDiplomacy" (DockPanel шанса перехода нейтралов).
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet publish -c Release win-x64 single-file -> release/OldenEraTemplateGenerator.exe, 0 ошибок. dotnet test 68/68 pass.
+
+## 2026-07-17 — Fix: NullReferenceException в BonusPickerWindow при открытии (кнопка «Добавить бонусы»)
+
+### Root cause
+- Глобальный `ComboBoxBehavior` (`SyncTextWithSelectedItem=True` из App.xaml) на каждый `SelectionChanged` выполняет `cb.Text = cb.SelectedItem?.ToString()`. В конструкторе `BonusPickerWindow` установка `CmbType.SelectedIndex = 0` вызывает `SelectionChanged` → поведение проставляет `Text` → `ComboBox.TextUpdated` реентерабельно вызывает `SelectionChanged` ещё раз → `CmbType_Changed` → `SelectedType` → `(ComboBoxItem)CmbType.SelectedItem` равен null в этот момент → NullReferenceException (get_SelectedType, строка 39).
+- Это НЕЗАВИСИМЫЙ от favicon краш: favicon-ный XamlParseException (в InitializeComponent) маскировал этот NRE; после удаления favicon-ссылок NRE стал реальным падением окна при открытии.
+
+### Fixed
+- `BonusPickerWindow.xaml.cs` `SelectedType` переписан как свойство с null-safe разбором: если `CmbType.SelectedItem` не ComboBoxItem/Tag — возвращает `BonusPresetType.TownPortalFree` (безопасный дефолт) вместо NRE.
+- `SelectedReceiver` аналогично: null-safe, дефолт `"start_hero"`.
+- `CmbType_Changed` добавлена early-return при `CmbType.SelectedItem == null` (защита от реентерабельной селекции во время Text-sync/конструкции).
+
+### Verified
+- Репродьюс через реальный EXE + временный `--bonustest` (показ окна ShowDialog + клик BtnAdd_Click) писал crash в %TEMP%\aurora_crash.log; после фикса crash-лог пустой, окно не падает. Временный хук и DispatcherUnhandledException-обработчик из App.xaml.cs/MainWindow.xaml.cs удалены.
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet test 68/68 pass (удалён временный TmpBonusRepro2.cs, падавший на DialogResult-артефакте тест-харнеса). Запуск EXE без аргументов — LAUNCH OK.
+
+## 2026-07-17 — Fix: в окне «Добавить бонус» выбор 2+ заклинаний/артефактов не показывался в строке
+
+### Root cause
+- В `BonusPickerWindow.BtnPickSpell_Click`/`BtnPickItem_Click` при выборе >1 элемента в SpellPickerWindow/ItemPickerWindow окно бонуса сразу закрывалось (DialogResult=true), а выбранные id НЕ записывались в `TxtSpell`/`TxtItem` — пользователь не видел свой выбор в строке UI.
+
+### Fixed
+- Мульти-выбор больше не закрывает окно. `TxtSpell`/`TxtItem` заполняются списком выбранных id через `", "`, так что выбор виден в строке.
+- `Results` заполняется всеми выбранными записями сразу (как было), но окно не закрывается — пользователь видит и подтверждает.
+- `BtnAdd_Click`: для Spell/Item, если `Results` уже содержит записи нужного типа (заполнены пикером), добавляет их через новый `AddPickedResults` (прогоняет проверку на дубликаты и переприменяет текущий Receiver), не перезаписывая joined-текст одной записью. Одиночный ручной ввод по-прежнему работает.
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet test 68/68 pass.
+
+## 2026-07-14 — User: "импорт через визуальный редактор зон не применяет то же правило что и основное окно; версия 3.0; кнопка 'изменить базовые настройки' только замена метаданных без сохранения"
+
+### Fixed — импорт через визуальный редактор зон возвращает шаблон в основное окно с блоками
+- TemplateEditorWindow.xaml.cs: добавлен публичный event TemplateImported (Action<RmgTemplate>); поднимается в BtnLoad_Click после LoadTemplate (только при реальном импорте .rmg.json/H3T/картинки, не при JSON-правке из JsonPreviewWindow).
+- MainWindow.xaml.cs BtnOpenEditor_Click: подписывается на editor.TemplateImported += OnZoneEditorTemplateImported; обработчик вызывает EnterEditMode(loaded, path:null) — то есть применяет те же ограничения, что и прямой импорт через основное окно (ApplyTemplateToUi: SingleHero-блокировка + HeroHireBan; SetEditModeUi/SetLockedExtras: скрытие "Окружение и встречи"/"Дипломатия", блокировка "потеря стартового города"/"захват нейтрального города").
+
+### Fixed — версия 3.0
+- AssemblyInfo.cs: AssemblyVersion и AssemblyFileVersion подняты 2.0.0.0 -> 3.0.0.0 (пред. версия была 2.0, не 1.0). В заголовке окна отображается "v3.0".
+- ВНИМАНИЕ: нельзя ставить <AssemblyVersion> в .csproj при GenerateAssemblyInfo=false — конфликтует с AssemblyInfo.cs и ломает загрузку WPF-ресурсов (BAML ссылается на версию сборки). Это и было причиной "приложение не запускается" (FileNotFoundException 'OldenEraTemplateGenerator, Version=3.0.0.0'). Исправлено: версия только в AssemblyInfo.cs.
+
+### Fixed — 'изменить базовые настройки' только замена метаданных, без сохранения
+- MainWindow.xaml.cs EditBasicSettings: убран вызов SaveEditingTemplate() (и SaveEditingTemplateAs). Теперь кнопка только применяет PatchMetadataAndRules к _editingTemplate и обновляет превью; сохранение — отдельной командой пользователя.
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet test 68/68 pass.
+
+## 2026-07-14 — User: "проверь сериализацию valueOverrides против игровых map_templates"
+
+### Findings (сверка с E:\...\StreamingAssets\map_templates\*.rmg.json, ~120 файлов)
+- Игровой формат valueOverrides = { "sid", "variant", "guardValue" } (camelCase, 2-space indent). JsonExport.Options (WriteIndented, WhenWritingNull, JsonPropertyName) воспроизводит точно — совпадение.
+- variant в играх = 0..3 (конкретный подъобъект) или -1 (любой). Код ставит Variant=-1 = "любой подъобъект" — семантически верно, НЕ баг. Оставлено как есть.
+- В играх НЕТ поля "value" в valueOverrides (0 совпадений). Поле value не имеет схемы игры → не сработает в игре.
+
+### Changed — поле value объектов заблокировано (по решению юзера)
+- Models/Unfrozen/Miscellaneous.cs: у ValueOverride.Value убран [JsonPropertyName("value")] — поле больше НЕ сериализуется в .rmg.json (остаётся только для неактивного UI).
+- MainWindow.xaml: секция "Перераспределение value объектов" (S.M.115) обёрнута в StackPanel IsEnabled=False Opacity=0.5 — неактивна/затемнена. Добавлена подсказка S.M.117 (RU+EN) "поле неактивно: в схеме игры нет value".
+- Strings.cs: добавлен ключ S.M.117 (RU+EN), баланс RU/EN сохранён.
+- Guard-поле (S.M.114) полностью рабочее и корректно сериализуется в игровую схему.
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet test 68/68 pass. value не имеет JsonProperty -> не попадает в вывод.
+
+## 2026-07-14 — User: "поле Перераспределение силы охраны переделать под UI как у пулы; добавить Перераспределение value объектов; локализацию имён из mapObjects.json"
+
+### Changed — UI полей value-override переделан под чипы (как пулы)
+- MainWindow.xaml: секция S.M.088 (Переопределение силы охраны) перестала быть свободным TextBox. Вместо него — два блока чипов в стиле пулов визуального редактора:
+  - GuardOverrideChips (WrapPanel) + BtnAddGuardOverride (S.M.114 "Переопределение силы охраны", S.M.116 "Добавить объект…").
+  - ValueOverrideChips (WrapPanel) + BtnAddValueOverride (новое поле S.M.115 "Перераспределение value объектов").
+  - Чип = локализованное имя объекта + raw sid + кнопка "✕" (удаляет только своё значение; если у объекта осталось только одно из двух — запись не дублируется).
+- MainWindow.xaml.cs: _valueOverrides (List<ValueOverride>) — единый источник правды для обоих полей. UpsertValueOverride/RemoveGuardOverride/RemoveValueOverride объединяют sid в ОДНУ запись (value затем guardValue). RebuildValueOverrideChips строит чипы через MakeOverrideChip (тот же стиль BrushInput/BrushBorder, что у пулов). BtnAddGuardOverride_Click / BtnAddValueOverride_Click открывают ValueOverridePickerWindow в режиме Guard/Value. Загрузка/сохранение (_valueOverrides <-> GeneratorSettings.ValueOverridesText) обновлены; сброс через ResetGeneratorToDefaults -> ApplySettings. OnLanguageChanged: ObjectNameResolver.Reset() + RebuildValueOverrideChips().
+- ValueOverridePickerWindow.xaml/.cs: добавлен PickMode (Guard/Value); для Value — отдельное поле TxtObjectValue (S.Vov.004/005), GuardRow/ValueRow переключаются по режиму. Список объектов теперь привязан к ObjectItem{Sid, Display}, где Display = локализованное имя из ObjectNameResolver (поиск фильтрует и по имени). Результат: "sid=G" (guard) или "sid=,V" (value).
+- Models/Unfrozen/Miscellaneous.cs: ValueOverride добавлено свойство [JsonPropertyName("value")] int? Value.
+- Services/TemplateGenerator.cs: BuildValueOverrides парсит формат "sid=G", "sid=,V", "sid=G,V" (обратно совместимо со старым "sid=G"); добавлен ValueOverridesToText (сериализация в тот же формат). В RmgTemplate.ValueOverrides теперь пишется один entry на sid с обоими полями.
+- Services/GameData/ObjectNameResolver.cs (NEW): читает Lang/<lang>/texts/mapObjects.json из Core.zip (ключ <sid>_name -> text) для RU/EN, кэширует, Resolve(sid) возвращает локализованное имя или сам sid. Reset() очищает кэш при смене языка.
+- Localization/Strings.cs: добавлены ключи (RU+EN, баланс сохранён): S.M.114, S.M.115, S.M.116, S.Vov.004, S.Vov.005.
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet test 68/68 pass (RuAndEnHaveSameKeys зелёный). Игровой Core.zip и Lang/russian/texts/mapObjects.json присутствуют по указанному пути.
+
+## 2026-07-14 — User: "в UI не видно заданное значение; добавить в окно подсказку про множественный выбор"
+
+### Fixed
+- MainWindow.xaml.cs MakeOverrideChip: теперь принимает valueText и показывает заданное значение внутри чипа ("Лесопилка (mine_wood) = 5000"). RebuildValueOverrideChips передаёт o.GuardValue / o.Value.
+- ValueOverridePickerWindow.xaml: добавлена подсказка S.Vov.006 "Можно выбрать несколько объектов — для всех выбранных значение будет одинаковым." (RU+EN) под полем значения.
+- Strings.cs: добавлен ключ S.Vov.006 (RU+EN).
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet test 68/68 pass.
+
+## 2026-07-14 — User: "в ImageImportWindow сломанные локализации — проверь ключи и локализацию самих ключей"
+
+### Root cause
+- В ImageImportWindow.xaml/.cs использовались ключи S.EI.*, но в словаре Strings.cs существовал только блок статусных/сообщений (SelectRmg, SelectH3T, ReadingRmg, ParseFail, FileInfo, RmgSummary, RmgLoaded, H3TParsed, DetectedZones, DetectedConns, Parsing, Error). UI-ключи (Title, Placeholder, Select, Zones, Import, Close) и кодовые (SelectTitle, Analyzing, Done) отсутствовали → DynamicResource/L возвращали сырой ключ (ложная локализация). Кроме того часть текста была захардкожена на RU (BtnSelectRmg, BtnSelectH3T, заголовки DetectedZones/DetectedConns, RmgFileInfo).
+
+### Fixed
+- Strings.cs (RU ~705-716, EN ~1444-1455): добавлены недостающие ключи в оба словаря (пара RU=EN по количеству, тест RuAndEnHaveSameKeys зелёный):
+  S.EI.Title, S.EI.Placeholder, S.EI.Select, S.EI.Zones, S.EI.Import, S.EI.Close, S.EI.SelectTitle, S.EI.Analyzing, S.EI.Done.
+- ImageImportWindow.xaml: RmgFileInfo, BtnSelectRmg, BtnSelectH3T переведены на DynamicResource S.EI.SelectRmg/.SelectH3T; заголовки H3T-панелей на S.EI.DetectedZones/.DetectedConns. Все кнопки (BtnSelectRmg, BtnSelect, BtnSelectH3T, BtnImport, BtnClose) и заголовки теперь локализованы через DynamicResource.
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet test 68/68 pass. RuAndEnHaveSameKeys green.
+
+## 2026-07-14 — User: "там же остались s.ei.ready и s.ei.hint"
+
+### Fixed
+- Strings.cs: добавлены пропущенные ключи S.EI.Ready и S.EI.Hint в оба словаря (RU+EN). Они использовались в ImageImportWindow.xaml (StatusText, HintText) и .cs (ResetState/SwitchTo), но отсутствовали в словаре → показывался сырой ключ.
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet test 68/68 pass. RuAndEnHaveSameKeys green.
+
+## 2026-07-14 — User: "кнопка импорта в основном меню должна копировать функционал кнопки 'загрузить .rmg.json'"
+
+### Changed — импорт в главном окне использует тот же ImageImportWindow
+- MainWindow.xaml.cs BtnImportTemplate_Click теперь открывает ImageImportWindow (тот же, что и кнопка "загрузить .rmg.json" в визуальном редакторе зон, TemplateEditorWindow.BtnLoad_Click): поддерживает импорт .rmg.json, PNG-картинки (ImageAnalyzer) и .h3t (H3TParser) с превью/статусом и внутренней обработкой ошибок. Результат передаётся в EnterEditMode(template, path: null) (path=null → при сохранении SaveAs, как в BtnLoad_Click где _currentPath=null).
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet publish -c Release win-x64 single-file -> release/OldenEraTemplateGenerator.exe, 0 ошибок. dotnet test 68/68 pass.
+
+## 2026-07-14 — User: "локализация 'окружение и встречи' не пропадает вместе с функциями; при singlehero выставлять и блокировать 'запрет найма героев'; у кнопки 'зеркало' неотображаемый квадратик; заменить локализацию 'зеркало' на 'режим зеркального построения'"
+
+### Fixed — заголовок "Окружение и встречи" скрывается вместе с блоком
+- MainWindow.xaml: убран лишний x:Name="PnlEnvironmentHeader"; TextBlock заголовка S.Hdr.Environment перенесён ВНУТРЬ StackPanel x:Name="PnlEnvironment". Теперь при SetLockedExtras(true) скрывается и заголовок, и все функции блока.
+
+### Fixed — SingleHero выставляет и блокирует "Запрет найма героев"
+- ApplySingleHeroLock(true) теперь так же ChkHeroHireBan.IsChecked=true и ChkHeroHireBan.IsEnabled=false; в ветке else оба чекбокса (LostStartHero и HeroHireBan) снова IsEnabled=true. Работает для импорта (ApplyTemplateToUi), выбора режима в комбо (CmbGameModeEdit_SelectionChanged) и ручного чекбокса (ChkSingleHeroMode_Changed).
+
+### Fixed — локализация кнопки "зеркало"
+- Strings.cs: S.EC.Mirror (RU) "🪞 Зеркало" -> "Режим зеркального построения" (убран неотображаемый эмодзи-квадратик); S.EC.Mirror (EN) "🪞 Mirror" -> "Mirror build mode".
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet publish -c Release win-x64 single-file -> release/OldenEraTemplateGenerator.exe, 0 ошибок. dotnet test 68/68 pass (RuAndEnHaveSameKeys зелёный — RU/EN сбалансированы).
+
+## 2026-07-14 — User: "s.e.hint в локализации при импорте из окна визуальный редактор зон"
+
+### Fixed — подсказка холста (S.Ed.CanvasHint) не показывается после импорта
+- TemplateEditorWindow.xaml.cs: добавлен UpdateCanvasHintVisibility() — TextBlock TxtCanvasHint (подсказка "Wheel — zoom · ... Del — delete · Esc — cancel", ключ S.Ed.CanvasHint) виден только для пустого нового шаблона (Zones.Count==0) и скрывается (Visibility.Collapsed), как только в шаблоне есть зоны. Вызывается в Loaded (после RebuildGraph) и в LoadTemplate (после импорта/загрузки .rmg.json). Ранее подсказка была всегда видна поверх импортированной схемы зон.
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet publish -c Release win-x64 single-file -> release/OldenEraTemplateGenerator.exe, 0 ошибок. dotnet test 68/68 pass.
+
+## 2026-07-17 — Fix: слетел ключ локализации S.EC.SameOwner + аудит всех ключей + автотесты
+
+### Root cause
+- Код `TemplateEditorWindow.xaml.cs:693` ссылался на `L("S.EC.SameOwner")`, но ключа не было ни в RU, ни в EN таблице Strings.cs. `LocalizationManager.Get` возвращает сам ключ при отсутствии → в UI показывался сырой `S.EC.SameOwner`.
+
+### Audit (скрипт поиска всех referenced ключей в *.cs/*.xaml)
+- Найдено ещё 4 реально отсутствующих ключа (показывались бы сырыми): `S.CPV.List` (ContentPoolViewerWindow.xaml:76), `S.EC.MirrorOn`/`S.EC.MirrorOff` (TemplateEditorWindow.xaml.cs:3874), `S.EC.HubCreated` (TemplateEditorWindow.xaml.cs:4259). `S.X.Y` — плейсхолдер только в doc-comment, не считается.
+
+### Fixed — добавлены недостающие ключи в обе таблицы (RU + EN)
+- `S.EC.SameOwner` = "Тот же владелец" / "Same owner"
+- `S.CPV.List` = "Список" / "List"
+- `S.EC.MirrorOn` = "Режим зеркалирования: вкл" / "Mirror mode: ON"
+- `S.EC.MirrorOff` = "Режим зеркалирования: выкл" / "Mirror mode: OFF"
+- `S.EC.HubCreated` = "Создан центр: {0}." / "Hub created: {0}."
+
+### Added — автотест на полную локализацию
+- `UnitTest1.cs` / `LocalizationKeysTests.EveryReferencedKeyExistsInRuAndEn`: сканирует дерево исходников редактора (исключая bin/obj) на предмет всех ключей, упомянутых в коде (L/T/Get) и XAML (DynamicResource/StaticResource S.*), и утверждает, что каждый есть в RU и EN таблицах. Постоянный guard от регрессии «слетевшего» ключа. `S.X.Y` (doc-плейсхолдер) исключён.
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet test 69/69 pass (новый аудит-тест зелёный, реальных missing-ключей 0).
+
+## 2026-07-17 — Fix: иконка кнопки «развернуть» на topbar превращалась в «??» после 1 нажатия
+
+### Root cause
+- `MainWindow.xaml.cs` `Window_StateChanged` (строки 557-566) в ОБОИХ ветках (Maximized и Normal) выставлял `BtnMaximize.Content = "??"`. Поэтому после любого переключения состояния окна иконка заменялась на два знака вопроса.
+
+### Fixed
+- Maximized → `Content = "🗗"` (восстановить), Normal → `Content = "🗖"` (развернуть). ToolTip по-прежнему локализован через S.CB.Restore / S.CB.Maximize. XAML-значение по умолчанию (MainWindow.xaml:115) = "🗖".
+
+### Verified
+- dotnet build 0 ошибок; логика ветвления корректна (иконка меняется между 🗖/🗗 по состоянию).
+
+## 2026-07-17 — Fix: после импорта шаблона кнопка «сохранить .rmg.json» была недоступна
+
+### Root cause
+- После импорта вызывается `EnterEditMode` (MainWindow.xaml.cs), который выставляет `_generatedTemplate = template`, но НЕ обновлял состояние кнопки `BtnSaveGenerated` (сохраняет .rmg.json). Кнопка оставалась `IsEnabled=False` (дефолт из XAML), поэтому после импорта пользователь не мог сохранить шаблон как .rmg.json, хотя сама кнопка видима. После «Создать шаблон» кнопка включалась (GenerateTemplate вызывает UpdateOutdatedWarning), но после импорта — нет.
+
+### Fixed
+- `EnterEditMode` теперь вызывает `UpdateOutdatedWarning()` перед `SetEditModeUi(true)`, что выставляет `BtnSaveGenerated.IsEnabled = true` (т.к. `_generatedTemplate != null` и не outdated). Теперь кнопка «сохранить .rmg.json» доступна и после создания, и после импорта шаблона.
+- Функционал сохранения (BtnSaveGenerated_Click) уже пишет `_generatedTemplate` в .rmg.json через SaveFileDialog; после «Изменить базовые настройки» `_generatedTemplate` синхронизируется с отредактированным `_editingTemplate` (EditBasicSettings, строка 2443), так что сохраняется актуальная версия.
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ошибок. dotnet test 69/69 pass.
+
+## 2026-07-18 � Fix: ����������� ��������������� .rmg.json �� �������� � ���� (��� ������ mandatoryContent/contentCountLimits/zoneLayouts, ������ displayWinCondition, ������ AuroraRMG)
+
+### Root cause
+- ������ �� �������� ���� `mandatory_content_*` / `content_limits_*` / `zone_layout_*` ��� � �� �������� ������ ������ ������ � �����. ���� ��������� (`TemplateGenerator.Generate`) ��������� ��� ����� ����� `BuildAllMandatoryContent` / `ZoneContentManager.BuildAllContentCountLimits` / `BuildZoneLayouts`, �� ���� ������� (H3T/�������� .rmg.json) �������� �� �������, � ���� ���� ��������� �� SID (����. `mandatory_content_spawns`, `content_limits_spawns`, `zone_layout_spawn`). ���� �� ����� ��������� ������ > ������ �� ��������.
+- `displayWinCondition` � ��������������� �������� ������ (��� �������� ������� ���������� `win_condition_1/3/4/5/6`).
+- �������� ����� editor-only ���� `AuroraRMG` � ���� (�� ������ ���������� ������ � ������ ���������, �� � ����������� .rmg.json).
+
+### Fixed
+- `GameContentCatalog.generated.cs`: ��������� �����-��������� ���������� `TryFindMandatoryContentAny(name)` / `TryFindContentCountLimitsAny(name)`, ���������� ��� �� ������� ����� ����� ���� ������������ ������� ��������.
+- `Services/ContentManagement/CatalogContent.cs`: ��������� `TryGetMcByName(name)` / `TryGetClByName(name)`, ������������ ������������� �������� ����������� ���� (������ ������� �� �������� ������� ��������).
+- `Services/TemplateGenerator.cs`: ��������� `NormalizeForExport(RmgTemplate)` (additive: ��������� ����������� top-level `mandatoryContent`/`contentCountLimits`/`zoneLayouts` �� SID, �� ������� ��������� ����; ������ `contentPools=[]`/`contentLists=[]`; �������� `displayWinCondition="win_condition_1"`; �� �������� ��� ����������� ����������� �����) � `StripAndNormalizeForSave(template, options)` (�������� null-�� `AuroraRMG`, �����������, ����������� � JSON, ��������������� `AuroraRMG` � ������). ����� �������� `DefaultZoneLayout(name)` (���������� fallback-������).
+- ��� ����� ���������� ������ ���������� `StripAndNormalizeForSave`:
+  - `MainWindow.BtnSaveGenerated_Click` (MainWindow.xaml.cs:3119)
+  - `MainWindow.SaveEditingTemplate` (MainWindow.xaml.cs:2479)
+  - `TemplateEditorWindow.BtnSave_Click` (TemplateEditorWindow.xaml.cs:4887)
+- ����� �������������� ������ `StripAndNormalize` �� MainWindow.
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ������. dotnet test 71/71 pass (��������� `ExportNormalizationTests`: `NormalizeForExport_FillsReferencedBlocks_StripsAuroraRmg`, `NormalizeForExport_KeepsExistingBlocks_AddsMissing`).
+
+## 2026-07-18 � Fix: H3T-������ ����� �������������� ���� `content_pool_default_*` > ���� ������ ��� ��������� �����
+
+### Root cause
+- `Services/H3TParser.cs` `AssignDefaultPools(zone, layout)` (����� `zone_layout_sides`/`zone_layout_spawn`, ������ ~643-648) ����� ��������� � spawn/side-���� ���� `"content_pool_default_guarded"`, `"content_pool_default_unguarded"`, `"content_pool_default_resource"`.
+- ��� SID �� ���������� � �� ���� � �� ���������� �� � ����� �� 71 �������� ������� (���������: `contentPools` ���� � ����; `content_pool_default_*` ������ ����� �� �����������, ����� ���� H3T-������� ������� � `1deaL.rmg.json` � `DiamondH3T.rmg.json`). ������� ������� ���������� template-����������� ����� (`content_pool_general_resources_*`, `content_pool_template_*`, `classic_template_pool_random_*`).
+- ��� ���� (`Player.log`) ����� ������������ �������:
+  ```
+  [MapGen] Generating map: Template hash: 26d3a9cb17c3960c531250d25c1a0d23
+  [Config Error] [MapGen] Couldn`t find content pool `content_pool_default_resource`.
+  NullReferenceException ... bkb..ctor (Hex.MapGenerator.ContentPoolConfig ...)
+    at bnr.myt (System.String a)   // ����� ���� �� SID
+    at bld.Generate (System.String templateJson, ...)
+  ```
+  ������������� ��� > null > NRE � ������������ `ContentPoolConfig` > ��������� ����� �������� ����������� > ������ �� �����������.
+
+### Fixed
+- `Services/H3TParser.cs` (����� `zone_layout_sides`/`zone_layout_spawn`): �������� ��� SID �� �������� ��������� ���� `jebus_cross` (treasure-����� ��� ������������ �������� `content_pool_template_kerberos_*`):
+  - `content_pool_default_guarded`   > `content_pool_guarded_objects_start_zone_jebus_cross`
+  - `content_pool_default_unguarded` > `content_pool_unguarded_objects_start_zone_jebus_cross`
+  - `content_pool_default_resource`  > `content_pool_resources_start_zone_jebus_cross`
+  - `mandatory_content_spawns` / `content_limits_spawns` � ���� �� ����� ������� (����������� ����� �������) � ��������� ��� ����.
+- `Services/TemplateGenerator.cs` `NormalizeForExport`: ��������� ��������� `RewriteInvalidContentPools(zone)` � �������������� ����� SID `content_pool_default_*` (guarded/unguarded/resources) � ��������������� `jebus_cross`-���. ��� ������������� ����� ��� ����������� ����� ����� (`1deaL.rmg.json`, `DiamondH3T.rmg.json`) ��� ��������� ���������� ����� `StripAndNormalizeForSave`.
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 ������. dotnet test 73/73 pass (��������� `ExportNormalizationTests`: `NormalizeForExport_RewritesInvalidContentPools`, `NormalizeForExport_KeepsValidContentPools`).
+- ������������: ������������� `1deaL.rmg.json`/`DiamondH3T.rmg.json` ����� �������� (������������ ��������� ����) � ��������� � ���� ���� ���������� `Couldn`t find content pool 'content_pool_default_resource'`.
+## 2026-07-18 - H3T spawn Player1 sequential + auto-PNG on save + remove Same owner + UI reorders
+
+### Changed (H3T import - Services/H3TParser.cs)
+- Human-start zones get zone_layout_spawn with Spawn=Player1 placeholder in ParseZone; real sequential Player assignment done in new post-processing pass AssignSequentialSpawns(zones) (called after the second-pass zone loop). It walks every zone_layout_spawn zone in document order and assigns Player1..PlayerN regardless of the H3T ownership field, and forces each spawn MainObject to RemoveGuardIfHasOwner=true and Placement=Uniform.
+- Spawn MainObject in ParseZone now also sets Placement=Uniform.
+
+### Changed (auto PNG preview on every .rmg.json save)
+- MainWindow.BtnSaveGenerated_Click: PNG sidecar ALWAYS written next to the saved .rmg.json via TemplatePreviewPngWriter.GetSidecarPath (checkbox gate removed).
+- MainWindow.SaveEditingTemplate: now also writes a PNG sidecar (MapTopology.Default).
+- TemplateEditorWindow.BtnSave_Click: now also writes a PNG sidecar using editor topology _topology.
+
+### Removed - tot zhe vladelts / Same owner feature
+- TemplateEditorWindow.xaml.cs: removed Same owner AddCheckField, handler branches, and SyncOwnersInZone method.
+- Models/Unfrozen/Zone.cs: removed SyncOwners property.
+- Localization/Strings.cs: removed S.EC.SameOwner (RU + EN).
+
+### Changed (inspector UI reorder - TemplateEditorWindow.xaml.cs)
+- Tip obekta (object type) label + typeCombo moved BELOW the Ubrat okhranu pri vladenii (RemoveGuardIfHasOwner) checkbox.
+
+### Changed (JSON template viewer - JsonPreviewWindow.xaml)
+- JSON shablona window now opens maximized (WindowState=Maximized, ResizeMode=CanResize).
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 errors.
+- dotnet test 73/73 pass.
+
+## 2026-07-18 - Add dedicated Save button in edit mode (main window)
+
+### Added
+- MainWindow.xaml: new BtnSaveEditing button (Grid.Row=13, hidden by default) with content S.Btn.SaveEditing ("Сохранить шаблон (редактирование)"), mirroring the existing .rmg.json save flow.
+- MainWindow.xaml.cs: BtnSaveEditing_Click -> SaveEditingTemplate() (which writes the .rmg.json + auto PNG sidecar).
+- Localization: added S.Btn.SaveEditing (RU + EN).
+- SetEditModeUi(edit): in edit mode BtnSaveEditing becomes visible and the generated-template BtnSaveGenerated is hidden (avoids ambiguity); both revert when leaving edit mode.
+
+### Verified
+- dotnet build (Debug, PublishTrimmed=false) 0 errors.
+
+## 2026-07-18 - Fix H3T connection parsing (zones imported but never connected)
+
+### Root cause
+Services/H3TParser.cs resolved connection endpoints via zoneIds keyed by the zone Id field (field[28]). In HotA .h3t files the Id field is offset (every template starts at 2), while the connection Zone 1/Zone 2 fields are **1-based zone ordinals** (the order zones appear). So a connection index of 1 looked up zoneIds[1] (empty) and fell back to a non-existent "Zone-1". Every connection dangled -> the editor showed all zones as unconnected. This affected ALL h3t imports (only the content-pool tests exercised the parser before, so the latent bug was never caught).
+
+Secondary bug: connections were parsed in the SAME loop that created zones, so a zone-row connection referencing a zone defined LATER in the file failed to resolve (the ordinal map was incomplete at that point).
+
+### Fixed
+- H3TParser.Parse: zoneIds is now keyed by **1-based zone ordinal** (ordinal counter, one per real zone row) instead of the Id field. ParseConnection is unchanged and now resolves to the real Zone-2..Zone-N names.
+- Connection resolution moved to a **separate pass after all zones are created**, so references to later zones resolve correctly regardless of file order.
+- Added NormalizeConnections(raw): structural, name-agnostic de-duplication that handles every H3T connection layout — connections embedded in each zone row AND/OR a trailing standalone block (sometimes duplicated / reversed):
+  - drops self-loops (From == To);
+  - merges by unordered zone pair {min,max} (so A->B and B->A are one edge and reverse-order duplicates collapse);
+  - when several occurrences share a pair, keeps the most-specific one (Road==true, else a non-Default ConnectionType, else first) so duplicated trailing blocks never discard road/portal info.
+  - stable sort by (From, To).
+
+### Verified
+- spider.h3t end-to-end: 24 zones, 32 connections, 0 dangling endpoints, 6 roads preserved (was 0 connected).
+- New regression test H3TAndMapSizeTests.H3T_ConnectionsResolveByOrdinal_AndNormalizeDuplicates: synthetic structural .h3t (offset Id start=2, embedded + duplicated/reversed standalone connections) asserts 4 canonical edges, all endpoints are real zone names, no self-loops, no duplicate unordered pairs, and the only road-carrying edge keeps Road=true.
+- dotnet build (Debug, PublishTrimmed=false) 0 errors. dotnet test 74/74 pass.
+
+## 2026-07-18 - Import-time zone placement algorithms (spectral / MDS / hierarchical)
+
+### User request
+Add three new zone auto-placement algorithms for imported templates — (1) spectral analysis, (2) multidimensional scaling, (3) hierarchical radial-tree layout — and let the user choose which to use on import.
+
+### Added
+- Models/Generator/ImportLayoutAlgorithm.cs: enum ImportLayoutAlgorithm { Force, Spectral, Mds, Hierarchical }. Force is the historical Fruchterman-Reingold default; the other three are new.
+- Services/LinearAlgebra.cs: dependency-free symmetric eigen-decomposition (cyclic Jacobi) + Floyd-Warshall all-pairs shortest path, used by the new algorithms.
+- Services/TemplatePreviewPngWriter.cs:
+  - New LayoutZonesSpectral — embeds via the two smallest-nonzero eigenvectors of the graph Laplacian (per connected component).
+  - New LayoutZonesMds — classical MDS on the all-pairs shortest-path distance matrix (double-centred inner product, projected onto leading eigenvectors).
+  - New LayoutZonesHierarchical — minimum spanning tree over the graph, laid out as a radial tree (root at centre, children fanned by depth); multiple components become separate radial trees.
+  - Shared BuildDirectAdjacency (Direct connections only) + FitUnitToCanvas (normalise → canvas → overlap/fit pass) used by all three.
+  - ComputeLayout / Render / DrawPreview / LayoutZones overloads that thread an ImportLayoutAlgorithm through; for Random/Balanced the chosen algorithm still overrides the generator stamps when non-default. CorrectOverlapsAndFit coincidence-push now uses a deterministic per-pair direction so symmetric/stacked points fan out instead of drifting together, and re-enforces the minimum separation after the final fit-shrink.
+- ImageImportWindow.xaml(.cs): added a shared CmbLayout ComboBox (localised names, SelectedItem, Force default) shown in all import modes. On import the chosen algorithm is applied to the result via ApplyLayoutToResult, which stamps normalized [0,1]² GeneratorPosition hints (Y-flipped) onto every zone so the editor reproduces the exact layout through the existing pipeline.
+- Localization S.EI.Layout (+ .Force/.Spectral/.Mds/.Hierarchical) in RU/EN (Localization/Strings.cs).
+
+### Tests
+- 	ests/.../UnitTest1.cs new ImportLayoutAlgorithmTests (MemberData over all 4 algorithms): AllZonesPositioned, NoOverlappingZones (>=4px separation), IsDeterministic, and ConnectedCloserThanUnconnected (restricted to the connection-aware local embeddings Force/Hierarchical, since Spectral/MDS preserve global distances, not local edge lengths).
+
+### Verified
+- spider.h3t (24 zones / 32 connections) lays out under all four algorithms with no dangling endpoints; build 0 errors; full test suite 88/88 pass.
+
+### Notes / bug fixes found while implementing
+- MDS double-centring had grand summed inside the i,j loop (n^4 blow-up) → all points collapsed; moved to a single pre-pass.
+- CorrectOverlapsAndFit shrink step could crush separated zones back together; added a post-shrink re-enforcement pass.
+
+## 2026-07-18 - Import-time layout: Centrality algorithm, ComboBox contrast, spectral crash fix
+
+### User request
+- Add a combined-centrality placement algorithm (PageRank + betweenness) for imported templates and wire it into the layout selector; lighten the import-window ComboBox for readability; fix a Spectral-method crash on multi-component templates.
+
+### Added
+- Models/Generator/ImportLayoutAlgorithm.cs: new enum value `Centrality`.
+- Services/TemplatePreviewPngWriter.cs:
+  - LayoutZonesCentrality — computes PageRank (power iteration, damping 0.85) + Brandes betweenness, combines and normalises both, places zones in concentric rings by combined-centrality tier (most central near centre) with angular spread by node degree.
+  - Wired `Centrality` into the LayoutZones switch; added S.EI.Layout.Centrality RU/EN in Localization/Strings.cs.
+  - ImageImportWindow.xaml.cs LayoutKeys now includes Centrality; ComboBox binding unchanged (SelectedItem).
+- ImageImportWindow.xaml: CmbLayout lightened — Background="#EDEDF2", Foreground="#000000"; label Foreground="#CCC" for readability on the dark background.
+
+### Fixed (spectral crash — root cause)
+- LinearAlgebra.JacobiEigen eigenvector ordering: eigenvectors are now stored column-major as `vecs[eigenRank][node]` = eigenvector #order[rank] at node. LayoutZonesSpectral previously read `vecs[node][col]` (row/column scramble) which produced degenerate / NaN coordinates on some templates and crashed the WPF preview. Fixed to read `vecs[xRank][a]` / `vecs[yRank][a]`. Added an AreParallel guard plus degeneracy fallbacks (m==2 / collinear → synthesise a perpendicular 2nd axis; non-finite → fallback) and a FitUnitToCanvas guard that routes any non-finite/zero-span result to the Force-Directed layout so the renderer never receives NaN/Infinity.
+- LayoutZonesSpectral `local` index array was sized `m` (component count) but indexed by global zone indices (which can exceed m for later components, e.g. a second size-2 component with global indices ≥2) → IndexOutOfRange on templates like twoPairs. Sized it to `n` (global zone count) instead.
+
+### Tests
+- ImportLayoutAlgorithmTests.AllAlgorithms now built from Enum.GetValues so Centrality is auto-included.
+- Added DegenerateTemplates member data (chain / star / twoPairs / edge / complete K5) driving Spectral_NoNonFiniteCoordinates and Centrality_NoNonFiniteCoordinates, asserting every produced coordinate is finite (catches the index-out-of-range / eigenvector-scramble failures).
+
+### Verified
+- dotnet build (PublishTrimmed=false) 0 errors; dotnet test 101/101 pass (was 100 — +1 from auto-included Centrality in AllAlgorithms).
+
+## 2026-07-18 - Network-logic layout, persisted algorithm, editor grid controls
+
+### User request
+- Add a "Сетевая логика" (Network logic) import-time zone-layout algorithm.
+- Make the selected layout algorithm persist across import-window close/reopen.
+- In the main editor, move the "Snap to grid" button below the "Hotkeys" button.
+- Add a control to resize the canvas grid visualization (zoom the grid).
+
+### Added — Network logic algorithm
+- Models/Generator/ImportLayoutAlgorithm.cs: new enum value `Network`.
+- Services/TemplatePreviewPngWriter.cs: new LayoutZonesNetwork — layered radial flow. Picks the highest-degree hub (ties broken by neighbours' degrees) as the centre, BFS-layers the rest into concentric rings; within a ring, nodes are ordered by local cluster strength (sum of neighbours' degrees) so tightly-coupled sub-networks stay grouped. Per connected component becomes its own cluster placed on a meta-circle. Routes through the LayoutZones switch (case Network) and reuses BuildDirectAdjacency + FitUnitToCanvas.
+- Localization: S.EI.Layout.Network (RU "Сетевая логика" / EN "Network logic") in Strings.cs; wired into ImageImportWindow.LayoutKeys.
+
+### Added — persisted algorithm
+- Services/GameData/AppSettings.cs: new `ImportLayout` string property (JSON "importLayout", default "Force").
+- ImageImportWindow.xaml.cs: ImageImportWindow_Loaded restores the last choice via ParseLayout (unknown value → Force); CmbLayout_SelectionChanged and BtnImport_Click persist the choice through SaveLayoutChoice → AppSettings.Current.ImportLayout. BtnClose (cancel) does not persist.
+
+### Changed — main editor (TemplateEditorWindow)
+- Grid snap button (BtnGridSnap) repositioned from floating-bottom to top-left, directly below the "Горячие клавиши" (Hotkeys) button (Margin 12,58).
+- Grid visualization is now resizable: GridSize const → instance field `_gridSize` (20–200 px, step 10). Snap (SnapToGrid / SnapAllPositionsToGrid) now honours `_gridSize` so snapping tracks the drawn grid. Two toolbar buttons "Сетка +"/"Сетка −" (BtnGridBigger / BtnGridSmaller) adjust it and call RebuildGraph(); a TxtGridSize label shows the current cell size (S.EC.GridHint). DrawGrid now tiles at `_gridSize`.
+- Localization: S.EC.GridBigger / S.EC.GridSmaller / S.EC.GridHint (RU/EN).
+
+### Verified
+- dotnet build (PublishTrimmed=false) 0 errors; dotnet test 104/104 pass (AllAlgorithms theory now auto-includes Network; the two NoNonFinite theory cases also cover Network).
+
+## 2026-07-18 - Fix: crash on "Создать пул" (open ContentPoolCreatorWindow)
+
+### Root cause (two XAML errors in ContentPoolCreatorWindow.xaml)
+- `AvailableLists` ListBox set BOTH `DisplayMemberPath="Name"` and an `ItemTemplate` → WPF throws `InvalidOperationException: Cannot set both DisplayMemberPath and ItemTemplate`.
+- The DataGrid columns referenced `StaticResource DataGridCellStyle`, but DataGrid columns are not in the visual tree, so `StaticResource` cannot resolve the merged theme dictionary at load → `XamlParseException`. The style had to be referenced via `DynamicResource` (resolved at runtime against Application.Resources).
+
+### Fixed
+- ContentPoolCreatorWindow.xaml: removed `DisplayMemberPath="Name"` from AvailableLists (ItemTemplate already binds `Name`).
+- Themes/MedievalTheme.xaml: added the missing `DataGridCellStyle` style (TextBlock, BrushText, 11px, wrap).
+- ContentPoolCreatorWindow.xaml: changed the two column `ElementStyle` references from `StaticResource` to `DynamicResource DataGridCellStyle`.
+
+### Verified
+- Added a temporary STA repro test that instantiates + shows the window; it now opens without throwing. Full suite 104/104 pass; build 0 errors.
+
+## 2026-07-18 - ContentPoolCreatorWindow: white/black styling + button layout
+
+### User request
+- In "Создать новый пул" window make the available-list and the in-pool table white background with black text.
+- Move "Add all" above "Remove all".
+- Put Add/Remove as a horizontal pair (add left, remove right) ABOVE "Add all"; change their icons to + and −.
+
+### Changed (ContentPoolCreatorWindow.xaml)
+- AvailableLists ListBox: Background="White", Foreground="Black"; item TextBlock Foreground="Black".
+- SelectedLists DataGrid: Background="White", Foreground="Black"; cells use a new local BlackCellText style, headers use new BlackHeaderText style (both defined in Window.Resources).
+- Button StackPanel reordered: [ + | − ] (horizontal, Add left / Remove right) → AddAll → RemoveAll. The single add/remove buttons now show "+" and "−" (were ">" / "<").
+
+## 2026-07-18 - Inspector gating + pool serialization schema
+
+### User request
+- Connection / NearZone fields must appear ONLY after Placement is set (already fixed for the primary MainObject; extend the same gating to additionally-added MainObjects).
+- Created custom pools must serialize to the real GameData schema: one group per selected list, group `weight` = the weight written for that list at creation, `includeLists` = the list name, plus a hardcoded `valueDistribution` block.
+
+### Fixed — MainObject argument gating (TemplateEditorWindow.xaml.cs)
+- `RebuildMainObjectEditor`: extracted the placement-visibility logic into a local `UpdatePlacementVisibility(string? sel)` (sets placeArgsPanel / connArgsPanel / nearZonePanel + auto-assigns Connection args). `placeCombo.SelectionChanged` now delegates to it. `UpdateFieldVisibility` no longer force-uncollapses `connArgsPanel`/`nearZonePanel` (it only toggles the Placement section group by type, then calls `UpdatePlacementVisibility(mo.Placement)`), so Connection/NearZone stay collapsed until Placement = "Connection"/"NearZone".
+- `RebuildAdditionalMainObjectsList`: applied the SAME fix (was the identical bug — its inner `UpdateFieldVisibility` did `foreach (field in placementFields) Visible`, force-showing Connection/NearZone). Now gates via `UpdatePlacementVisibility` using `placementFields` list indices (avoids capturing panels declared later in the method; the owner-combo handler runs before those declarations).
+
+### Added — pool serialization (Models/GamePoolData.cs, TemplateEditorWindow.xaml.cs)
+- Added `ValueDistribution` model class (`PriceBounds`, `Weights`) and `GamePool.ValueDistribution` property (was missing — created pools dropped the block).
+- `CreatePool_Click` caller now builds ONE `PoolGroup` PER selected list: `Weight = <that list's weight at creation>`, `IncludeLists = [list name]` (previously a single group with `Content` item-sids). The pool also gets the hardcoded `ValueDistribution` `{ priceBounds:[3999,6999,12999,15999], weights:[6,8,10,6,0] }`.
+- `SaveCustomPools` now serializes with `PropertyNamingPolicy = CamelCase` so on-disk JSON matches the real schema (name / groups / includeLists / valueDistribution / priceBounds / weights). Loader is already case-insensitive, so reload still binds.
+
+### Tests
+- New `CreatedGamePoolSerializationTests.CreatedPool_Serializes_ExpectedSchema`: builds a pool in the new shape, round-trips it (camelCase serialize + case-insensitive deserialize) and asserts name, valueDistribution (priceBounds + weights), per-group weight + includeLists, and that the JSON contains `valueDistribution`/`includeLists`.
+
+### Verified
+- dotnet build (PublishTrimmed=false) 0 errors; dotnet test 105/105 pass.
+
+## 2026-07-18 — Localization/help cleanup + connection-properties hotkeys
+
+### User request
+- Change `S.Ed.Help` localization value to "Справка".
+- Inside the help window remove both texts "Визуальный редактор зон" and "графовый редактор шаблонов...".
+- For the "Копировать свойства связи" button add a default hotkey `ctrl+shift+Z`.
+- For the "Вставить свойство" button add a default hotkey `ctrl+Z`.
+- Add both buttons to the editable hotkeys.
+- Add a hint inside both buttons on the bottom edge (hotkey label).
+
+### Changed
+- `Localization/Strings.cs`: `S.Ed.Help` → "Справка" (RU) / "Help" (EN). Added `S.EC.CopyConnProps`, `S.EC.PasteConnProps`, `S.EC.SelectConnFirst`, `S.EC.NothingCopied` (RU+EN).
+- `EditorHelpWindow.xaml`: removed the title TextBlock ("▎Визуальный редактор зон") and the subtitle TextBlock ("Графовый редактор шаблонов RMG ...").
+- `TemplateEditorWindow.xaml.cs`:
+  - `GetDefaultHotkeys`: added `["CopyConnectionProps"]="Ctrl+Shift+Z"` and `["PasteConnectionProps"]="Ctrl+Z"`; freed `Ctrl+Z` from `CopyConnections` (now `""`) to avoid a clash.
+  - `Window_KeyDown` switch: added `case "CopyConnectionProps"` and `case "PasteConnectionProps"`.
+  - Refactored the inspector copy/paste buttons (`_selected is Connection`) to call new `CopyConnectionProps()` / `PasteConnectionProps()` methods; button content is now built via `MakeHotkeyButtonContent(label, action)` which shows a bottom-edge hotkey hint. `CopyConnectionProps` refreshes the inspector so the Paste button enables immediately.
+- `Services/ConfigJson.cs`: `Hotkeys` default map gained `CopyConnectionProps`/`PasteConnectionProps`; `CopyConnections` default set to `""`.
+- `HotkeySettingsWindow.xaml.cs`: both new actions added to the editable hotkey list (labels `L("S.EC.CopyConnProps")` / `L("S.EC.PasteConnProps")`, defaults `Ctrl+Shift+Z` / `Ctrl+Z`).
+- `tests/.../UnitTest1.cs`: the STA `Editor_SingleUniformMainObject_GetsRoadToConnection` test now loads `Themes/MedievalTheme.xaml` into `Application.Current.Resources` before constructing `TemplateEditorWindow` (the window's XAML references `BrushPanel` etc., which are only defined in the app theme).
+
+### Verified
+- dotnet build (PublishTrimmed=false) 0 errors; dotnet test 107/107 pass.
+
+## 2026-07-18 - Add visible "Справка" (help) button in zone editor + duplicate in main window
+
+### User request
+- In the visual zone editor the help (справка) button was not visible — add it next to the "−" (zoom-out) button.
+- Add a duplicate of that help button in the main window (MainWindow).
+
+### Added
+- `TemplateEditorWindow.xaml`: added `BtnHelp` (Content="?", ToolTip `S.Ed.Help`) to the right-aligned toolbar, placed immediately next to `BtnZoomOut` ("−") before `BtnRelayout`. The `BtnHelp_Click` handler (opens `EditorHelpWindow`) already existed in code-behind but had no matching XAML button, so it was never reachable.
+- `MainWindow.xaml`: added `BtnMainHelp` ("?") in the header file-actions stack, before the language buttons.
+- `MainWindow.xaml.cs`: added `BtnMainHelp_Click` handler that opens `new EditorHelpWindow()`.
+- `Localization/Strings.cs`: added `S.Ed.Help` = "Справка по редактору зон" (RU) / "Zone editor help" (EN).
+
+### Verified
+- dotnet build (PublishTrimmed=false) 0 errors.
+
+## 2026-07-18 - Roads reach every MainObject on road-flagged connections (h3t import + editor)
+
+### User request
+- On h3t import, roads were NOT created for a MainObject if it was Uniform and the zone was connected by a road-flagged connection.
+- Also: in the editor, a road set on a connection before the MainObject existed would never produce a road to the MainObject.
+- Fix BOTH paths, connect ALL MainObjects (not just MainObject[0]), and relax the `Count <= 1` guard (Variant A: skip only empty zones).
+
+### Changed — H3TParser.cs (h3t import)
+- `AddRoadToZone` (`:924`) rewritten: for the given road connection it now adds a `MainObject[i] → Connection[connectionName]` road for EVERY MainObject in the zone (new `AddRoadToZoneMainObject` + `RoadExists` helpers), instead of only `MainObject[0]` for castle zones. Castle-less zones additionally keep the engine `Connection → Connection` star (via `BuildCastleLessRoad`) unchanged. This makes Uniform / Center / Connection / any-placed MOs all get a road reaching them — previously castle-less Uniform zones emitted only `Connection→Connection` and never referenced the MainObject.
+
+### Changed — TemplateEditorWindow.xaml.cs (in-editor)
+- `RebuildConnectionRoads` guard `:3242` changed from `MainObjects.Count <= 1` to `== 0` (Variant A): empty zones are still skipped, but a zone with exactly 1 MainObject now proceeds (fixes "set road first, add MainObject later" — road now appears).
+- Added **Part C2** after Part C: for each road connection incident to the zone (`conn.Road == true` and `conn.From/To == zone.Name`) and for EACH MainObject index `i` whose `Placement != "Connection"` (Connection-placed MOs are still handled by the existing per-MO loop), calls `AddUniqueRoad(zone, "MainObject", [i], "Connection", [conn.Name])`. Mirrors the h3t parser so a Uniform MainObject gets a road to the connection.
+
+### Changed — AssemblyInfo.cs
+- `InternalsVisibleTo` corrected from `"Olden Era - Template Editor.Tests"` (spaces) to `"OldenEraTemplateEditor.Tests"` (actual test assembly name, no spaces) so the internal `RebuildGraph()` is reachable from the test project.
+
+### Tests — UnitTest1.cs (new class `RoadToMainObjectTests`)
+- `H3T_CastleLessZone_ConnectsAllUniformMainObjectsToRoad`: synthetic .h3t with a castle-less zone holding 3 Uniform `Spawn` MOs + a `Road=+` connection → asserts `Zone.Roads` contains `MainObject[0|1|2] → Connection` (all three). Uses a local `H3TParser_AutoGenerateRoads` helper that mirrors the (private) parser auto-generation via the public API.
+- `Editor_SingleUniformMainObject_GetsRoadToConnection`: builds a template (1 Uniform MainObject + incident `Road=true` connection), constructs `TemplateEditorWindow` on an STA thread, calls internal `RebuildGraph()`, asserts a `MainObject[0] → Connection` road exists (covers the `== 0` guard + connect-all branch).
+
+### Verified
+- dotnet build (PublishTrimmed=false) 0 errors; dotnet test 105/105 pass (2 new).
+
+## 2026-07-18 - Auto-generated roads must set Road.Type = "Stone"
+
+### User request
+- For auto-generated roads the `From` endpoint auto-fills `Args=["0"]` but its `Type` shows `?` (null); it should be `Stone`. So every generated `Road` must carry `Type = "Stone"` (the engine's road type) instead of leaving it null.
+
+### Changed
+- `Services/H3TParser.cs`: added `Type = "Stone"` to all three `new Road` sites — `AddRoadToZoneMainObject` (`MainObject[i]→Connection`, `:965`), and both branches of `BuildCastleLessRoad` (`Connection→Connection` self-loop `:997` and star spoke `:1011`). Previously only the editor set `Type="Stone"`, so h3t-imported roads serialized without a `type` field.
+- `TemplateEditorWindow.xaml.cs`: added `Type = "Stone"` to both `new Road` branches of the editor's `BuildCastleLessRoad` (`public static`, `:3430` and `:3444`) so castle-less in-editor roads also carry the type. (The editor's `AddUniqueRoad` at `:3410` already set it.)
+- `tests/.../UnitTest1.cs`: the `H3TParser_AutoGenerateRoads` mirror helper's `AddRoadToZoneMainObject` now sets `Type = "Stone"` too, matching the parser.
+
+### Verified
+- dotnet build (PublishTrimmed=false) 0 errors; dotnet test 105/105 pass.

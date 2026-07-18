@@ -1,7 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
+using Xunit;
 using OldenEraTemplateEditor.Models;
 using Olden_Era___Template_Editor;
 using Olden_Era___Template_Editor.Localization;
@@ -916,5 +919,77 @@ public class GameContentCatalogTests
         var template = TemplateGenerator.Generate(settings);
         Assert.NotNull(template.MandatoryContent);
         Assert.NotEmpty(template.MandatoryContent);
+    }
+}
+
+public class EditorHelpWindowTests
+{
+    [Fact]
+    public void EditorHelpWindow_OpensWithoutCrash()
+    {
+        Exception? caught = null;
+        var sta = new Thread(() =>
+        {
+            try
+            {
+                if (System.Windows.Application.Current is null)
+                {
+                    var app = new System.Windows.Application();
+                    app.DispatcherUnhandledException += (s, e) =>
+                    {
+                        caught ??= e.Exception;
+                        e.Handled = true;
+                    };
+                    var dir = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory);
+                    for (int i = 0; i < 8 && dir != null && !File.Exists(
+                             Path.Combine(dir.FullName, "Olden Era - Template Editor", "Themes", "MedievalTheme.xaml")); i++)
+                        dir = dir.Parent;
+                    var themePath = Path.Combine(
+                        dir!.FullName, "Olden Era - Template Editor", "Themes", "MedievalTheme.xaml");
+                    var rd = new System.Windows.ResourceDictionary
+                    {
+                        Source = new Uri(themePath, UriKind.Absolute),
+                    };
+                    app.Resources.MergedDictionaries.Add(rd);
+                }
+                var w = new EditorHelpWindow();
+                w.Show();
+                // Expand every Expander (incl. "Словарик") to reproduce the crash on toggle.
+                var expanders = w.FindVisualChildren<System.Windows.Controls.Expander>();
+                foreach (var exp in expanders)
+                {
+                    exp.IsExpanded = true;
+                    System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(
+                        System.Windows.Threading.DispatcherPriority.Background, new Action(() => { }));
+                }
+                Thread.Sleep(200);
+                w.Close();
+            }
+            catch (Exception ex) { caught = ex; }
+        });
+        sta.SetApartmentState(ApartmentState.STA);
+        sta.Start();
+        sta.Join();
+        if (caught != null)
+            Assert.Fail($"EditorHelpWindow crashed on expand: {caught.GetType()}: {caught.Message}\n{caught.StackTrace}");
+        Assert.Null(caught);
+    }
+}
+
+// Small helper to walk the visual tree (file-scoped namespace above).
+internal static class VisualTreeHelperEx
+{
+    public static IEnumerable<T> FindVisualChildren<T>(this System.Windows.DependencyObject parent)
+        where T : System.Windows.DependencyObject
+    {
+        if (parent == null) yield break;
+        int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+            if (child is T t) yield return t;
+            foreach (var desc in child.FindVisualChildren<T>())
+                yield return desc;
+        }
     }
 }

@@ -45,6 +45,9 @@ namespace Olden_Era___Template_Editor
                         Connection = connection,
                         FromZoneName = connection.From,
                         ToZoneName = connection.To,
+                        TypeName = connection.ConnectionType ?? "default",
+                        GuardValue = connection.GuardValue?.ToString() ?? "",
+                        RoadFlag = connection.Road == true ? "🛤" : "",
                         DisplayText = connection.Name ?? $"({connection.From} → {connection.To})",
                         IsModified = false
                     });

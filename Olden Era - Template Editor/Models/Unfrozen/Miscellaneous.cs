@@ -13,6 +13,11 @@ namespace OldenEraTemplateEditor.Models
 
         [JsonPropertyName("guardValue")]
         public int? GuardValue { get; set; }
+
+        // NOTE: "value" (object-value redistribution) has no equivalent in the game's
+        // valueOverrides schema, so it is intentionally NOT serialized. The field exists
+        // only for the (currently inactive) UI; it is never written to .rmg.json.
+        public int? Value { get; set; }
     }
 
     public class GlobalBans

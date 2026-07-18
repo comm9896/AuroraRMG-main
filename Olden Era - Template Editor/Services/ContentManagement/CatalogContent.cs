@@ -141,6 +141,36 @@ public static class CatalogContent
         return false;
     }
 
+    /// <summary>Resolves a specific mandatoryContent pool name (e.g. <c>mandatory_content_spawns</c>)
+    /// directly, searching across ALL cataloged game templates. Used by
+    /// <see cref="TemplateGenerator.NormalizeForExport"/> to fill a template's top-level
+    /// mandatoryContent block for any pool its zones reference.</summary>
+    public static bool TryGetMcByName(string name, out MandatoryContentGroup? group)
+    {
+        foreach (var entry in GameContentCatalog.Templates.Values)
+        {
+            var found = entry.mandatoryContent?.FirstOrDefault(g => string.Equals(g.Name, name, StringComparison.Ordinal));
+            if (found != null) { group = Clone(found); return true; }
+        }
+        group = null;
+        return false;
+    }
+
+    /// <summary>Cross-template resolver for a specific contentCountLimits pool name
+    /// (e.g. <c>content_limits_spawns</c>). Searches every cataloged game template, since the
+    /// engine does not resolve the pool itself and the importing template may reference a pool
+    /// defined in any of the shipped templates. See <see cref="TryGetMcByName"/>.</summary>
+    public static bool TryGetClByName(string name, out ContentCountLimit? group)
+    {
+        foreach (var entry in GameContentCatalog.Templates.Values)
+        {
+            var found = entry.contentCountLimits?.FirstOrDefault(g => string.Equals(g.Name, name, StringComparison.Ordinal));
+            if (found != null) { group = Clone(found); return true; }
+        }
+        group = null;
+        return false;
+    }
+
     private static string? FirstMc(string role)
     {
         if (!McCandidates.TryGetValue(role, out var cands)) return null;

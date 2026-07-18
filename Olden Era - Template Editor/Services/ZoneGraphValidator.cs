@@ -48,6 +48,52 @@ namespace Olden_Era___Template_Editor.Services
                         issues.Add(L("S.V.Isolated", z.Name));
             }
 
+            // Player spawn checks (Player1..Player8 chain)
+            var spawnIssues = ValidateSpawns(zones);
+            issues.AddRange(spawnIssues);
+
+            return issues;
+        }
+
+        /// <summary>
+        /// Validates the player spawn chain across all zones:
+        /// 1) at least one MainObject must have a Spawn of Player1..Player8;
+        /// 2) the present spawns must form a contiguous chain (Player1, Player2, …)
+        ///    without skipping any intermediate player.
+        /// Returns an empty list when the template is valid.
+        /// </summary>
+        public static List<string> ValidateSpawns(IReadOnlyList<Zone> zones)
+        {
+            var issues = new List<string>();
+
+            var present = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            foreach (var z in zones)
+            {
+                if (z?.MainObjects == null) continue;
+                foreach (var mo in z.MainObjects)
+                    if (!string.IsNullOrEmpty(mo.Spawn) &&
+                        System.Array.IndexOf(KnownValues.SpawnPlayers, mo.Spawn) >= 0)
+                        present.Add(mo.Spawn);
+            }
+
+            if (present.Count == 0)
+            {
+                issues.Add(L("S.EC.NoSpawn"));
+                return issues;
+            }
+
+            // Check for gaps in the chain: every player between Player1 and the highest
+            // present player must also be present.
+            int maxIdx = -1;
+            foreach (var p in present)
+                maxIdx = System.Math.Max(maxIdx, System.Array.IndexOf(KnownValues.SpawnPlayers, p));
+            for (int i = 0; i <= maxIdx; i++)
+            {
+                var expected = KnownValues.SpawnPlayers[i];
+                if (!present.Contains(expected))
+                    issues.Add(L("S.EC.SpawnGap", expected));
+            }
+
             return issues;
         }
     }

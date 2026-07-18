@@ -39,7 +39,7 @@
 
             <TextBlock x:Name="TxtSourceInfo" Grid.Row="3" Grid.ColumnSpan="3"
                        Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"
-                       Text="Между зонами должны быть хотя бы 1 связь"/>
+                       Text="{DynamicResource S.CC.ConnRequired}"/>
         </Grid>
 
         <!-- Step 2: Target zones -->
@@ -71,7 +71,7 @@
 
             <Border Grid.Row="5" Grid.ColumnSpan="3" Background="#0E0B16" CornerRadius="3" Padding="8">
                 <TextBlock x:Name="TxtPreview" Foreground="#AAA" FontSize="11" TextWrapping="Wrap"
-                           Text="Выберите 2 зоны для копирования связей"/>
+                           Text="{DynamicResource S.CC.PickZones}"/>
             </Border>
         </Grid>
 

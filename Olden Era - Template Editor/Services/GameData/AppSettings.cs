@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Olden_Era___Template_Editor.Models;
 
 namespace Olden_Era___Template_Editor.Services.GameData
 {
@@ -37,6 +38,12 @@ namespace Olden_Era___Template_Editor.Services.GameData
         /// <summary>Per-action hotkey bindings (action name → "Ctrl+Key" string). Empty = defaults.</summary>
         [JsonPropertyName("hotkeys")]
         public Dictionary<string, string> Hotkeys { get; set; } = new();
+
+        /// <summary>Last-selected import-time zone-layout algorithm (persisted across runs
+        /// so the import window re-opens with the same choice). Stored as the enum name
+        /// (e.g. "Force"); an unknown value falls back to Force.</summary>
+        [JsonPropertyName("importLayout")]
+        public string ImportLayout { get; set; } = nameof(ImportLayoutAlgorithm.Force);
 
         // ── Singleton-ish access ────────────────────────────────────────────────
         private static AppSettings? _current;

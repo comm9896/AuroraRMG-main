@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource S.EI.Title}" Height="600" Width="800"
         WindowStartupLocation="CenterOwner"
+        Loaded="ImageImportWindow_Loaded"
         Background="#1E1A2B" UseLayoutRounding="True">
     <Grid>
         <Grid.RowDefinitions>
@@ -52,7 +53,7 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <TextBlock x:Name="RmgFileInfo" Grid.Row="0"
-                                   Text="Выберите .rmg.json файл шаблона" Foreground="#888" FontSize="12"/>
+                                   Text="{DynamicResource S.EI.SelectRmg}" Foreground="#888" FontSize="12"/>
                         <Border Grid.Row="2" Background="#0E0B16" CornerRadius="3"
                                 Padding="8">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -88,7 +89,7 @@
                         </Grid.RowDefinitions>
 
                         <!-- Detected zones (stretches to fill all remaining space) -->
-                        <TextBlock Grid.Row="0" Text="Обнаруженные зоны:" Foreground="#C8A857"
+                        <TextBlock Grid.Row="0" Text="{DynamicResource S.EI.DetectedZones}" Foreground="#C8A857"
                                    FontWeight="SemiBold" FontSize="11" Margin="0,0,0,4"/>
                         <Border Grid.Row="1" Background="#0E0B16" CornerRadius="3" Padding="8">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -98,7 +99,7 @@
                         </Border>
 
                         <!-- Detected connections (fills remaining space) -->
-                        <TextBlock Grid.Row="2" Text="Обнаруженные связи:" Foreground="#C8A857"
+                        <TextBlock Grid.Row="2" Text="{DynamicResource S.EI.DetectedConns}" Foreground="#C8A857"
                                    FontWeight="SemiBold" FontSize="11" Margin="0,0,0,4"/>
                         <Border Grid.Row="3" Background="#0E0B16" CornerRadius="3" Padding="8">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -113,9 +114,16 @@
             <!-- Right panel: controls (switches by mode) -->
             <StackPanel Grid.Column="2" VerticalAlignment="Top">
 
+                <!-- Layout algorithm selector (shared across all import modes) -->
+                <TextBlock Text="{DynamicResource S.EI.Layout}" Foreground="#CCC" FontSize="11"
+                           Margin="0,0,0,4"/>
+                <ComboBox x:Name="CmbLayout" Background="#EDEDF2" Foreground="#000000"
+                          BorderBrush="#2A2540" FontSize="11" Margin="0,0,0,10"
+                          SelectionChanged="CmbLayout_SelectionChanged"/>
+
                 <!-- .rmg.json controls -->
                 <StackPanel x:Name="RmgControls">
-                    <Button x:Name="BtnSelectRmg" Content="📁 Выбрать .rmg.json"
+                    <Button x:Name="BtnSelectRmg" Content="{DynamicResource S.EI.SelectRmg}"
                             Background="#4A7040" Foreground="#D0D0D0" BorderThickness="0"
                             Padding="16,8" FontSize="12" Cursor="Hand" Margin="0,0,0,8"
                             Click="BtnSelectRmg_Click"/>
@@ -140,7 +148,7 @@
 
                 <!-- H3T mode controls -->
                 <StackPanel x:Name="H3TControls" Visibility="Collapsed">
-                    <Button x:Name="BtnSelectH3T" Content="📁 Выбрать .h3t файл"
+                    <Button x:Name="BtnSelectH3T" Content="{DynamicResource S.EI.SelectH3T}"
                             Background="#4A7040" Foreground="#D0D0D0" BorderThickness="0"
                             Padding="16,8" FontSize="12" Cursor="Hand" Margin="0,0,0,8"
                             Click="BtnSelectH3T_Click"/>

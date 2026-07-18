@@ -3,7 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource S.Upd.001}"
         Width="440" Height="220"
-        Icon="pack://application:,,,/favicon.ico"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         WindowStyle="None"
@@ -28,7 +27,7 @@
             <!-- Title bar -->
             <Grid Grid.Row="0" Background="#12151D">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
-                    <Image Source="pack://application:,,,/favicon.ico" Width="16" Height="16"
+                    <Image Width="16" Height="16"
                            Margin="0,0,8,0" VerticalAlignment="Center"
                            RenderOptions.BitmapScalingMode="HighQuality"/>
                     <TextBlock Text="{DynamicResource S.Upd.001}"

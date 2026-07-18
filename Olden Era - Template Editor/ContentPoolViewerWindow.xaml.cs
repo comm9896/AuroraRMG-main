@@ -122,7 +122,7 @@ namespace Olden_Era___Template_Editor
             var name = poolName.ToLowerInvariant();
             return category switch
             {
-                "Guarded" => name.Contains("guarded"),
+                "Guarded" => name.Contains("guarded") && !name.Contains("unguarded"),
                 "Unguarded" => name.Contains("unguarded"),
                 "Resources" => name.Contains("resources"),
                 "Random" => name.Contains("random"),
@@ -366,6 +366,6 @@ namespace Olden_Era___Template_Editor
 
         // ── Localisation helper ──
         private static string L(string key, params object[] args)
-            => string.Format(Olden_Era___Template_Editor.Services.Localization.LocalizationManager.T(key), args);
+            => Olden_Era___Template_Editor.Services.Localization.LocalizationManager.T(key, args);
     }
 }

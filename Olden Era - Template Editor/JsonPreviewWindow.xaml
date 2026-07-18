@@ -3,6 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource S.Ed.JP.Title}" Height="650" Width="800"
         WindowStartupLocation="CenterOwner"
+        WindowState="Maximized"
+        ResizeMode="CanResize"
         Background="#1E1A2B" UseLayoutRounding="True"
         Loaded="Window_Loaded">
     <Grid>

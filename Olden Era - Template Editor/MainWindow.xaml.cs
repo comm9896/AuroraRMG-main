@@ -12,6 +12,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 
 namespace Olden_Era___Template_Editor
 {
@@ -157,6 +159,8 @@ namespace Olden_Era___Template_Editor
 
             CmbGameMode.ItemsSource = KnownValues.GameModes;
             CmbGameMode.SelectedIndex = 0;
+            CmbGameModeEdit.ItemsSource = KnownValues.GameModes;
+            CmbGameModeEdit.SelectedIndex = 0;
             RefreshMapSizeOptions(160);
             RefreshLocalizedLists();      // fills the option combos in the current language
             CmbVictory.SelectedIndex = 0; // Classic (win_condition_1)
@@ -552,12 +556,12 @@ namespace Olden_Era___Template_Editor
             if (BtnMaximize == null) return;
             if (WindowState == WindowState.Maximized)
             {
-                BtnMaximize.Content = "??";
+                BtnMaximize.Content = "🗗"; // restore
                 BtnMaximize.ToolTip = L.Get("S.CB.Restore");
             }
             else
             {
-                BtnMaximize.Content = "??";
+                BtnMaximize.Content = "🗖"; // maximize
                 BtnMaximize.ToolTip = L.Get("S.CB.Maximize");
             }
         }
@@ -930,30 +934,149 @@ namespace Olden_Era___Template_Editor
         private int HeroLightingDayValue() =>
             int.TryParse(TxtHeroLightingDay?.Text, out int d) ? Math.Clamp(d, 1, 30) : 1;
 
-        private void BansOverrides_TextChanged(object sender, TextChangedEventArgs e)
+        // ── Value overrides (guard + object-value, chip UI) ──────────────────────
+
+        private void BtnAddGuardOverride_Click(object sender, RoutedEventArgs e)
         {
-            if (!IsInitialized) return;
+            var existing = _valueOverrides
+                .Where(o => o.GuardValue.HasValue)
+                .Select(o => o.Sid)
+                .ToHashSet();
+            var picker = new ValueOverridePickerWindow(existing, ValueOverridePickerWindow.PickMode.Guard) { Owner = this };
+            if (picker.ShowDialog() != true) return;
+            foreach (var line in picker.ResultLines)
+            {
+                var eq = line.IndexOf('=');
+                if (eq <= 0) continue;
+                var sid = line[..eq].Trim();
+                var rhs = line[(eq + 1)..].Trim();
+                if (!int.TryParse(rhs, out int gv)) continue;
+                UpsertValueOverride(sid, guard: gv);
+            }
+            RebuildValueOverrideChips();
             MarkDirty();
         }
 
-        private void BtnPickValueOverride_Click(object sender, RoutedEventArgs e)
+        private void BtnAddValueOverride_Click(object sender, RoutedEventArgs e)
         {
-            // Collect SIDs already in the text box so the picker hides them
-            var existing = TxtValueOverrides.Text
-                .Split('\n')
-                .Select(l => { var eq = l.IndexOf('='); return eq > 0 ? l[..eq].Trim() : ""; })
-                .Where(s => s.Length > 0)
+            var existing = _valueOverrides
+                .Where(o => o.Value.HasValue)
+                .Select(o => o.Sid)
                 .ToHashSet();
-
-            var picker = new ValueOverridePickerWindow(existing) { Owner = this };
-            if (picker.ShowDialog() == true && picker.ResultLines.Count > 0)
+            var picker = new ValueOverridePickerWindow(existing, ValueOverridePickerWindow.PickMode.Value) { Owner = this };
+            if (picker.ShowDialog() != true) return;
+            foreach (var line in picker.ResultLines)
             {
-                var current = TxtValueOverrides.Text.TrimEnd('\r', '\n');
-                var appended = string.Join("\n", picker.ResultLines);
-                TxtValueOverrides.Text = string.IsNullOrEmpty(current)
-                    ? appended
-                    : current + "\n" + appended;
-                MarkDirty();
+                var eq = line.IndexOf('=');
+                if (eq <= 0) continue;
+                var sid = line[..eq].Trim();
+                var comma = line.IndexOf(',', eq + 1);
+                if (comma < 0) continue;
+                var vStr = line[(comma + 1)..].Trim();
+                if (!int.TryParse(vStr, out int vv)) continue;
+                UpsertValueOverride(sid, value: vv);
+            }
+            RebuildValueOverrideChips();
+            MarkDirty();
+        }
+
+        /// <summary>Merges a guard/value into the existing entry for <paramref name="sid"/>,
+        /// or adds a new entry. An entry is dropped when both fields become null.</summary>
+        private void UpsertValueOverride(string sid, int? guard = null, int? value = null)
+        {
+            var entry = _valueOverrides.FirstOrDefault(o => o.Sid == sid);
+            if (entry is null)
+            {
+                _valueOverrides.Add(new ValueOverride { Sid = sid, Variant = -1, GuardValue = guard, Value = value });
+                return;
+            }
+            if (guard.HasValue) entry.GuardValue = guard;
+            if (value.HasValue) entry.Value = value;
+            if (!entry.GuardValue.HasValue && !entry.Value.HasValue)
+                _valueOverrides.Remove(entry);
+        }
+
+        private void RemoveGuardOverride(string sid)
+        {
+            var entry = _valueOverrides.FirstOrDefault(o => o.Sid == sid);
+            if (entry is null) return;
+            entry.GuardValue = null;
+            if (!entry.Value.HasValue) _valueOverrides.Remove(entry);
+            RebuildValueOverrideChips();
+            MarkDirty();
+        }
+
+        private void RemoveValueOverride(string sid)
+        {
+            var entry = _valueOverrides.FirstOrDefault(o => o.Sid == sid);
+            if (entry is null) return;
+            entry.Value = null;
+            if (!entry.GuardValue.HasValue) _valueOverrides.Remove(entry);
+            RebuildValueOverrideChips();
+            MarkDirty();
+        }
+
+        private static System.Windows.Controls.Border MakeOverrideChip(string sid, string? detail, string? valueText, RoutedEventHandler onRemove)
+        {
+            var chip = new System.Windows.Controls.Border
+            {
+                Background = (Brush)Application.Current.FindResource("BrushInput"),
+                BorderBrush = (Application.Current.FindResource("BrushBorder") as Brush) ?? Brushes.Gray,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(6, 2, 2, 2),
+                Margin = new Thickness(0, 0, 4, 4),
+            };
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var label = string.IsNullOrEmpty(detail) ? sid : $"{detail} ({sid})";
+            if (!string.IsNullOrEmpty(valueText)) label += $" = {valueText}";
+            var txt = new TextBlock
+            {
+                Text = label,
+                FontSize = 10,
+                Foreground = (Application.Current.FindResource("BrushText") as Brush) ?? Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 4, 0),
+            };
+            Grid.SetColumn(txt, 0);
+            var btn = new Button
+            {
+                Content = "✕",
+                FontSize = 9,
+                Padding = new Thickness(4, 0, 4, 0),
+                MinWidth = 18,
+                MinHeight = 18,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Foreground = (Application.Current.FindResource("BrushTextDim") as Brush) ?? Brushes.Gray,
+                Cursor = Cursors.Hand,
+            };
+            btn.Click += onRemove;
+            Grid.SetColumn(btn, 1);
+            grid.Children.Add(txt);
+            grid.Children.Add(btn);
+            chip.Child = grid;
+            return chip;
+        }
+
+        private void RebuildValueOverrideChips()
+        {
+            var resolver = Services.GameData.ObjectNameResolver.Instance;
+            GuardOverrideChips.Children.Clear();
+            ValueOverrideChips.Children.Clear();
+            foreach (var o in _valueOverrides.Where(x => x.GuardValue.HasValue))
+            {
+                var sid = o.Sid;
+                GuardOverrideChips.Children.Add(MakeOverrideChip(sid, resolver.Resolve(sid),
+                    o.GuardValue?.ToString(), (_, _) => RemoveGuardOverride(sid)));
+            }
+            foreach (var o in _valueOverrides.Where(x => x.Value.HasValue))
+            {
+                var sid = o.Sid;
+                ValueOverrideChips.Children.Add(MakeOverrideChip(sid, resolver.Resolve(sid),
+                    o.Value?.ToString(), (_, _) => RemoveValueOverride(sid)));
             }
         }
 
@@ -1300,10 +1423,10 @@ namespace Olden_Era___Template_Editor
             Validate();
         }
 
-        private void ChkSingleHeroMode_Changed(object sender, RoutedEventArgs e)
+        /// <summary>Applies/removes the single-hero-mode UI lock: hero-count sliders + textboxes are
+        /// disabled (and forced to 1/1/0), "Lost start hero" and "Hero hire ban" are forced on and disabled.</summary>
+        private void ApplySingleHeroLock(bool single)
         {
-            if (!IsInitialized) return;
-            bool single = ChkSingleHeroMode.IsChecked == true;
             SldHeroMin.IsEnabled = !single;
             SldHeroMax.IsEnabled = !single;
             SldHeroIncrement.IsEnabled = !single;
@@ -1312,17 +1435,43 @@ namespace Olden_Era___Template_Editor
             TxtHeroIncrement.IsEnabled = !single;
             if (single)
             {
+                SldHeroMin.Value = 1;
+                SldHeroMax.Value = 1;
+                SldHeroIncrement.Value = 0;
                 TxtHeroMin.Text = "1";
                 TxtHeroMax.Text = "1";
-                TxtHeroIncrement.Text = "1";
+                TxtHeroIncrement.Text = "0";
                 ChkLostStartHero.IsChecked = true;
+                ChkLostStartHero.IsEnabled = false;
+                // Single-hero mode forbids hiring additional heroes.
+                ChkHeroHireBan.IsChecked = true;
+                ChkHeroHireBan.IsEnabled = false;
+            }
+            else
+            {
+                ChkLostStartHero.IsEnabled = true;
+                ChkHeroHireBan.IsEnabled = true;
+            }
+        }
+
+        private void ChkSingleHeroMode_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!IsInitialized) return;
+            bool single = ChkSingleHeroMode.IsChecked == true;
+            ApplySingleHeroLock(single);
+            if (single)
+            {
+                UpdateValueLabels();
             }
             else
             {
                 UpdateValueLabels();
                 // Restore the checkbox to unchecked unless a win condition forces it
-                ChkLostStartHero.IsChecked = false;
-                UpdateWinConditionDetailVisibility();
+                if (ChkSingleHeroMode.IsEnabled)
+                {
+                    ChkLostStartHero.IsChecked = false;
+                    UpdateWinConditionDetailVisibility();
+                }
             }
             MarkDirty();
             Validate();
@@ -1905,7 +2054,7 @@ namespace Olden_Era___Template_Editor
             BannedItems        = string.Join("\n", _bannedItems.Select(e => e.Id)),
             BannedMagics       = string.Join("\n", _bannedMagics.Select(e => e.Id)),
             BannedHeroes       = string.Join("\n", _bannedHeroes.Select(e => e.Id)),
-            ValueOverridesText = TxtValueOverrides.Text,
+            ValueOverridesText = TemplateGenerator.ValueOverridesToText(_valueOverrides),
             BonusesJson        = string.Join("\n", _bonuses.Select(b => b.ToString())),
             // New format: save UI rows verbatim so Count and row identity are preserved.
             PlayerZoneContentRows      = BuildZoneContentRows(_playerZoneMandatoryContent),
@@ -2013,7 +2162,8 @@ namespace Olden_Era___Template_Editor
             LoadBanList(_bannedMagics, s.BannedMagics,  MagicEntryFromId);
             LoadBanList(_bannedHeroes, s.BannedHeroes,  HeroEntryFromId);
             LoadBonusList(s.BonusesJson);
-            TxtValueOverrides.Text = s.ValueOverridesText;
+            _valueOverrides = TemplateGenerator.BuildValueOverrides(s.ValueOverridesText) ?? [];
+            RebuildValueOverrideChips();
             ApplyZoneContentRows(_playerZoneMandatoryContent,  s.PlayerZoneContentRows,    InitializeDefaultPlayerZoneContents);
             ApplyZoneContentRows(_lowNeutralMandatoryContent,  s.LowNeutralContentRows,    InitializeDefaultLowNeutralContents);
             ApplyZoneContentRows(_mediumNeutralMandatoryContent, s.MediumNeutralContentRows, InitializeDefaultMediumNeutralContents);
@@ -2049,18 +2199,34 @@ namespace Olden_Era___Template_Editor
             var result = MessageBox.Show(L.Get("S.D.ResetConfirm"), L.Get("S.D.ResetTitle"),
                                          MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (result != MessageBoxResult.Yes) return;
+            ResetGeneratorToDefaults();
+        }
 
+        /// <summary>Resets the generator to the state as if the application was just launched: default
+        /// settings for the active view, no loaded/imported template, and a cleared preview/analysis.</summary>
+        private void ResetGeneratorToDefaults()
+        {
             // Simple Mode has its own controls (the Advanced ApplySettings does not touch them),
             // so the reset must be routed to whichever view is currently shown.
             if (SimpleView != null && SimpleView.Visibility == Visibility.Visible)
-            {
                 ResetSimpleToDefaults();
-                return;
-            }
+            else
+                ApplySettings(new SettingsFile());
 
-            ApplySettings(new SettingsFile());
             _currentSettingsPath = null;
             _isDirty = false;
+
+            // Clear any generated template / preview / analysis so the UI matches a fresh start.
+            _generatedTemplate = null;
+            _generatedTopology = default;
+            _templateOutdated = false;
+            ImgPreview.Source = null;
+            BtnSaveGenerated.Visibility = Visibility.Collapsed;
+            lblNoPreview.Content = null;
+            UpdateBalanceReport();
+            UpdateOutdatedWarning();
+
+            if (_editMode) ExitEditMode();
             UpdateTitle();
         }
 
@@ -2140,7 +2306,28 @@ namespace Olden_Era___Template_Editor
         private MapTopology  _generatedTopology;
         private bool _templateOutdated = false;
 
+        // Edit-mode state: when a template is imported or generated, the main window lets the
+        // user tweak only the unlocked "basic settings" instead of regenerating the whole map.
+        private RmgTemplate? _editingTemplate;
+        private string?      _editingTemplatePath;
+        private bool         _editMode = false;
+
+        // Single source of truth for both value-override fields (guard + object value).
+        // Entries may carry GuardValue and/or Value; the same SID is never stored twice.
+        private List<ValueOverride> _valueOverrides = [];
+
         private void BtnPreview_Click(object sender, RoutedEventArgs e)
+        {
+            // In edit mode this button becomes "Изменить базовые настройки"; otherwise it is
+            // the normal "Создать шаблон" generate action (also reused by "пересоздать шаблон").
+            if (_editMode)
+                EditBasicSettings();
+            else
+                GenerateTemplate();
+        }
+
+        /// <summary>Generates a full template from the current UI settings and shows a preview.</summary>
+        private void GenerateTemplate()
         {
             if (!Validate()) return;
             var settings = BuildSettings();
@@ -2153,6 +2340,9 @@ namespace Olden_Era___Template_Editor
             UpdateBalanceReport();
             UpdateOutdatedWarning();
             Validate(); // refresh warnings now that template is up to date
+
+            // Generating also enters "edit basic settings" mode so the user can refine metadata+rules.
+            EnterEditMode(_generatedTemplate!, _editingTemplatePath);
         }
 
         private void BtnOpenEditor_Click(object sender, RoutedEventArgs e)
@@ -2160,7 +2350,305 @@ namespace Olden_Era___Template_Editor
             // Open the just-generated template if there is one; otherwise an empty editor
             // where the user can load a .rmg.json directly.
             var editor = new TemplateEditorWindow(_generatedTemplate, _generatedTopology);
+            // When the user imports a .rmg.json inside the zone editor, re-import it into the
+            // main window in edit mode so the same restriction logic (ApplyTemplateToUi +
+            // SetLockedExtras) is applied as for a direct main-window import.
+            editor.TemplateImported += OnZoneEditorTemplateImported;
             editor.Show();
+        }
+
+        private void BtnMainHelp_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new EditorHelpWindow();
+            dlg.Show();
+        }
+
+        private void OnZoneEditorTemplateImported(RmgTemplate loaded)
+        {
+            // Mirror a main-window import: enter edit mode and apply the same restrictions.
+            EnterEditMode(loaded, path: null);
+        }
+
+        // -- Edit basic settings (imported / generated template) ------------------
+
+        /// <summary>Resets the generator to a fresh-launch state (default settings, no loaded template,
+        /// cleared preview/analysis). Only available in edit mode.</summary>
+        private void BtnRecreate_Click(object sender, RoutedEventArgs e) => ResetGeneratorToDefaults();
+
+        private void BtnImportTemplate_Click(object sender, RoutedEventArgs e)
+        {
+            // Mirror the visual editor's "загрузить .rmg.json" button: use the shared ImageImportWindow
+            // so importing a .rmg.json (and also an image / .h3t) behaves identically.
+            var dlg = new ImageImportWindow { Owner = this };
+            if (dlg.ShowDialog() == true && dlg.Result != null)
+            {
+                EnterEditMode(dlg.Result, path: null);
+            }
+        }
+
+        private void EnterEditMode(RmgTemplate template, string? path)
+        {
+            _editingTemplate = template;
+            _editingTemplatePath = path;
+            _editMode = true;
+            ApplyTemplateToUi(template);
+            // The imported/generated template can't reconstruct its real topology, so render with
+            // the default one just to show the canvas/analysis in the preview area.
+            _generatedTemplate = template;
+            _generatedTopology = default;
+            try { ImgPreview.Source = TemplatePreviewPngWriter.Render(template, _generatedTopology); } catch { }
+            UpdateBalanceReport();
+            UpdateOutdatedWarning(); // enable the "сохранить .rmg.json" button after import too
+            SetEditModeUi(true);
+        }
+
+        private void ExitEditMode()
+        {
+            _editMode = false;
+            _editingTemplate = null;
+            _editingTemplatePath = null;
+            SetEditModeUi(false);
+        }
+
+        /// <summary>Toggles UI locking for edit mode: hides the locked tabs/controls and swaps the
+        /// generate button for "Изменить базовые настройки" plus the "пересоздать шаблон" button.</summary>
+        private void SetEditModeUi(bool edit)
+        {
+            TabMapZones.Visibility    = edit ? Visibility.Collapsed : Visibility.Visible;
+            TabExtraContent.Visibility = edit ? Visibility.Collapsed : Visibility.Visible;
+            LblPlayers.Visibility = SldPlayers.Visibility = TxtPlayers.Visibility = edit ? Visibility.Collapsed : Visibility.Visible;
+            LblMapView.Visibility = CmbMapView.Visibility = edit ? Visibility.Collapsed : Visibility.Visible;
+            BtnRecreate.Visibility = edit ? Visibility.Visible : Visibility.Collapsed;
+
+            // In edit mode the dedicated "save editing template" button duplicates the
+            // .rmg.json save; the generated-template save button is hidden to avoid ambiguity.
+            if (BtnSaveEditing != null)
+                BtnSaveEditing.Visibility = edit ? Visibility.Visible : Visibility.Collapsed;
+            if (BtnSaveGenerated != null)
+                BtnSaveGenerated.Visibility = edit ? Visibility.Collapsed : Visibility.Visible;
+
+            SetLockedExtras(edit);
+
+            if (edit && (MainTabs.SelectedItem == TabMapZones || MainTabs.SelectedItem == TabExtraContent))
+                MainTabs.SelectedIndex = 0; // back to "Правила карты"
+
+            BtnPreview.Content = L.Get(edit ? "S.Btn.EditBasic" : "S.Btn.Generate");
+        }
+
+        /// <summary>After creating/importing a template, hides environment+encounters, the neutral-join
+        /// chance, and locks the "lost start city" / "capture neutral city" win-condition flags.</summary>
+        private void SetLockedExtras(bool locked)
+        {
+            if (PnlEnvironment != null) PnlEnvironment.Visibility = locked ? Visibility.Collapsed : Visibility.Visible;
+            if (PnlDiplomacy != null) PnlDiplomacy.Visibility = locked ? Visibility.Collapsed : Visibility.Visible;
+            if (ChkLostStartCity != null) ChkLostStartCity.IsEnabled = !locked;
+            if (ChkCityHold != null) ChkCityHold.IsEnabled = !locked;
+        }
+
+        /// <summary>Patches only the metadata + game rules of the loaded template from the current UI
+        /// (the unlocked "basic settings"), leaving zones/content/variants untouched, then saves.</summary>
+        private void EditBasicSettings()
+        {
+            if (_editingTemplate == null) return;
+            // Only replace the in-memory metadata/rules from the edited basic settings.
+            // No file save — the user saves explicitly via the save command.
+            PatchMetadataAndRules(_editingTemplate, BuildSettings());
+            // Keep the preview in sync with the edited template.
+            _generatedTemplate = _editingTemplate;
+            try { ImgPreview.Source = TemplatePreviewPngWriter.Render(_generatedTemplate, _generatedTopology); } catch { }
+
+            // Show "✓ изменено" notification above the button for 5 seconds
+            ShowEditNotification();
+        }
+
+        private System.Windows.Threading.DispatcherTimer? _notifyTimer;
+
+        private void ShowEditNotification()
+        {
+            if (TxtEditNotify == null) return;
+            TxtEditNotify.Visibility = Visibility.Visible;
+            _notifyTimer?.Stop();
+            _notifyTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(5),
+                IsEnabled = false,
+            };
+            _notifyTimer.Tick += (_, _) =>
+            {
+                TxtEditNotify.Visibility = Visibility.Collapsed;
+                _notifyTimer?.Stop();
+            };
+            _notifyTimer.Start();
+        }
+
+        private void PatchMetadataAndRules(RmgTemplate target, GeneratorSettings settings)
+        {
+            var gr = TemplateGenerator.BuildGameRules(settings);
+            // Bonuses are not round-tripped through the UI; preserve the imported ones.
+            gr.Bonuses = target.GameRules?.Bonuses;
+
+            target.Name = settings.TemplateName;
+            target.GameMode = settings.SingleHeroMode ? "SingleHero" : settings.GameMode;
+            target.Description = TxtTemplateDescription.Text.Trim();
+            target.DisplayWinCondition = settings.GameEndConditions.VictoryCondition;
+            // Map size is stored on the template top-level (SizeX/SizeZ), not inside GameRules,
+            // so it must be written explicitly or an edit silently keeps the old size.
+            target.SizeX = settings.MapSize;
+            target.SizeZ = settings.MapSize;
+            // Preserve the legacy top-level tournamentRules flag (BuildGameRules does not set it).
+            gr.TournamentRules = settings.TournamentRules.Enabled;
+            target.GameRules = gr;
+            target.ValueOverrides = TemplateGenerator.BuildValueOverrides(settings.ValueOverridesText);
+            target.GlobalBans = TemplateGenerator.BuildGlobalBans(settings.BannedItems, settings.BannedMagics, settings.BannedHeroes);
+        }
+
+        private void BtnSaveEditing_Click(object sender, RoutedEventArgs e) => SaveEditingTemplate();
+
+        private void SaveEditingTemplate()
+        {
+            if (_editingTemplate == null) return;
+            if (string.IsNullOrEmpty(_editingTemplatePath))
+            {
+                SaveEditingTemplateAs();
+                return;
+            }
+            try
+            {
+                System.IO.File.WriteAllText(_editingTemplatePath, TemplateGenerator.StripAndNormalizeForSave(_editingTemplate, JsonOptions));
+
+                // Always emit a PNG preview sidecar next to the .rmg.json with the same base name.
+                try
+                {
+                    TemplatePreviewPngWriter.Save(_editingTemplate, TemplatePreviewPngWriter.GetSidecarPath(_editingTemplatePath), MapTopology.Default);
+                }
+                catch { /* preview sidecar is best-effort */ }
+            }
+            catch (System.Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Не удалось сохранить шаблон:\n{ex.Message}",
+                    L.Get("S.Btn.EditBasic"), MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void SaveEditingTemplateAs()
+        {
+            if (_editingTemplate == null) return;
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "Шаблоны RMG (*.rmg.json)|*.rmg.json",
+                DefaultExt = ".rmg.json",
+                FileName = string.IsNullOrWhiteSpace(_editingTemplate.Name) ? "template" : _editingTemplate.Name,
+            };
+            if (dlg.ShowDialog() != true) return;
+            _editingTemplatePath = dlg.FileName;
+            SaveEditingTemplate();
+        }
+
+        /// <summary>Populates the unlocked (editable) controls from a loaded template so the user can
+        /// tweak the basic settings. Locked tabs (zones / content) are intentionally left untouched.</summary>
+        private void ApplyTemplateToUi(RmgTemplate t)
+        {
+            TxtTemplateName.Text = t.Name ?? "";
+            TxtTemplateDescription.Text = t.Description ?? "";
+
+            // Game mode
+            int gmIdx = -1;
+            if (!string.IsNullOrEmpty(t.GameMode) && CmbGameModeEdit.ItemsSource is System.Collections.Generic.IList<string> modes)
+                gmIdx = modes.IndexOf(t.GameMode);
+            CmbGameModeEdit.SelectedIndex = gmIdx >= 0 ? gmIdx : 0;
+            CmbGameMode.SelectedIndex = CmbGameModeEdit.SelectedIndex;
+
+            // Victory condition → Правила карты combo
+            int vicIdx = Array.IndexOf(KnownValues.VictoryConditionIds, t.DisplayWinCondition);
+            CmbVictory.SelectedIndex = vicIdx >= 0 ? vicIdx : 0;
+
+            var gr = t.GameRules;
+            if (gr != null)
+            {
+                bool single = t.GameMode == "SingleHero";
+                ChkSingleHeroMode.IsChecked = single;
+                if (single)
+                {
+                    // SingleHero forces min=max=1, increment=0 (matches TemplateGenerator.BuildGameRules).
+                    // Apply the same UI lock used by the checkbox handler.
+                    ApplySingleHeroLock(true);
+                    ChkSingleHeroMode.IsEnabled = false; // cannot turn single-hero mode off while the template is SingleHero
+                }
+                else
+                {
+                    SldHeroMax.Value = gr.HeroCountMax ?? 1;
+                    SldHeroIncrement.Value = gr.HeroCountIncrement ?? 0;
+                    SldHeroMin.Value = gr.HeroCountMin ?? 1;
+                }
+                ChkHeroHireBan.IsChecked = gr.HeroHireBan == true;
+
+                var wc = gr.WinConditions;
+                if (wc != null)
+                {
+                    ChkLostStartCity.IsChecked = wc.LostStartCity == true;
+                    SldLostStartCityDay.Value = Math.Clamp(wc.LostStartCityDay ?? 1, 1, 30);
+                    ChkLostStartHero.IsChecked = wc.LostStartHero == true;
+                    ChkCityHold.IsChecked = wc.CityHold == true;
+                    SldCityHoldDays.Value = Math.Clamp(wc.CityHoldDays ?? 1, 1, 30);
+                    ChkHeroLighting.IsChecked = wc.HeroLighting == true;
+                    TxtHeroLightingDay.Text = Math.Clamp(wc.HeroLightingDay ?? 1, 1, 30).ToString();
+                    TxtHeroLightingDay.IsEnabled = wc.HeroLighting == true;
+                    ChkGladiatorArena.IsChecked = wc.GladiatorArena == true;
+                    SldGladiatorDelay.Value = Math.Clamp(wc.GladiatorArenaDaysDelayStart ?? 1, 1, 60);
+                    SldGladiatorCountDay.Value = Math.Clamp(wc.GladiatorArenaCountDay ?? 1, 1, 30);
+                    ChkTournament.IsChecked = wc.Tournament == true;
+                    SldTournamentPointsToWin.Value = Math.Clamp(wc.TournamentPointsToWin ?? 1, 1, 10);
+                    int firstDay = wc.TournamentAnnounceDays != null && wc.TournamentAnnounceDays.Count > 0
+                        ? wc.TournamentAnnounceDays[0] + (wc.TournamentDays != null && wc.TournamentDays.Count > 0 ? wc.TournamentDays[0] : 0)
+                        : 1;
+                    SldTournamentFirstTournamentDay.Value = Math.Clamp(firstDay, 1, 60);
+                    int interval = wc.TournamentDays != null && wc.TournamentDays.Count > 0 ? wc.TournamentDays[0] + 1 : 3;
+                    SldTournamentInterval.Value = Math.Clamp(interval, 1, 30);
+                    ChkTournamentSaveArmy.IsChecked = wc.TournamentSaveArmy == true;
+                }
+
+                ChkEncounterHoles.IsChecked = gr.EncounterHoles == true;
+                if (gr.FactionLawsExpModifier.HasValue)
+                    SldFactionLawsExp.Value = Math.Clamp((int)Math.Round(gr.FactionLawsExpModifier.Value * 100), 20, 200);
+                if (gr.AstrologyExpModifier.HasValue)
+                    SldAstrologyExp.Value = Math.Clamp((int)Math.Round(gr.AstrologyExpModifier.Value * 100), 20, 200);
+            }
+
+            // Value overrides + global bans (round-trippable)
+            _valueOverrides = t.ValueOverrides == null
+                ? []
+                : t.ValueOverrides.Select(b => new ValueOverride
+                    {
+                        Sid = b.Sid,
+                        Variant = b.Variant,
+                        GuardValue = b.GuardValue,
+                        Value = b.Value,
+                    }).ToList();
+            RebuildValueOverrideChips();
+            LoadBanList(_bannedItems,  t.GlobalBans?.Items  == null ? "" : string.Join("\n", t.GlobalBans.Items),  ItemEntryFromId);
+            LoadBanList(_bannedMagics, t.GlobalBans?.Magics == null ? "" : string.Join("\n", t.GlobalBans.Magics), MagicEntryFromId);
+            LoadBanList(_bannedHeroes, t.GlobalBans?.Heroes == null ? "" : string.Join("\n", t.GlobalBans.Heroes), HeroEntryFromId);
+            // Bonuses are preserved (not round-tripped), so do not clear/repopulate them here.
+
+            UpdateWinConditionDetailVisibility();
+            UpdateValueLabels();
+        }
+
+        private void CmbGameModeEdit_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsInitialized) return;
+            // Mirror into the hidden advanced combo, then auto-engage single-hero mode + lock
+            // when the chosen mode is SingleHero.
+            if (CmbGameMode != null)
+                CmbGameMode.SelectedIndex = CmbGameModeEdit.SelectedIndex;
+            bool single = (CmbGameModeEdit.SelectedItem as string) == "SingleHero";
+            ChkSingleHeroMode.IsChecked = single;
+            ApplySingleHeroLock(single);
+            ChkSingleHeroMode.IsEnabled = !single; // cannot turn single-hero mode off while mode is SingleHero
+            UpdateWinConditionDetailVisibility();
+            MarkDirty();
+            Validate();
         }
 
         private void BtnLang_Click(object sender, RoutedEventArgs e)
@@ -2186,6 +2674,8 @@ namespace Olden_Era___Template_Editor
                 foreach (var item in grp.AllItems) item.RefreshDisplayName();
             BuildPresetMenu();          // submenu group names + preset display names
             RefreshBannedHeroNames();   // ban rows re-resolve names
+            Services.GameData.ObjectNameResolver.Instance.Reset();
+            RebuildValueOverrideChips();
             UpdateLanguageButtons();
             UpdateSimplePreviewToggle();   // Simple-mode preview toggle caption (code-set, re-localize here)
             if (TxtWipWarning != null) TxtWipWarning.Text = L.Get("S.CB.Wip");
@@ -2671,31 +3161,26 @@ namespace Olden_Era___Template_Editor
                 if (mismatchResult != MessageBoxResult.Yes) return;
             }
 
-            string json = JsonSerializer.Serialize(_generatedTemplate, JsonOptions);
+            string json = TemplateGenerator.StripAndNormalizeForSave(_generatedTemplate, JsonOptions);
             File.WriteAllText(dlg.FileName, json);
 
+            // Always emit a PNG preview sidecar next to the .rmg.json with the same base name.
             string previewPath = TemplatePreviewPngWriter.GetSidecarPath(dlg.FileName);
             string? previewError = null;
-            if (ChkSavePreviewImage.IsChecked == true)
+            try
             {
-                try
-                {
-                    TemplatePreviewPngWriter.Save(_generatedTemplate, previewPath, _generatedTopology);
-                }
-                catch (Exception ex)
-                {
-                    previewError = ex.Message;
-                }
+                TemplatePreviewPngWriter.Save(_generatedTemplate, previewPath, _generatedTopology);
+            }
+            catch (Exception ex)
+            {
+                previewError = ex.Message;
             }
 
             string savedMsg = L.Get("S.D.SavedMsg", dlg.FileName);
-            if (ChkSavePreviewImage.IsChecked == true)
-            {
-                if (previewError == null)
-                    savedMsg += L.Get("S.D.SavedPreview", previewPath);
-                else
-                    savedMsg += L.Get("S.D.SavedPreviewErr", previewError);
-            }
+            if (previewError == null)
+                savedMsg += L.Get("S.D.SavedPreview", previewPath);
+            else
+                savedMsg += L.Get("S.D.SavedPreviewErr", previewError);
             if (gameTemplatesPath == null)
                 savedMsg += L.Get("S.D.SavedHint");
 
@@ -2706,7 +3191,7 @@ namespace Olden_Era___Template_Editor
         {
             TemplateName = TxtTemplateName.Text.Trim(),
             BaseTemplate = CatalogContent.ResolveBaseTemplate(TxtTemplateName.Text.Trim()),
-            GameMode = CmbGameMode.SelectedItem as string ?? "Classic",
+            GameMode = (CmbGameModeEdit.SelectedItem as string) ?? (CmbGameMode.SelectedItem as string) ?? "Classic",
             SingleHeroMode = ChkSingleHeroMode.IsChecked == true,
             PlayerCount = (int)SldPlayers.Value,
             HeroSettings = new HeroSettings
@@ -2796,7 +3281,7 @@ namespace Olden_Era___Template_Editor
             BannedItems        = string.Join("\n", _bannedItems.Select(e => e.Id)),
             BannedMagics       = string.Join("\n", _bannedMagics.Select(e => e.Id)),
             BannedHeroes       = string.Join("\n", _bannedHeroes.Select(e => e.Id)),
-            ValueOverridesText = TxtValueOverrides.Text,
+            ValueOverridesText = TemplateGenerator.ValueOverridesToText(_valueOverrides),
             Bonuses            = [.. _bonuses],
         };
         
