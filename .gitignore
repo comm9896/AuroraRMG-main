@@ -566,4 +566,11 @@ README_changes_2.5-2.8.md
 README_fork.md
 AGENTS_changes.md
 AGENTS_changes.md
-
+docs/
+review-graph.bat
+build.ps1
+build.bat
+.windsurfrules
+.opencode.json
+scripts/
+tests/
